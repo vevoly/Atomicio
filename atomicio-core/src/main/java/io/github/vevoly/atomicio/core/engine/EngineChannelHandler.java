@@ -1,5 +1,7 @@
 package io.github.vevoly.atomicio.core.engine;
 
+import io.github.vevoly.atomicio.api.AtomicIOEventType;
+import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.netty.channel.ChannelHandlerContext;
@@ -31,8 +33,7 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
         // 1. 将 Netty Channel 封装成我们的 AtomicIOSession
         AtomicIOSession session = new NettySession(ctx.channel());
         // 2. 触发引擎的 CONNECT 事件
-
-        log.debug("Session CONNECTED -{}", session.getId());
+        engine.fireSessionEvent(AtomicIOEventType.CONNECT, session);
         super.channelActive(ctx);
     }
 
@@ -44,7 +45,14 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         AtomicIOSession session = new NettySession(ctx.channel());
-        log.debug("Session CONNECTED -{}", session.getId());
+        // 1. 获取并清理用户绑定关系
+        String userId = session.getAttribute("userId");
+        if (userId != null) {
+            DefaultAtomicIOEngine engine = (DefaultAtomicIOEngine) this.engine;
+            engine.unbindUserInternal(userId, session); // 调用引擎内部的清理方法
+        }
+        // 2. 触发引擎的 DISCONNECT 事件
+        engine.fireSessionEvent(AtomicIOEventType.DISCONNECT, session);
         super.channelActive(ctx);
     }
 
@@ -57,13 +65,12 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         AtomicIOSession session = new NettySession(ctx.channel());
-
-        // 这里的 msg 已经是解码后的 AtomicIOMessage 对象了（假设 Pipeline 中有解码器）
-        // AtomicIOMessage message = (AtomicIOMessage) msg;
-
-        // 触发引擎的 MESSAGE 事件 (下一步实现)
-        // engine.fireEvent(AtomicIOEventType.MESSAGE, session, message);
-        log.debug("Session MESSAGE -{} : {}", session.getId(), msg);
+        if (msg instanceof AtomicIOMessage) {
+            engine.fireMessageEvent(session, (AtomicIOMessage) msg);
+        } else {
+            log.warn("Received an unhandled message type: {} from session {}",
+                    msg.getClass().getName(), session.getId());
+        }
     }
 
     /**
@@ -74,14 +81,8 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        // 当发生异常时被调用
         AtomicIOSession session = new NettySession(ctx.channel());
-
-        // 触发引擎的 ERROR 事件 (下一步实现)
-        // engine.fireEvent(AtomicIOEventType.ERROR, session, cause);
-
-        log.error("Session EXCEPTION -{} : {}", session.getId(), cause.getMessage());
-        cause.printStackTrace();
+        engine.fireErrorEvent(session, cause);
         ctx.close();
     }
 

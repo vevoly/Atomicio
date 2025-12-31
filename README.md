@@ -171,3 +171,75 @@ public class GamePlayerMoveMessage implements AtomicIOMessage {
   * send(message): 向设备下发远程控制指令（如“开灯”）或请求数据。
   * setAttribute("deviceId", "SN-A1B2C3D4"): 在设备通过认证后，将它的唯一设备ID绑定到 Session 上。
   * session.setAttribute("deviceType", "TemperatureSensor"): 还可以存储设备的类型、固件版本等元数据，方便进行分类管理和消息推送。
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Engine
+    participant Your_Message_Listener as "你的 onMessage 监听器 (分发器)"
+    participant Your_Handlers as "你的 handleLogin 等方法"
+
+    Client->>Engine: 发送消息 (e.g., "1001:userA:mytoken")
+    Engine->>Engine: (解码成 TextMessage 对象)
+    Engine->>Your_Message_Listener: fireMessageEvent(session, message)
+    
+    Your_Message_Listener->>Your_Message_Listener: switch (message.getCommandId())
+    Note right of Your_Message_Listener: commandId is 1001, dispatching to handleLogin
+    
+    Your_Message_Listener->>Your_Handlers: handleLogin(session, message)
+    Your_Handlers->>Your_Handlers: (执行认证逻辑)
+    
+    Note right of Your_Handlers: 认证成功!
+    Your_Handlers->>Engine: engine.bindUser("userA", session)
+    
+    Engine->>Client: session.send(responseMessage)
+```
+Disruptor 业务模型
+```mermaid
+graph TD
+    subgraph "Netty I/O Threads (workerGroup)"
+        A[Client Connections] --> B(EngineChannelHandler);
+        B -- "1. 收到网络事件(Connect, Read, etc.)" --> C{创建 AtomicIOEvent 对象};
+        C -- "2. 极速发布事件 (纯内存操作)" --> D[Disruptor RingBuffer];
+    end
+
+    subgraph "High-Performance Buffer"
+        D -- "3. 事件在队列中等待" --> E(AtomicIOEvent);
+    end
+
+    subgraph "Dedicated Business Threads (Disruptor Consumers)"
+        F[AtomicIOEventHandler] -- "4. 消费事件 (阻塞等待)" --> E;
+        F -- "5. 执行真正的事件分发" --> G(DefaultAtomicIOEngine);
+        G -- "6. fireXxxEvent()" --> H{遍历 Listener 列表};
+        H -- "7. 执行业务逻辑" --> I[ onMessage 等回调];
+    end
+    
+    style B fill:#cde4ff,stroke:#333,stroke-width:2px
+    style F fill:#d5e8d4,stroke:#333,stroke-width:2px
+```
+```mermaid
+sequenceDiagram
+    participant Netty_IO_Thread
+    participant EngineChannelHandler
+    participant Disruptor_RingBuffer
+    participant Business_Thread
+    participant AtomicIOEventHandler
+    participant Engine
+    participant Your_Message_Listener
+
+    Netty_IO_Thread->>+EngineChannelHandler: channelRead(ByteBuf)
+    Note right of Netty_IO_Thread: 运行在 I/O 线程
+    EngineChannelHandler->>EngineChannelHandler: (解码成 AtomicIOMessage)
+    EngineChannelHandler->>Disruptor_RingBuffer: publishEvent(type, session, msg)
+    Note right of EngineChannelHandler: 极快地发布事件，然后返回
+    EngineChannelHandler-->>-Netty_IO_Thread: (I/O 线程被释放)
+
+    Business_Thread->>+AtomicIOEventHandler: onEvent(AtomicIOEvent)
+    Note right of Business_Thread: 运行在业务线程, <br> 阻塞等待 RingBuffer 中的事件
+    
+    AtomicIOEventHandler->>+Engine: engine.fireMessageEvent(session, msg)
+    Engine->>+Your_Message_Listener: listener.onEvent(session, msg)
+    Your_Message_Listener->>Your_Message_Listener: (执行数据库、RPC等耗时操作)
+    Your_Message_Listener-->>-Engine: (执行完毕)
+    Engine-->>-AtomicIOEventHandler: 
+    AtomicIOEventHandler-->>-Business_Thread: (等待下一个事件)
+```
