@@ -6,6 +6,7 @@ import com.lmax.disruptor.util.DaemonThreadFactory;
 import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
+import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.core.engine.AtomicIOEventHandler;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 
@@ -61,4 +62,21 @@ public class DisruptorManager {
         }
     }
 
+    /**
+     * 发布集群事件到 RingBuffer。
+     * 这个方法会被订阅线程调用。
+     * @param clusterMessage  收到的集群消息
+     */
+    public void publishClusterEvent(AtomicIOClusterMessage clusterMessage) {
+        if (ringBuffer == null) {
+            return;
+        }
+        long sequence = ringBuffer.next();
+        try {
+            AtomicIOEvent event = ringBuffer.get(sequence);
+            event.setClusterMessage(clusterMessage);
+        } finally {
+            ringBuffer.publish(sequence);
+        }
+    }
 }

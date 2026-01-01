@@ -1,9 +1,10 @@
 package io.github.vevoly.atomicio.example;
 
+import io.github.vevoly.atomicio.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
-import io.github.vevoly.atomicio.api.contract.AtomicIOCommand;
+import io.github.vevoly.atomicio.api.config.AtomicIOConfig;
 import io.github.vevoly.atomicio.api.message.TextMessage;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 
@@ -13,7 +14,7 @@ public class EngineLauncher {
 
     public static void main(String[] args) {
         // 1. 创建引擎实例
-        engine = new DefaultAtomicIOEngine(8888);
+        engine = new DefaultAtomicIOEngine(new AtomicIOConfig());
         // 2. 注册监听器
         engine.on(AtomicIOEventType.CONNECT, session -> {
             System.out.println("新连接建立: " + session.getId());

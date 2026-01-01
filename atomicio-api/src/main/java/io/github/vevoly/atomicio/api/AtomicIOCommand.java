@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.api.contract;
+package io.github.vevoly.atomicio.api;
 
 /**
  * Atomicio 协议指令定义

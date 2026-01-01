@@ -4,9 +4,14 @@ import io.github.vevoly.atomicio.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
+import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
+import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessageType;
+import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
+import io.github.vevoly.atomicio.api.config.AtomicIOConfig;
 import io.github.vevoly.atomicio.api.listeners.ErrorEventListener;
 import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
 import io.github.vevoly.atomicio.api.listeners.SessionEventListener;
+import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
 import io.github.vevoly.atomicio.core.protocol.TextMessageDecoder;
 import io.github.vevoly.atomicio.core.protocol.TextMessageEncoder;
@@ -41,7 +46,8 @@ import java.util.concurrent.Future;
 @Slf4j
 public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
-    private final int port;
+    private final AtomicIOConfig config;
+    private final AtomicIOClusterProvider clusterProvider;
 
     // Netty核心组件
     private EventLoopGroup bossGroup;
@@ -62,8 +68,18 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
     private final DisruptorManager disruptorManager = new DisruptorManager(); // Disruptor 管理器
 
-    public DefaultAtomicIOEngine(int port) {
-        this.port = port;
+    public DefaultAtomicIOEngine(AtomicIOConfig config) {
+        this.config = Objects.requireNonNull(config, "EngineConfig cannot be null");
+        if (config.getClusterConfig().isEnabled()) {
+            if ("redis".equalsIgnoreCase(config.getClusterConfig().getType())) {
+                this.clusterProvider = new RedisClusterProvider(config.getClusterConfig().getRedisUri());
+            } else {
+                // todo 支持其他集群通信方式
+                throw new IllegalArgumentException("Unsupported cluster type: " + config.getClusterConfig().getType());
+            }
+        } else {
+            this.clusterProvider = null;
+        }
     }
 
     @Override
@@ -76,6 +92,14 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         try {
             // 先启动 Disruptor
             disruptorManager.start(this);
+            // 启动订阅集群
+            if (this.clusterProvider != null) {
+                clusterProvider.start();
+            }
+            // 订阅消息，并将收到的消息发送到 Disruptor 队列
+            clusterProvider.subscribe(atomicIOClusterMessage -> {
+                disruptorManager.publishClusterEvent(atomicIOClusterMessage);
+            });
             // 启动 Netty 服务器
             ServerBootstrap bootstrap = new ServerBootstrap();
             bootstrap.group(bossGroup, workerGroup)
@@ -101,15 +125,15 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                             log.info("New channel initialized: {}", socketChannel.remoteAddress());
                         }
                     });
-            log.info("Atomicio Engine starting on port {}...", port);
+            log.info("Atomicio Engine starting on port {}...", config.getPort());
             // 绑定端口
-            serverChannelFuture = bootstrap.bind(port).sync();
+            serverChannelFuture = bootstrap.bind(config.getPort()).sync();
             serverChannelFuture.addListener(future -> {
                 if (future.isSuccess()) {
-                    log.info("Atomicio Engine started successfully on port {}.", port);
+                    log.info("Atomicio Engine started successfully on port {}.", config.getPort());
                     startFuture.complete(null);
                 } else {
-                    log.error("Failed to start Atomicio Engine on port {}. Cause: {}", port, future.cause());
+                    log.error("Failed to start Atomicio Engine on port {}. Cause: {}", config.getPort(), future.cause());
                     startFuture.completeExceptionally(future.cause());
                 }
             });
@@ -133,6 +157,9 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             workerGroup.shutdownGracefully().syncUninterruptibly();
         }
         disruptorManager.shutdown();
+        if (this.clusterProvider != null) {
+            clusterProvider.shutdown();
+        }
         log.info("Atomicio Engine shutdown gracefully.");
     }
 
@@ -184,19 +211,32 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
     @Override
     public void sendToUser(String userId, AtomicIOMessage message) {
+        boolean sentLocally = sendToUserLocally(userId, message);
+        if (!sentLocally && clusterProvider != null) {
+            AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
+            clusterMessage.setMessageType(AtomicIOClusterMessageType.SEND_TO_USER);
+            clusterMessage.setTarget(userId);
+            clusterMessage.setOriginalMessage(message);
+            clusterProvider.publish(clusterMessage);
+        }
+    }
+
+    /**
+     * 只在本地发送消息给用户
+     * 这个方法由集群消息处理器调用
+     * @param userId    用户 ID
+     * @param message   消息
+     */
+    boolean sendToUserLocally(String userId, AtomicIOMessage message) {
         Objects.requireNonNull(userId, "User ID cannot be null");
         Objects.requireNonNull(message, "Message cannot be null");
-
-        AtomicIOSession session = userIdToSessionMap.get(userId);
-        if (session != null && session.isActive()) {
-            session.send(message);
-            log.debug("Sent message {} to user {} (session {})", message.getCommandId(), userId, session.getId());
-        } else {
-            // 用户不在线或不在当前节点。
-            // 在集群模式下，这里需要发布到 Redis Pub/Sub。
-            log.warn("User {} is not online or not on this node. Message {} dropped locally.", userId, message.getCommandId());
-            // TODO: 集群模式下，这里将消息发布到 Redis
+        AtomicIOSession localSession = userIdToSessionMap.get(userId);
+        if (localSession != null && localSession.isActive()) {
+            localSession.send(message);
+            log.debug("Sent message from cluster to local user {}", userId);
+            return true;
         }
+        return false;
     }
 
     @Override
@@ -231,7 +271,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
         AtomicIOSession session = userIdToSessionMap.get(userId);
         if (session == null || !session.isActive()) {
-            // 如果用户不在线，就假设他已经离开了，或者不需要再次移除
+            // 如果用户不在线
             log.debug("User {} is not online, no need to leave group {} actively.", userId, groupId);
             return;
         }
@@ -257,6 +297,27 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
     @Override
     public void sendToGroup(String groupId, AtomicIOMessage message, String... excludeUserIds) {
+        sendToGroupLocally(groupId, message, excludeUserIds);
+        // 集群模式下，通知其他节点
+        if (clusterProvider != null) {
+            AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
+            clusterMessage.setMessageType(AtomicIOClusterMessageType.SEND_TO_GROUP);
+            clusterMessage.setTarget(groupId);
+            clusterMessage.setOriginalMessage(message);
+            if (excludeUserIds != null && excludeUserIds.length > 0) {
+                clusterMessage.setExcludeUserIds(Set.of(excludeUserIds));
+            }
+            clusterProvider.publish(clusterMessage);
+        }
+    }
+
+    /**
+     * 只在本地向群组发送消息
+     * @param groupId        群组 ID
+     * @param message        消息
+     * @param excludeUserIds 排除的用户 ID 列表
+     */
+    void sendToGroupLocally(String groupId, AtomicIOMessage message, String... excludeUserIds) {
         Objects.requireNonNull(groupId, "Group ID cannot be null");
         Objects.requireNonNull(message, "Message cannot be null");
 
@@ -265,8 +326,11 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             if (excludeUserIds != null && excludeUserIds.length > 0) {
                 // 如果有排除的用户，需要逐个发送，并跳过排除者
                 Set<String> excludeSet = Set.of(excludeUserIds);
+
+                // todo 优化点：维护一个 groupId -> Set<userId>的映射，joinGroup 和 leaveGroup 时更新。
+                //  allUserIdsInGroup.removeAll(excludeSet) 得到最终需要发送的 userId 列表
                 group.forEach(channel -> {
-                    AtomicIOSession session = new NettySession(channel); // 临时封装
+                    AtomicIOSession session = new NettySession(channel);
                     String userId = session.getAttribute("userId");
                     if (userId != null && !excludeSet.contains(userId)) {
                         session.send(message);
@@ -281,13 +345,25 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         } else {
             log.warn("Group {} is empty or does not exist. Message {} not sent.", groupId, message.getCommandId());
         }
-        // TODO: 集群模式下，这里将消息发布到 Redis
     }
 
     @Override
     public void broadcast(AtomicIOMessage message) {
-        Objects.requireNonNull(message, "Message cannot be null");
+        broadcastLocally(message);
+        // 集群模式下，通知其他节点
+        if (clusterProvider != null) {
+            AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
+            clusterMessage.setMessageType(AtomicIOClusterMessageType.BROADCAST);
+            clusterMessage.setOriginalMessage(message);
+            clusterProvider.publish(clusterMessage);
+        }
+    }
 
+    /**
+     * 本地广播
+     */
+    void broadcastLocally(AtomicIOMessage message) {
+        Objects.requireNonNull(message, "Message cannot be null");
         // 遍历所有在线的 Session 并发送
         userIdToSessionMap.values().forEach(session -> {
             if (session.isActive()) {
@@ -295,7 +371,6 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             }
         });
         log.info("Broadcast message {} to all {} online sessions.", message.getCommandId(), userIdToSessionMap.size());
-        // TODO: 集群模式下，这里将消息发布到 Redis
     }
 
     /**

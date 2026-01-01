@@ -1,0 +1,7 @@
+atomicio:
+  port: 8308
+  workerThreads: 4
+  cluster:
+    enabled: false
+    type: redis
+    redisUri: redis://localhost:6379

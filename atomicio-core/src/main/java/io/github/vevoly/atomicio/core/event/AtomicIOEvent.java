@@ -3,6 +3,7 @@ package io.github.vevoly.atomicio.core.event;
 import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
+import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
 import lombok.Data;
 
 /**
@@ -18,6 +19,7 @@ public class AtomicIOEvent {
     private AtomicIOSession session;
     private AtomicIOMessage message;
     private Throwable cause;
+    private AtomicIOClusterMessage clusterMessage;
 
     /**
      * 用于在处理完事件后清理对象，以便 Disruptor 复用。
@@ -27,5 +29,6 @@ public class AtomicIOEvent {
         this.session = null;
         this.message = null;
         this.cause = null;
+        this.clusterMessage = null;
     }
 }
