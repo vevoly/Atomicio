@@ -7,6 +7,7 @@ import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.listeners.ErrorEventListener;
 import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
 import io.github.vevoly.atomicio.api.listeners.SessionEventListener;
+import io.github.vevoly.atomicio.core.event.DisruptorManager;
 import io.github.vevoly.atomicio.core.protocol.TextMessageDecoder;
 import io.github.vevoly.atomicio.core.protocol.TextMessageEncoder;
 import io.github.vevoly.atomicio.core.session.NettySession;
@@ -59,6 +60,8 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     // 群组映射表
     private final Map<String, ChannelGroup> groups = new ConcurrentHashMap<>(); // Key: 组ID, Value: 组内的所有会话
 
+    private final DisruptorManager disruptorManager = new DisruptorManager(); // Disruptor 管理器
+
     public DefaultAtomicIOEngine(int port) {
         this.port = port;
     }
@@ -71,6 +74,8 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         workerGroup = new NioEventLoopGroup();          // 负责处理 I/O 操作
 
         try {
+            // 先启动 Disruptor
+            disruptorManager.start(this);
             // 启动 Netty 服务器
             ServerBootstrap bootstrap = new ServerBootstrap();
             bootstrap.group(bossGroup, workerGroup)
@@ -91,7 +96,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                             // 消息解码器 (Message Decoder):
                             pipeline.addLast("decoder", new TextMessageDecoder());
                             // 核心处理器，事件翻译
-                            socketChannel.pipeline().addLast(new EngineChannelHandler(DefaultAtomicIOEngine.this));
+                            socketChannel.pipeline().addLast(new EngineChannelHandler(disruptorManager));
 
                             log.info("New channel initialized: {}", socketChannel.remoteAddress());
                         }
@@ -127,6 +132,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         if (workerGroup != null) {
             workerGroup.shutdownGracefully().syncUninterruptibly();
         }
+        disruptorManager.shutdown();
         log.info("Atomicio Engine shutdown gracefully.");
     }
 

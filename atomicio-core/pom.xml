@@ -28,5 +28,9 @@
             <artifactId>logback-classic</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <groupId>com.lmax</groupId>
+            <artifactId>disruptor</artifactId>
+        </dependency>
     </dependencies>
 </project>
