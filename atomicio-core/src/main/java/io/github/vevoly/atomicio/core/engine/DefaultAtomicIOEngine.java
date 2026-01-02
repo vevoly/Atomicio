@@ -1,17 +1,13 @@
 package io.github.vevoly.atomicio.core.engine;
 
-import io.github.vevoly.atomicio.api.AtomicIOEngine;
-import io.github.vevoly.atomicio.api.AtomicIOEventType;
-import io.github.vevoly.atomicio.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.api.AtomicIOSession;
+import io.github.vevoly.atomicio.api.*;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
-import io.github.vevoly.atomicio.api.config.AtomicIOConfig;
+import io.github.vevoly.atomicio.api.config.AtomicIOEngineConfig;
 import io.github.vevoly.atomicio.api.listeners.ErrorEventListener;
 import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
 import io.github.vevoly.atomicio.api.listeners.SessionEventListener;
-import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
 import io.github.vevoly.atomicio.core.protocol.TextMessageDecoder;
 import io.github.vevoly.atomicio.core.protocol.TextMessageEncoder;
@@ -26,6 +22,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.SmartLifecycle;
+import reactor.util.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
@@ -35,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * AtomicIOEngine 的默认实现。
@@ -46,99 +45,66 @@ import java.util.concurrent.Future;
 @Slf4j
 public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
-    private final AtomicIOConfig config;
+    private final AtomicIOEngineConfig config;
     private final AtomicIOClusterProvider clusterProvider;
 
     // Netty核心组件
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private ChannelFuture serverChannelFuture;
+    private final DisruptorManager disruptorManager = new DisruptorManager(); // Disruptor 管理器
 
     // 存储监听器集合
     private final Map<AtomicIOEventType, List<SessionEventListener>> sessionListeners = new ConcurrentHashMap<>();
     private final List<MessageEventListener> messageListeners = new CopyOnWriteArrayList<>();
     private final List<ErrorEventListener> errorListeners = new CopyOnWriteArrayList<>();
 
-    // 用户映射表
+    // 映射表
     private final Map<String, AtomicIOSession> userIdToSessionMap = new ConcurrentHashMap<>(); // Key: 用户ID, Value: 对应的会话
     private final Map<String, String> sessionIdToUserIdMap = new ConcurrentHashMap<>(); // Key: 会话ID, Value: 对应的用户ID
-
-    // 群组映射表
     private final Map<String, ChannelGroup> groups = new ConcurrentHashMap<>(); // Key: 组ID, Value: 组内的所有会话
 
-    private final DisruptorManager disruptorManager = new DisruptorManager(); // Disruptor 管理器
+    // 线程安全的状态机
+    private final AtomicReference<AtomicIOLifeState> state = new AtomicReference<>(AtomicIOLifeState.NEW);
 
-    public DefaultAtomicIOEngine(AtomicIOConfig config) {
+    public DefaultAtomicIOEngine(AtomicIOEngineConfig config, @Nullable AtomicIOClusterProvider clusterProvider) {
         this.config = Objects.requireNonNull(config, "EngineConfig cannot be null");
-        if (config.getClusterConfig().isEnabled()) {
-            if ("redis".equalsIgnoreCase(config.getClusterConfig().getType())) {
-                this.clusterProvider = new RedisClusterProvider(config.getClusterConfig().getRedisUri());
-            } else {
-                // todo 支持其他集群通信方式
-                throw new IllegalArgumentException("Unsupported cluster type: " + config.getClusterConfig().getType());
-            }
-        } else {
-            this.clusterProvider = null;
-        }
+        this.clusterProvider = clusterProvider;
     }
 
+    /**
+     * 实现 AtomicIOEngine 接口方法
+     * @return
+     */
     @Override
     public Future<Void> start() {
         CompletableFuture<Void> startFuture = new CompletableFuture<>();
-        // 初始化 Netty 线程组
-        bossGroup = new NioEventLoopGroup(1);  // 负责接受连接
-        workerGroup = new NioEventLoopGroup();          // 负责处理 I/O 操作
+        if (!state.compareAndSet(AtomicIOLifeState.NEW, AtomicIOLifeState.STARTING)) {
+            log.warn("Engine cannot be started from state {}", state.get());
+            startFuture.completeExceptionally(new IllegalStateException("Engine is not in a startable state."));
+            return startFuture;
+        }
 
         try {
-            // 先启动 Disruptor
-            disruptorManager.start(this);
-            // 启动订阅集群
-            if (this.clusterProvider != null) {
-                clusterProvider.start();
-            }
-            // 订阅消息，并将收到的消息发送到 Disruptor 队列
-            clusterProvider.subscribe(atomicIOClusterMessage -> {
-                disruptorManager.publishClusterEvent(atomicIOClusterMessage);
-            });
-            // 启动 Netty 服务器
-            ServerBootstrap bootstrap = new ServerBootstrap();
-            bootstrap.group(bossGroup, workerGroup)
-                    .channel(NioServerSocketChannel.class)
-                    .option(ChannelOption.SO_BACKLOG, 1024)
-                    .childOption(ChannelOption.SO_KEEPALIVE, true)
-                    .childHandler(new ChannelInitializer<SocketChannel>() {
+            log.info("Atomicio Engine is starting...");
+            doStart();
+            state.set(AtomicIOLifeState.RUNNING);
+            log.info("Atomicio Engine started successfully.");
+            startFuture.complete(null);
 
-                        // 每当有一个新的连接被 bossGroup 接受后，就初始化这个新连接的 ChannelPipeline
-                        @Override
-                        protected void initChannel(SocketChannel socketChannel) throws Exception {
-                            // 定义 ChannelPipeline
-                            ChannelPipeline pipeline =socketChannel.pipeline();
-                            // 添加编码器，因为它只处理出站消息
-                            pipeline.addLast("encoder", new TextMessageEncoder());
-                            // 帧解码器 (Frame Decoder): 解决 TCP 粘包/半包问题。
-                            pipeline.addLast("frameDecoder", new LineBasedFrameDecoder(1024));
-                            // 消息解码器 (Message Decoder):
-                            pipeline.addLast("decoder", new TextMessageDecoder());
-                            // 核心处理器，事件翻译
-                            socketChannel.pipeline().addLast(new EngineChannelHandler(disruptorManager));
-
-                            log.info("New channel initialized: {}", socketChannel.remoteAddress());
-                        }
-                    });
-            log.info("Atomicio Engine starting on port {}...", config.getPort());
-            // 绑定端口
-            serverChannelFuture = bootstrap.bind(config.getPort()).sync();
-            serverChannelFuture.addListener(future -> {
-                if (future.isSuccess()) {
-                    log.info("Atomicio Engine started successfully on port {}.", config.getPort());
-                    startFuture.complete(null);
-                } else {
-                    log.error("Failed to start Atomicio Engine on port {}. Cause: {}", config.getPort(), future.cause());
-                    startFuture.completeExceptionally(future.cause());
-                }
-            });
+//            serverChannelFuture.addListener(future -> {
+//                if (future.isSuccess()) {
+//                    log.info("Atomicio Engine started successfully on port {}.", config.getPort());
+//                    startFuture.complete(null);
+//                } else {
+//                    log.error("Failed to start Atomicio Engine on port {}. Cause: {}", config.getPort(), future.cause());
+//                    startFuture.completeExceptionally(future.cause());
+//                }
+//            });
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            state.set(AtomicIOLifeState.SHUTDOWN);
+            doStop();
             startFuture.completeExceptionally(new RuntimeException("Engine start failed", e));
         }
         return startFuture;
@@ -146,7 +112,65 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
     @Override
     public void shutdown() {
+        doStop();
+    }
+
+    /**
+     * 核心启动逻辑，供 start() 和 LifecycleManager 调用。
+     * @throws InterruptedException 如果启动被中断
+     */
+    void doStart() throws InterruptedException {
+        // 初始化 Netty 线程组
+        bossGroup = new NioEventLoopGroup(config.getBossThreads());
+        workerGroup = new NioEventLoopGroup(config.getWorkerThreads());
+        // 启动 Disruptor
+        disruptorManager.start(this);
+        if (this.clusterProvider != null) { // 启动集群
+            clusterProvider.start();
+            // 订阅消息，并将收到的消息发送到 Disruptor 队列
+            clusterProvider.subscribe(atomicIOClusterMessage -> {
+                disruptorManager.publishClusterEvent(atomicIOClusterMessage);
+            });
+        }
+
+        // 启动 Netty 服务器
+        ServerBootstrap bootstrap = new ServerBootstrap();
+        bootstrap.group(bossGroup, workerGroup)
+                .channel(NioServerSocketChannel.class)
+                .option(ChannelOption.SO_BACKLOG, 1024)
+                .childOption(ChannelOption.SO_KEEPALIVE, true)
+                .childHandler(new ChannelInitializer<SocketChannel>() {
+                    // 每当有一个新的连接被 bossGroup 接受后，就初始化这个新连接的 ChannelPipeline
+                    @Override
+                    protected void initChannel(SocketChannel socketChannel) throws Exception {
+                        // 定义 ChannelPipeline
+                        ChannelPipeline pipeline = socketChannel.pipeline();
+                        // 添加编码器，因为它只处理出站消息
+                        pipeline.addLast("encoder", new TextMessageEncoder());
+                        // 帧解码器 (Frame Decoder): 解决 TCP 粘包/半包问题
+                        pipeline.addLast("frameDecoder", new LineBasedFrameDecoder(1024));
+                        // 消息解码器 (Message Decoder)
+                        pipeline.addLast("decoder", new TextMessageDecoder());
+                        // 核心处理器，事件翻译
+                        pipeline.addLast(new EngineChannelHandler(disruptorManager));
+                    }
+                });
+        // 绑定端口
+        serverChannelFuture = bootstrap.bind(config.getPort()).sync();
+        log.info("Atomicio Engine bound successfully to port {}.", config.getPort());
+    }
+
+    /**
+     * 核心关闭逻辑，供 shutdown() 和 LifecycleManager 调用。
+     */
+    void doStop() {
+        if (!state.compareAndSet(AtomicIOLifeState.RUNNING, AtomicIOLifeState.SHUTTING_DOWN)) {
+            // 如果引擎从未运行过，或者正在关闭/已关闭，则直接返回
+            log.warn("Engine is not running or already shutting down. Current state: {}", state.get());
+            return;
+        }
         log.info("Atomicio Engine shutting down...");
+        // 关闭顺序与启动相反
         if (serverChannelFuture != null) {
             serverChannelFuture.channel().close().syncUninterruptibly();
         }
@@ -156,11 +180,21 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         if (workerGroup != null) {
             workerGroup.shutdownGracefully().syncUninterruptibly();
         }
-        disruptorManager.shutdown();
         if (this.clusterProvider != null) {
             clusterProvider.shutdown();
         }
+        disruptorManager.shutdown();
+
+        state.set(AtomicIOLifeState.SHUTDOWN);
         log.info("Atomicio Engine shutdown gracefully.");
+    }
+
+    /**
+     * 检查引擎是否正在运行。
+     * @return true 如果引擎处于 RUNNING 状态
+     */
+    public boolean isRunning() {
+        return state.get() == AtomicIOLifeState.RUNNING;
     }
 
     @Override

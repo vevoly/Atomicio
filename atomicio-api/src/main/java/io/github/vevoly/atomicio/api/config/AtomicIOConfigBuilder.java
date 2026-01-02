@@ -1,8 +1,9 @@
 package io.github.vevoly.atomicio.api.config;
 
 import io.github.vevoly.atomicio.api.AtomicIOEngine;
+import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterType;
+import io.github.vevoly.atomicio.api.constants.DefaultConfig;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 
 /**
  * AtomicIOConfig 的构建器
@@ -13,10 +14,10 @@ import lombok.Builder;
 @AllArgsConstructor
 public class AtomicIOConfigBuilder {
 
-    private final AtomicIOConfig config;
+    private final AtomicIOEngineConfig config;
 
     public AtomicIOConfigBuilder() {
-        this.config = new AtomicIOConfig();
+        this.config = new AtomicIOEngineConfig();
     }
 
     public AtomicIOConfigBuilder port(int port) {
@@ -30,8 +31,8 @@ public class AtomicIOConfigBuilder {
     }
 
     public AtomicIOConfigBuilder enableClusterWithRedis(String redisUri) {
-        config.getClusterConfig().setEnabled(true);
-        config.getClusterConfig().setType("redis");
+        config.getClusterConfig().setEnabled(DefaultConfig.DEFAULT_CLUSTER_ENABLED);
+        config.getClusterConfig().setType(AtomicIOClusterType.REDIS.name());
         config.getClusterConfig().setRedisUri(redisUri);
         return this;
     }
@@ -48,7 +49,7 @@ public class AtomicIOConfigBuilder {
     public AtomicIOEngine build() {
         try {
             Class<?> engineClass = Class.forName("io.atomic.core.engine.DefaultAtomicIOEngine");
-            return (AtomicIOEngine) engineClass.getConstructor(AtomicIOConfig.class).newInstance(config);
+            return (AtomicIOEngine) engineClass.getConstructor(AtomicIOEngineConfig.class).newInstance(config);
         } catch (Exception e) {
             throw new RuntimeException("Failed to build AtomicIOEngine. Is atomicio-core on the classpath?", e);
         }

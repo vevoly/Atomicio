@@ -1,7 +1,19 @@
+
 atomicio:
   port: 8308
   workerThreads: 4
   cluster:
-    enabled: false
-    type: redis
-    redisUri: redis://localhost:6379
+    enabled: true
+    type: redis  # 可选值: redis, kafka, rocketmq ...
+    redis:
+      uri: redis://localhost:6379
+      username:
+      password:
+    kafka:
+      bootstrap-servers: kafka1:9092,kafka2:9092
+      topic: atomicio-cluster-topic
+      consumer-group: atomicio-group
+    rocketmq:
+      name-server: mq-server:9876
+      topic: atomicio-cluster-topic
+      consumer-group: atomicio-group
