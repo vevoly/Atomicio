@@ -62,6 +62,9 @@ public class AtomicIOEventHandler implements EventHandler<AtomicIOEvent> {
      */
     private void handleIOEvent(AtomicIOEvent atomicIOEvent) {
         switch (atomicIOEvent.getType()) {
+            case READY:
+                engine.fireEngineReadyEvent();
+                break;
             case CONNECT:
                 engine.fireConnectEvent(atomicIOEvent.getSession());
                 break;

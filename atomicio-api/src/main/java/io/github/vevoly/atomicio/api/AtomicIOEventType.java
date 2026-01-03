@@ -16,6 +16,11 @@ package io.github.vevoly.atomicio.api;
 public enum AtomicIOEventType {
 
     /**
+     * 引擎准备就绪
+     */
+    READY,
+
+    /**
      * 当一个新连接建立并准备好时触发。
      */
     CONNECT,

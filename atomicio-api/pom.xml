@@ -14,4 +14,10 @@
     <url>https://github.com/vevoly/Atomicio</url>
     <description>API module for Atomicio</description>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+    </dependencies>
 </project>

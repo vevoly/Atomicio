@@ -1,6 +1,5 @@
 package io.github.vevoly.atomicio.core.engine;
 
-import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.listeners.*;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +20,7 @@ import java.util.List;
 public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
 
     private final DefaultAtomicIOEngine engine;
+    private final List<EngineReadyListener> engineReadyListeners;
     private final List<ConnectEventListener> connectEventListeners;
     private final List<DisconnectEventListener> disconnectEventListeners;
     private final List<MessageEventListener> messageEventListeners;
@@ -86,15 +86,16 @@ public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
      */
     private void registerListeners() {
         log.info("AtomicIO LifecycleManager: Auto-registering listeners...");
+        engineReadyListeners.forEach(engine::onReady);
         connectEventListeners.forEach(engine::onConnect);
         disconnectEventListeners.forEach(engine::onDisconnect);
         messageEventListeners.forEach(engine::onMessage);
         errorEventListeners.forEach(engine::onError);
         idleEventListeners.forEach(engine::onIdle);
-        log.info("Registered: {} ConnectEventListener(s), {} DisconnectEventListener(s), {} MessageEventListener(s), " +
-                        "{} ErrorEventListener(s), {} ErrorEventListener(s).",
-                connectEventListeners.size(), disconnectEventListeners.size(), messageEventListeners.size(),
-                errorEventListeners.size(), idleEventListeners.size());
+        log.info("Registered: {} EngineReadyListener {} ConnectEventListener, {} DisconnectEventListener, " +
+                        "{} MessageEventListener, {} ErrorEventListener, {} ErrorEventListener.",
+                engineReadyListeners.size(), connectEventListeners.size(), disconnectEventListeners.size(),
+                messageEventListeners.size(), errorEventListeners.size(), idleEventListeners.size());
     }
 
 }

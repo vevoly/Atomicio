@@ -3,13 +3,13 @@ package io.github.vevoly.atomicio.starter.autoconfiguration;
 import io.github.vevoly.atomicio.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterType;
-import io.github.vevoly.atomicio.api.config.AtomicIOEngineConfig;
 import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.api.listeners.*;
 import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;
 import io.github.vevoly.atomicio.core.engine.AtomicIOEngineLifecycleManager;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
-import io.github.vevoly.atomicio.starter.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.core.listener.WelcomeBannerPrinter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -39,15 +39,8 @@ public class AtomicIOEngineAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = AtomicIOConstant.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
     public AtomicIOEngine atomicIOEngine(AtomicIOProperties properties) {
-        // 1. 创建 ClusterProvider
         AtomicIOClusterProvider clusterProvider = createClusterProvider(properties);
-        // 2. 创建 EngineConfig
-        AtomicIOEngineConfig config = new AtomicIOEngineConfig();
-        config.setPort(properties.getPort());
-        config.setBossThreads(properties.getBossThreads());
-        config.setWorkerThreads(properties.getWorkerThreads());
-        // 3. 创建 Engine 实例，注入依赖
-        return new DefaultAtomicIOEngine(config, clusterProvider);
+        return new DefaultAtomicIOEngine(properties, clusterProvider);
     }
 
     /**
@@ -59,6 +52,7 @@ public class AtomicIOEngineAutoConfiguration {
     @ConditionalOnProperty(prefix = AtomicIOConstant.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
     public SmartLifecycle atomicIOEngineLifecycleManager(
             AtomicIOEngine engine,
+            ObjectProvider<List<EngineReadyListener>> engineReadyListenersProvider,
             ObjectProvider<List<ConnectEventListener>> connectEventListenersProvider,
             ObjectProvider<List<DisconnectEventListener>> disconnectEventListenerProvider,
             ObjectProvider<List<MessageEventListener>> messageEventListenersProvider,
@@ -71,12 +65,23 @@ public class AtomicIOEngineAutoConfiguration {
         // 将所有依赖都传递给 LifecycleManager
         return new AtomicIOEngineLifecycleManager(
                 (DefaultAtomicIOEngine) engine,
+                engineReadyListenersProvider.getIfAvailable(Collections::emptyList),
                 connectEventListenersProvider.getIfAvailable(Collections::emptyList),
                 disconnectEventListenerProvider.getIfAvailable(Collections::emptyList),
                 messageEventListenersProvider.getIfAvailable(Collections::emptyList),
                 errorEventListenersProvider.getIfAvailable(Collections::emptyList),
                 idleEventListenersProvider.getIfAvailable(Collections::emptyList)
         );
+    }
+
+    /**
+     * 内部 Bean 定义：创建默认的欢迎横幅打印机。
+     * 这个 Bean 也是有条件创建的，只有在整个 AutoConfiguration 生效时才会被创建。
+     */
+    @Bean
+    @ConditionalOnMissingBean(WelcomeBannerPrinter.class)
+    public WelcomeBannerPrinter welcomeBannerPrinter() {
+        return new WelcomeBannerPrinter();
     }
 
     private static AtomicIOClusterProvider createClusterProvider(AtomicIOProperties properties) {

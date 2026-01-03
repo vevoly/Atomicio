@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.starter.config;
+package io.github.vevoly.atomicio.api.config;
 
 import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import lombok.Data;

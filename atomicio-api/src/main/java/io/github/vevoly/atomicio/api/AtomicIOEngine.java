@@ -24,6 +24,12 @@ public interface AtomicIOEngine {
     void shutdown();
 
     /**
+     * 在 READY 引擎准备就绪时事件监听器
+     * @param listener
+     */
+    void onReady(EngineReadyListener listener);
+
+    /**
      * 注册 CONNECT 事件的监听器。
      * @param listener
      */

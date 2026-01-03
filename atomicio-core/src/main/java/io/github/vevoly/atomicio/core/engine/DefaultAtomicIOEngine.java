@@ -4,7 +4,7 @@ import io.github.vevoly.atomicio.api.*;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
-import io.github.vevoly.atomicio.api.config.AtomicIOEngineConfig;
+import io.github.vevoly.atomicio.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.api.listeners.*;
@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
-    private final AtomicIOEngineConfig config;
+    private final AtomicIOProperties config;
     private final AtomicIOClusterProvider clusterProvider;
 
     // Netty核心组件
@@ -52,6 +52,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     private final DisruptorManager disruptorManager = new DisruptorManager(); // Disruptor 管理器
 
     // 存储监听器集合
+    private final List<EngineReadyListener> readyListeners = new CopyOnWriteArrayList<>();
     private final List<ConnectEventListener> connectEventListeners = new CopyOnWriteArrayList<>();
     private final List<DisconnectEventListener> disconnectEventListeners = new CopyOnWriteArrayList<>();
     private final List<MessageEventListener> messageListeners = new CopyOnWriteArrayList<>();
@@ -66,7 +67,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     // 线程安全的状态机
     private final AtomicReference<AtomicIOLifeState> state = new AtomicReference<>(AtomicIOLifeState.NEW);
 
-    public DefaultAtomicIOEngine(AtomicIOEngineConfig config, @Nullable AtomicIOClusterProvider clusterProvider) {
+    public DefaultAtomicIOEngine(AtomicIOProperties config, @Nullable AtomicIOClusterProvider clusterProvider) {
         this.config = Objects.requireNonNull(config, "EngineConfig cannot be null");
         this.clusterProvider = clusterProvider;
     }
@@ -149,6 +150,8 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                 });
         serverChannelFuture = bootstrap.bind(config.getPort()).sync(); // 绑定端口
         log.info("Atomicio Engine bound successfully to port {}.", config.getPort());
+        // 在所有启动工作都完成后，宣告引擎就绪
+        disruptorManager.publishEvent(AtomicIOEventType.READY, null, null, null);
     }
 
     /**
@@ -186,6 +189,11 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
      */
     public boolean isRunning() {
         return state.get() == AtomicIOLifeState.RUNNING;
+    }
+
+    @Override
+    public void onReady(EngineReadyListener listener) {
+        this.readyListeners.add(listener);
     }
 
     @Override
@@ -392,6 +400,14 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     }
 
     /**
+     * 获取配置信息
+     * @return
+     */
+    public AtomicIOProperties getProperties() {
+        return this.config;
+    }
+
+    /**
      * 本地广播
      */
     void broadcastLocally(AtomicIOMessage message) {
@@ -403,6 +419,19 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             }
         });
         log.info("Broadcast message {} to all {} online sessions.", message.getCommandId(), userIdToSessionMap.size());
+    }
+
+    /**
+     * 触发 READY 事件
+     */
+    void fireEngineReadyEvent() {
+        for (EngineReadyListener listener : readyListeners) {
+            try {
+                listener.onEngineReady(this);
+            } catch (Exception e) {
+                log.error("Error executing EngineReadyListener", e);
+            }
+        }
     }
 
     /**
