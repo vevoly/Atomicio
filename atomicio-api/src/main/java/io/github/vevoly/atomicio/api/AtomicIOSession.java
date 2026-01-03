@@ -33,6 +33,25 @@ public interface AtomicIOSession {
     boolean isActive();
 
     /**
+     * 获取客户端的远程地址。
+     * @return 客户端的 IP 地址和端口
+     */
+    String getRemoteAddress();
+
+    /**
+     * 获取会话创建的时间戳。
+     * @return a long value representing the time the session was created, measured in milliseconds from the epoch.
+     */
+    long getCreationTime();
+
+    /**
+     * 获取最后一次读或写操作的时间戳。
+     * 可用于实现更复杂的空闲检测逻辑。
+     * @return a long value representing the time of the last I/O activity.
+     */
+    long getLastActivityTime();
+
+    /**
      * 在会话中附加一个属性。可用于存储业务数据，如绑定的用户ID。
      * @param key   属性键
      * @param value 属性值

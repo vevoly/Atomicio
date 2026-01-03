@@ -5,9 +5,7 @@ import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterType;
 import io.github.vevoly.atomicio.api.config.AtomicIOEngineConfig;
-import io.github.vevoly.atomicio.api.listeners.ErrorEventListener;
-import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
-import io.github.vevoly.atomicio.api.listeners.SessionEventListener;
+import io.github.vevoly.atomicio.api.listeners.*;
 import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;
 import io.github.vevoly.atomicio.core.engine.AtomicIOEngineLifecycleManager;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
@@ -60,7 +58,8 @@ public class AtomicIOEngineAutoConfiguration {
     @Bean
     public SmartLifecycle atomicIOEngineLifecycleManager(
             AtomicIOEngine engine,
-            ObjectProvider<List<SessionEventListener>> sessionListenersProvider,
+            ObjectProvider<List<ConnectEventListener>> connectEventListenersProvider,
+            ObjectProvider<List<DisconnectEventListener>> disconnectEventListenerProvider,
             ObjectProvider<List<MessageEventListener>> messageEventListenersProvider,
             ObjectProvider<List<ErrorEventListener>> errorEventListenersProvider
     ) {
@@ -70,7 +69,8 @@ public class AtomicIOEngineAutoConfiguration {
         // 将所有依赖都传递给 LifecycleManager
         return new AtomicIOEngineLifecycleManager(
                 (DefaultAtomicIOEngine) engine,
-                sessionListenersProvider.getIfAvailable(Collections::emptyList),
+                connectEventListenersProvider.getIfAvailable(Collections::emptyList),
+                disconnectEventListenerProvider.getIfAvailable(Collections::emptyList),
                 messageEventListenersProvider.getIfAvailable(Collections::emptyList),
                 errorEventListenersProvider.getIfAvailable(Collections::emptyList)
         );

@@ -4,6 +4,7 @@ import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
+import io.github.vevoly.atomicio.api.constants.IdleState;
 import lombok.Data;
 
 /**
@@ -20,6 +21,7 @@ public class AtomicIOEvent {
     private AtomicIOMessage message;
     private Throwable cause;
     private AtomicIOClusterMessage clusterMessage;
+    private IdleState idleState;
 
     /**
      * 用于在处理完事件后清理对象，以便 Disruptor 复用。
@@ -30,5 +32,6 @@ public class AtomicIOEvent {
         this.message = null;
         this.cause = null;
         this.clusterMessage = null;
+        this.idleState = null;
     }
 }

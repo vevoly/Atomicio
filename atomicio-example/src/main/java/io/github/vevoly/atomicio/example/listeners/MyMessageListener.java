@@ -25,7 +25,7 @@ public class MyMessageListener implements MessageEventListener {
     private AtomicIOEngine engine;
 
     @Override
-    public void onEvent(AtomicIOSession session, AtomicIOMessage message) {
+    public void onMessage(AtomicIOSession session, AtomicIOMessage message) {
         log.info("收到消息: {}", message);
         int commandId = message.getCommandId();
         switch (commandId) {

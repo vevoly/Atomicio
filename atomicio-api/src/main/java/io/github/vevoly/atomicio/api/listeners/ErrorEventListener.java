@@ -16,5 +16,5 @@ public interface ErrorEventListener {
      * @param session 发生异常的会话 (可能为 null)
      * @param cause   异常对象
      */
-    void onEvent(AtomicIOSession session, Throwable cause);
+    void onError(AtomicIOSession session, Throwable cause);
 }

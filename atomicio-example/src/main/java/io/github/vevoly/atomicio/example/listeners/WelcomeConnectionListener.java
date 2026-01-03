@@ -7,17 +7,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 用户自定义监听器演示
+ * 不同的连接监听器演示
+ * 多个监听器监听一个事件
  *
- * @since 0.0.7
+ * @since 0.1.1
  * @author vevoly
  */
 @Slf4j
 @Component
-public class MyConnectionListener implements ConnectEventListener {
+public class WelcomeConnectionListener implements ConnectEventListener {
 
     @Override
     public void onConnected(AtomicIOSession session) {
-        log.info("新连接建立: " + session.getId());
+        log.info("WELCOME: " + session.getRemoteAddress() + " connected");
     }
 }

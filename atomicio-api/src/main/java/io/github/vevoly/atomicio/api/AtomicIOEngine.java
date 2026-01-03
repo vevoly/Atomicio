@@ -1,8 +1,6 @@
 package io.github.vevoly.atomicio.api;
 
-import io.github.vevoly.atomicio.api.listeners.ErrorEventListener;
-import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
-import io.github.vevoly.atomicio.api.listeners.SessionEventListener;
+import io.github.vevoly.atomicio.api.listeners.*;
 
 import java.util.concurrent.Future;
 
@@ -26,11 +24,16 @@ public interface AtomicIOEngine {
     void shutdown();
 
     /**
-     * 注册 CONNECT, DISCONNECT, IDLE 事件的监听器。。
-     * @param eventType 必须是 CONNECT, DISCONNECT, 或 IDLE
-     * @param listener  监听器实现
+     * 注册 CONNECT 事件的监听器。
+     * @param listener
      */
-    void on(AtomicIOEventType eventType, SessionEventListener listener);
+    void onConnect(ConnectEventListener listener);
+
+    /**
+     * 注册 DISCONNECT 事件的监听器。
+     * @param listener
+     */
+    void onDisconnect(DisconnectEventListener listener);
 
     /**
      * 注册 MESSAGE 事件的监听器。
@@ -43,6 +46,13 @@ public interface AtomicIOEngine {
      * @param listener 异常事件监听器
      */
     void onError(ErrorEventListener listener);
+
+    /**
+     * 注册 IDLE 事件的监听器。
+     * @param listener 空闲事件监听器
+     * @param listener
+     */
+    void onIdle(IdleEventListener listener);
 
     /**
      * 将一个已认证的用户ID与一个Session进行双向绑定。

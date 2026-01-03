@@ -18,6 +18,7 @@ public class NettySession implements AtomicIOSession {
 
     // Netty 的 Channel 是实际的网络连接管道
     private final Channel channel;
+    private final long creationTime = System.currentTimeMillis();
 
     public NettySession(Channel channel) {
         this.channel = Objects.requireNonNull(channel, "Channel cannot be null");
@@ -43,6 +44,24 @@ public class NettySession implements AtomicIOSession {
     @Override
     public boolean isActive() {
         return channel.isActive();
+    }
+
+    @Override
+    public String getRemoteAddress() {
+        return channel.remoteAddress().toString();
+    }
+
+    @Override
+    public long getCreationTime() {
+        return this.creationTime;
+    }
+
+    @Override
+    public long getLastActivityTime() {
+        // todo 需要配合 Netty 的 IdleStateHandler 或自定义的 Handler 来更新时间戳
+        // 先返回一个简单实现，后续再完善
+        Long lastActivity = getAttribute("lastActivity");
+        return lastActivity != null ? lastActivity : creationTime;
     }
 
     @Override

@@ -5,9 +5,8 @@ import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.api.config.AtomicIOEngineConfig;
-import io.github.vevoly.atomicio.api.listeners.ErrorEventListener;
-import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
-import io.github.vevoly.atomicio.api.listeners.SessionEventListener;
+import io.github.vevoly.atomicio.api.constants.IdleState;
+import io.github.vevoly.atomicio.api.listeners.*;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
 import io.github.vevoly.atomicio.core.protocol.TextMessageDecoder;
 import io.github.vevoly.atomicio.core.protocol.TextMessageEncoder;
@@ -20,19 +19,16 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.SmartLifecycle;
 import reactor.util.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -55,9 +51,11 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     private final DisruptorManager disruptorManager = new DisruptorManager(); // Disruptor 管理器
 
     // 存储监听器集合
-    private final Map<AtomicIOEventType, List<SessionEventListener>> sessionListeners = new ConcurrentHashMap<>();
+    private final List<ConnectEventListener> connectEventListeners = new CopyOnWriteArrayList<>();
+    private final List<DisconnectEventListener> disconnectEventListeners = new CopyOnWriteArrayList<>();
     private final List<MessageEventListener> messageListeners = new CopyOnWriteArrayList<>();
     private final List<ErrorEventListener> errorListeners = new CopyOnWriteArrayList<>();
+    private final List<IdleEventListener> idleEventListeners = new CopyOnWriteArrayList<>();
 
     // 映射表
     private final Map<String, AtomicIOSession> userIdToSessionMap = new ConcurrentHashMap<>(); // Key: 用户ID, Value: 对应的会话
@@ -91,16 +89,6 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             state.set(AtomicIOLifeState.RUNNING);
             log.info("Atomicio Engine started successfully.");
             startFuture.complete(null);
-
-//            serverChannelFuture.addListener(future -> {
-//                if (future.isSuccess()) {
-//                    log.info("Atomicio Engine started successfully on port {}.", config.getPort());
-//                    startFuture.complete(null);
-//                } else {
-//                    log.error("Failed to start Atomicio Engine on port {}. Cause: {}", config.getPort(), future.cause());
-//                    startFuture.completeExceptionally(future.cause());
-//                }
-//            });
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             state.set(AtomicIOLifeState.SHUTDOWN);
@@ -151,6 +139,8 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                         pipeline.addLast("frameDecoder", new LineBasedFrameDecoder(1024));
                         // 消息解码器 (Message Decoder)
                         pipeline.addLast("decoder", new TextMessageDecoder());
+                        // 心跳检测
+                        pipeline.addLast("idleStateHandler", new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));
                         // 核心处理器，事件翻译
                         pipeline.addLast(new EngineChannelHandler(disruptorManager));
                     }
@@ -198,11 +188,13 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     }
 
     @Override
-    public void on(AtomicIOEventType eventType, SessionEventListener listener) {
-        if (eventType == AtomicIOEventType.MESSAGE || eventType == AtomicIOEventType.ERROR) {
-            throw new IllegalArgumentException("Please use onMessage() or onError() for this event type.");
-        }
-        this.sessionListeners.computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>()).add(listener);
+    public void onConnect(ConnectEventListener listener) {
+        this.connectEventListeners.add(listener);
+    }
+
+    @Override
+    public void onDisconnect(DisconnectEventListener listener) {
+        this.disconnectEventListeners.add(listener);
     }
 
     @Override
@@ -213,6 +205,11 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     @Override
     public void onError(ErrorEventListener listener) {
         this.errorListeners.add(listener);
+    }
+
+    @Override
+    public void onIdle(IdleEventListener listener) {
+        this.idleEventListeners.add(listener);
     }
 
 
@@ -408,22 +405,28 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     }
 
     /**
-     * 触发 Session 相关事件 (CONNECT, DISCONNECT, IDLE)
-     * @param eventType 事件类型
-     * @param session   当前会话
+     * 触发 CONNECT 事件
      */
-    void fireSessionEvent(AtomicIOEventType eventType, AtomicIOSession session) {
-        List<SessionEventListener> listeners = sessionListeners.get(eventType);
-        if (null == listeners || listeners.isEmpty()) {
-            return;
-        }
-
-        for (SessionEventListener listener : listeners) {
+    void fireConnectEvent(AtomicIOSession session) {
+        for (ConnectEventListener listener : connectEventListeners) {
             try {
-                listener.onEvent(session);
+                listener.onConnected(session);
             } catch (Exception e) {
-                log.error("Error executing listener for event {} on session {}", eventType, session.getId(), e);
-                // 触发一个 ERROR 事件，让用户也能感知到监听器本身的异常
+                log.error("Error executing connect listener for session {}", session.getId(), e);
+                fireErrorEvent(session, e);
+            }
+        }
+    }
+
+    /**
+     * 触发 DISCONNECT 事件
+     */
+    void fireDisconnectEvent(AtomicIOSession session) {
+        for (DisconnectEventListener listener : disconnectEventListeners) {
+            try {
+                listener.onDisconnected(session);
+            } catch (Exception e) {
+                log.error("Error executing disconnect listener for session {}", session.getId(), e);
                 fireErrorEvent(session, e);
             }
         }
@@ -440,7 +443,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         }
         for (MessageEventListener listener : this.messageListeners) {
             try {
-                listener.onEvent(session, message);
+                listener.onMessage(session, message);
             } catch (Exception e) {
                 log.error("Error executing message listener for session {}", session.getId(), e);
                 fireErrorEvent(session, e);
@@ -459,11 +462,24 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         }
         for (ErrorEventListener listener : this.errorListeners)
             try {
-                listener.onEvent(session, cause);
+                listener.onError(session, cause);
             } catch (Exception e) {
                 log.error("CRITICAL: Error executing the error listener itself!", e);
             }
     }
+
+    void fireIdleEvent(AtomicIOSession session, IdleState state) {
+        if (this.idleEventListeners.isEmpty()) {
+            return;
+        }
+        for (IdleEventListener listener : this.idleEventListeners)
+            try {
+                listener.onIdle(session, state);
+            } catch (Exception e) {
+                log.error("Error executing idle listener for session {}", session.getId(), e);
+            }
+    }
+
 
     /**
      * 引擎内部的清理方法：当 Session 断开时，自动解除用户绑定和群组关系。

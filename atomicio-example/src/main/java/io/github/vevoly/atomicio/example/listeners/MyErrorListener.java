@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 public class MyErrorListener implements ErrorEventListener {
 
     @Override
-    public void onEvent(AtomicIOSession session, Throwable cause) {
+    public void onError(AtomicIOSession session, Throwable cause) {
         log.error("会话 " + (session != null ? session.getId() : "N/A") + " 发生错误: " + cause.getMessage());
     }
 }

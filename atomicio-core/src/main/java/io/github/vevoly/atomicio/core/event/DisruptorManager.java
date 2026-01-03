@@ -7,6 +7,7 @@ import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
+import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.core.engine.AtomicIOEventHandler;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 
@@ -57,6 +58,24 @@ public class DisruptorManager {
             event.setSession(session);
             event.setMessage(message);
             event.setCause(cause);
+        } finally {
+            ringBuffer.publish(sequence);
+        }
+    }
+
+    /**
+     * 发布空闲事件
+     * @param session
+     * @param state
+     */
+    public void publishIdleEvent(AtomicIOSession session, IdleState state) {
+        if (ringBuffer == null) return;
+        long sequence = ringBuffer.next();
+        try {
+            AtomicIOEvent event = ringBuffer.get(sequence);
+            event.setType(AtomicIOEventType.IDLE); // 设置事件类型
+            event.setSession(session);
+            event.setIdleState(state);
         } finally {
             ringBuffer.publish(sequence);
         }

@@ -17,5 +17,5 @@ public interface MessageEventListener {
      * @param session 来源会话
      * @param message 收到的消息
      */
-    void onEvent(AtomicIOSession session, AtomicIOMessage message);
+    void onMessage(AtomicIOSession session, AtomicIOMessage message);
 }

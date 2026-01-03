@@ -1,9 +1,7 @@
 package io.github.vevoly.atomicio.core.engine;
 
 import io.github.vevoly.atomicio.api.AtomicIOEventType;
-import io.github.vevoly.atomicio.api.listeners.ErrorEventListener;
-import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
-import io.github.vevoly.atomicio.api.listeners.SessionEventListener;
+import io.github.vevoly.atomicio.api.listeners.*;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.SmartLifecycle;
@@ -23,7 +21,8 @@ import java.util.List;
 public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
 
     private final DefaultAtomicIOEngine engine;
-    private final List<SessionEventListener> sessionEventListeners;
+    private final List<ConnectEventListener> connectEventListeners;
+    private final List<DisconnectEventListener> disconnectEventListeners;
     private final List<MessageEventListener> messageEventListeners;
     private final List<ErrorEventListener> errorEventListeners;
 
@@ -83,16 +82,12 @@ public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
 
     private void registerListeners() {
         log.info("AtomicIO LifecycleManager: Auto-registering listeners...");
-
-        sessionEventListeners.forEach(listener -> {
-            engine.on(AtomicIOEventType.CONNECT, listener);
-            engine.on(AtomicIOEventType.DISCONNECT, listener);
-        });
-        log.info("Registered {} SessionEventListener(s).", sessionEventListeners.size());
-
+        connectEventListeners.forEach(engine::onConnect);
+        log.info("Registered {} ConnectEventListener(s).", connectEventListeners.size());
+        disconnectEventListeners.forEach(engine::onDisconnect);
+        log.info("Registered {} DisconnectEventListener(s).", disconnectEventListeners.size());
         messageEventListeners.forEach(engine::onMessage);
         log.info("Registered {} MessageEventListener(s).", messageEventListeners.size());
-
         errorEventListeners.forEach(engine::onError);
         log.info("Registered {} ErrorEventListener(s).", errorEventListeners.size());
     }

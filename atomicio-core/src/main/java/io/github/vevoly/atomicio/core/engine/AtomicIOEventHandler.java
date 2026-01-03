@@ -63,17 +63,17 @@ public class AtomicIOEventHandler implements EventHandler<AtomicIOEvent> {
     private void handleIOEvent(AtomicIOEvent atomicIOEvent) {
         switch (atomicIOEvent.getType()) {
             case CONNECT:
-                engine.fireSessionEvent(atomicIOEvent.getType(), atomicIOEvent.getSession());
+                engine.fireConnectEvent(atomicIOEvent.getSession());
                 break;
             case DISCONNECT:
                 String userId = atomicIOEvent.getSession().getAttribute("userId");
                 if (userId != null) {
                     engine.unbindUserInternal(userId, atomicIOEvent.getSession());
                 }
-                engine.fireSessionEvent(atomicIOEvent.getType(), atomicIOEvent.getSession());
+                engine.fireDisconnectEvent(atomicIOEvent.getSession());
                 break;
             case IDLE:
-                engine.fireSessionEvent(atomicIOEvent.getType(), atomicIOEvent.getSession());
+                engine.fireIdleEvent(atomicIOEvent.getSession(), atomicIOEvent.getIdleState());
                 break;
             case MESSAGE:
                 engine.fireMessageEvent(atomicIOEvent.getSession(), atomicIOEvent.getMessage());

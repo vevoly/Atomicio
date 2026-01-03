@@ -3,10 +3,12 @@ package io.github.vevoly.atomicio.core.engine;
 import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
+import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.timeout.IdleStateEvent;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,7 +51,7 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
         // 1. 获取并清理用户绑定关系
         // 2. 触发引擎的 DISCONNECT 事件
         disruptorManager.publishEvent(AtomicIOEventType.DISCONNECT, session, null, null);
-        super.channelActive(ctx);
+        super.channelInactive(ctx);
     }
 
     /**
@@ -80,6 +82,35 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
         AtomicIOSession session = new NettySession(ctx.channel());
         disruptorManager.publishEvent(AtomicIOEventType.ERROR, session, null, cause);
         ctx.close();
+    }
+
+    /**
+     * 捕获 IdleEventStateEvent 事件
+     * @param ctx
+     * @param evt
+     * @throws Exception
+     */
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        if (evt instanceof IdleStateEvent) {
+            IdleState myIdleState;
+            switch (((IdleStateEvent) evt).state()) {
+                case READER_IDLE:
+                    myIdleState = IdleState.READER_IDLE;
+                    break;
+                case WRITER_IDLE:
+                    myIdleState = IdleState.WRITER_IDLE;
+                    break;
+                case ALL_IDLE:
+                    myIdleState = IdleState.ALL_IDLE;
+                    break;
+                default:
+                    return;
+            }
+            disruptorManager.publishIdleEvent(new NettySession(ctx.channel()), myIdleState);
+        } else {
+            super.userEventTriggered(ctx, evt);
+        }
     }
 
 }
