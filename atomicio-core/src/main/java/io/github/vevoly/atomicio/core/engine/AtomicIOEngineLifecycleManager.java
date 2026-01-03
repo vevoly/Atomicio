@@ -25,6 +25,7 @@ public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
     private final List<DisconnectEventListener> disconnectEventListeners;
     private final List<MessageEventListener> messageEventListeners;
     private final List<ErrorEventListener> errorEventListeners;
+    private final List<IdleEventListener> idleEventListeners;
 
     @Override
     public void start() {
@@ -80,16 +81,20 @@ public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
         return Integer.MAX_VALUE;
     }
 
+    /**
+     * 注册事件监听器
+     */
     private void registerListeners() {
         log.info("AtomicIO LifecycleManager: Auto-registering listeners...");
         connectEventListeners.forEach(engine::onConnect);
-        log.info("Registered {} ConnectEventListener(s).", connectEventListeners.size());
         disconnectEventListeners.forEach(engine::onDisconnect);
-        log.info("Registered {} DisconnectEventListener(s).", disconnectEventListeners.size());
         messageEventListeners.forEach(engine::onMessage);
-        log.info("Registered {} MessageEventListener(s).", messageEventListeners.size());
         errorEventListeners.forEach(engine::onError);
-        log.info("Registered {} ErrorEventListener(s).", errorEventListeners.size());
+        idleEventListeners.forEach(engine::onIdle);
+        log.info("Registered: {} ConnectEventListener(s), {} DisconnectEventListener(s), {} MessageEventListener(s), " +
+                        "{} ErrorEventListener(s), {} ErrorEventListener(s).",
+                connectEventListeners.size(), disconnectEventListeners.size(), messageEventListeners.size(),
+                errorEventListeners.size(), idleEventListeners.size());
     }
 
 }

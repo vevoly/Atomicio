@@ -33,6 +33,12 @@ public interface AtomicIOSession {
     boolean isActive();
 
     /**
+     * 获取创建此会话的引擎实例。
+     * @return a reference to the AtomicIOEngine.
+     */
+    AtomicIOEngine getEngine();
+
+    /**
      * 获取客户端的远程地址。
      * @return 客户端的 IP 地址和端口
      */

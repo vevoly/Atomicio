@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
 
     private final DisruptorManager disruptorManager;
+    private final DefaultAtomicIOEngine engine;
 
     /**
      * 当一个连接建立时被调用
@@ -34,7 +35,7 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         // 1. 将 Netty Channel 封装成我们的 AtomicIOSession
-        AtomicIOSession session = new NettySession(ctx.channel());
+        AtomicIOSession session = new NettySession(ctx.channel(), engine);
         // 2. 触发引擎的 CONNECT 事件
         disruptorManager.publishEvent(AtomicIOEventType.CONNECT, session, null, null);
         super.channelActive(ctx);
@@ -47,7 +48,7 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        AtomicIOSession session = new NettySession(ctx.channel());
+        AtomicIOSession session = new NettySession(ctx.channel(), engine);
         // 1. 获取并清理用户绑定关系
         // 2. 触发引擎的 DISCONNECT 事件
         disruptorManager.publishEvent(AtomicIOEventType.DISCONNECT, session, null, null);
@@ -62,7 +63,7 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        AtomicIOSession session = new NettySession(ctx.channel());
+        AtomicIOSession session = new NettySession(ctx.channel(), engine);
         if (msg instanceof AtomicIOMessage) {
             disruptorManager.publishEvent(AtomicIOEventType.MESSAGE, session, (AtomicIOMessage) msg, null);
         } else {
@@ -79,7 +80,7 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        AtomicIOSession session = new NettySession(ctx.channel());
+        AtomicIOSession session = new NettySession(ctx.channel(), engine);
         disruptorManager.publishEvent(AtomicIOEventType.ERROR, session, null, cause);
         ctx.close();
     }
@@ -107,7 +108,7 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
                 default:
                     return;
             }
-            disruptorManager.publishIdleEvent(new NettySession(ctx.channel()), myIdleState);
+            disruptorManager.publishIdleEvent(new NettySession(ctx.channel(), engine), myIdleState);
         } else {
             super.userEventTriggered(ctx, evt);
         }

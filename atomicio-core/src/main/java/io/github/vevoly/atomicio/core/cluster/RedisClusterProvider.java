@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
-import io.github.vevoly.atomicio.api.constants.DefaultConfig;
+import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -68,7 +68,7 @@ public class RedisClusterProvider implements AtomicIOClusterProvider {
     public void publish(AtomicIOClusterMessage message) {
         try {
             String jsonMessage = gson.toJson(message);
-            publishConnection.async().publish(DefaultConfig.CLUSTER_CHANNEL_NAME, jsonMessage);
+            publishConnection.async().publish(AtomicIOConstant.CLUSTER_CHANNEL_NAME, jsonMessage);
             log.debug("Published cluster message: {}", jsonMessage);
         } catch (Exception e) {
             log.error("Failed to publish cluster message", e);
@@ -80,7 +80,7 @@ public class RedisClusterProvider implements AtomicIOClusterProvider {
         subscribeConnection.addListener(new RedisPubSubAdapter<>() {
             @Override
             public void message(String channel, String message) {
-                if (DefaultConfig.CLUSTER_CHANNEL_NAME.equals(channel)) {
+                if (AtomicIOConstant.CLUSTER_CHANNEL_NAME.equals(channel)) {
                     try {
                         log.debug("Received cluster message: {}", message);
                         AtomicIOClusterMessage clusterMessage = gson.fromJson(message, AtomicIOClusterMessage.class);
@@ -93,7 +93,7 @@ public class RedisClusterProvider implements AtomicIOClusterProvider {
         });
 
         RedisPubSubAsyncCommands<String, String> async = subscribeConnection.async();
-        async.subscribe(DefaultConfig.CLUSTER_CHANNEL_NAME);
-        log.info("Subscribed to Redis channel: {}", DefaultConfig.CLUSTER_CHANNEL_NAME);
+        async.subscribe(AtomicIOConstant.CLUSTER_CHANNEL_NAME);
+        log.info("Subscribed to Redis channel: {}", AtomicIOConstant.CLUSTER_CHANNEL_NAME);
     }
 }

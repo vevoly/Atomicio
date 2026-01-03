@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.starter.config;
 
-import io.github.vevoly.atomicio.api.constants.DefaultConfig;
+import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -11,23 +11,28 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author vevoly
  */
 @Data
-@ConfigurationProperties(prefix = DefaultConfig.CONFIG_PREFIX)
+@ConfigurationProperties(prefix = AtomicIOConstant.CONFIG_PREFIX)
 public class AtomicIOProperties {
+
+    /**
+     * 是否开启 AtomicIO 引擎
+     */
+    private boolean enabled = AtomicIOConstant.DEFAULT_ENABLED;
 
     /**
      * 服务端口
      */
-    private int port = DefaultConfig.DEFAULT_PORT;
+    private int port = AtomicIOConstant.DEFAULT_PORT;
 
     /**
      * Boss 线程数
      */
-    private int bossThreads = DefaultConfig.DEFAULT_BOSS_THREADS;
+    private int bossThreads = AtomicIOConstant.DEFAULT_BOSS_THREADS;
 
     /**
      * 工人线程数，0 Netty 默认
      */
-    private int workerThreads = DefaultConfig.DEFAULT_WORKER_THREADS;
+    private int workerThreads = AtomicIOConstant.DEFAULT_WORKER_THREADS;
 
     /**
      * 集群配置
@@ -46,7 +51,7 @@ public class AtomicIOProperties {
         /**
          * 集群模式类型
          */
-        private String type = DefaultConfig.DEFAULT_CLUSTER_MODE;
+        private String type = AtomicIOConstant.DEFAULT_CLUSTER_MODE;
 
         /**
          * Redis 配置

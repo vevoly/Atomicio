@@ -11,8 +11,8 @@ public class AtomicIOExampleApplication {
     public static void main(String[] args) {
         SpringApplication.run(AtomicIOExampleApplication.class, args);
         log.info("=====================================================");
-        log.info(" AtomicIOEngine is running and ready for connections!");
-        log.info(" All listeners have been auto-registered.");
+        log.info(" 欢迎使用 Atomicio IO 引擎!");
+        log.info(" 所有监听器已经注册完成，现在可以尝试连接！");
         log.info("=====================================================");
     }
 }

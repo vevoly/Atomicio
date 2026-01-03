@@ -5,6 +5,7 @@ import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.api.config.AtomicIOEngineConfig;
+import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.api.listeners.*;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
@@ -134,19 +135,19 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                         // 定义 ChannelPipeline
                         ChannelPipeline pipeline = socketChannel.pipeline();
                         // 添加编码器，因为它只处理出站消息
-                        pipeline.addLast("encoder", new TextMessageEncoder());
+                        pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_ENCODER, new TextMessageEncoder());
                         // 帧解码器 (Frame Decoder): 解决 TCP 粘包/半包问题
-                        pipeline.addLast("frameDecoder", new LineBasedFrameDecoder(1024));
+                        pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_FRAME_DECODER, new LineBasedFrameDecoder(1024));
                         // 消息解码器 (Message Decoder)
-                        pipeline.addLast("decoder", new TextMessageDecoder());
+                        pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_DECODER, new TextMessageDecoder());
                         // 心跳检测
-                        pipeline.addLast("idleStateHandler", new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));
+                        pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_IDLE_STATE_HANDLER,
+                                new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));
                         // 核心处理器，事件翻译
-                        pipeline.addLast(new EngineChannelHandler(disruptorManager));
+                        pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_CHANNEL_HANDLER, new EngineChannelHandler(disruptorManager, DefaultAtomicIOEngine.this));
                     }
                 });
-        // 绑定端口
-        serverChannelFuture = bootstrap.bind(config.getPort()).sync();
+        serverChannelFuture = bootstrap.bind(config.getPort()).sync(); // 绑定端口
         log.info("Atomicio Engine bound successfully to port {}.", config.getPort());
     }
 
@@ -361,7 +362,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                 // todo 优化点：维护一个 groupId -> Set<userId>的映射，joinGroup 和 leaveGroup 时更新。
                 //  allUserIdsInGroup.removeAll(excludeSet) 得到最终需要发送的 userId 列表
                 group.forEach(channel -> {
-                    AtomicIOSession session = new NettySession(channel);
+                    AtomicIOSession session = new NettySession(channel, DefaultAtomicIOEngine.this);
                     String userId = session.getAttribute("userId");
                     if (userId != null && !excludeSet.contains(userId)) {
                         session.send(message);

@@ -21,9 +21,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class MyMessageListener implements MessageEventListener {
 
-    @Autowired
-    private AtomicIOEngine engine;
-
     @Override
     public void onMessage(AtomicIOSession session, AtomicIOMessage message) {
         log.info("收到消息: {}", message);
@@ -61,7 +58,7 @@ public class MyMessageListener implements MessageEventListener {
         // 调用业务层的认证服务
         if (AuthService.verify(token)) {
             // **关键一步：认证成功后，调用引擎的 bindUser 方法！**
-            engine.bindUser(userId, session);
+            session.getEngine().bindUser(userId, session);
             System.out.println("用户 " + userId + " 登录成功!");
             session.send(new TextMessage(AtomicIOCommand.LOGIN, "Success:Welcome " + userId));
         } else {
@@ -86,7 +83,7 @@ public class MyMessageListener implements MessageEventListener {
         System.out.println("用户 " + fromUserId + " 发送消息给 " + toUserId + ": " + messageContent);
         // **调用引擎的 sendToUser 方法！**
         TextMessage forwardMessage = new TextMessage(AtomicIOCommand.P2P_MESSAGE, fromUserId + ":" + messageContent);
-        engine.sendToUser(toUserId, forwardMessage);
+        session.getEngine().sendToUser(toUserId, forwardMessage);
     }
 
     private void handleJoinGroup(AtomicIOSession session, TextMessage message) {
@@ -97,7 +94,7 @@ public class MyMessageListener implements MessageEventListener {
         if (userId != null && groupId != null && !groupId.isEmpty()) {
             System.out.println("用户 " + userId + " 尝试加入群组 " + groupId);
             // **调用引擎的 joinGroup 方法！**
-            engine.joinGroup(groupId, userId);
+            session.getEngine().joinGroup(groupId, userId);
             session.send(new TextMessage(AtomicIOCommand.JOIN_GROUP, "Success:Joined group " + groupId));
         }
     }

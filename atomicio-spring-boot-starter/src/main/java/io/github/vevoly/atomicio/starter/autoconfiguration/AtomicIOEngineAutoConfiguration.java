@@ -1,21 +1,20 @@
 package io.github.vevoly.atomicio.starter.autoconfiguration;
 
 import io.github.vevoly.atomicio.api.AtomicIOEngine;
-import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterType;
 import io.github.vevoly.atomicio.api.config.AtomicIOEngineConfig;
+import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.api.listeners.*;
 import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;
 import io.github.vevoly.atomicio.core.engine.AtomicIOEngineLifecycleManager;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.starter.config.AtomicIOProperties;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
@@ -31,13 +30,14 @@ import java.util.List;
  * @author vevoly
  */
 @Slf4j
-@Configuration // 标记为 Spring 配置类
+@Configuration
 @NoArgsConstructor
 @EnableConfigurationProperties(AtomicIOProperties.class)
 public class AtomicIOEngineAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = AtomicIOConstant.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
     public AtomicIOEngine atomicIOEngine(AtomicIOProperties properties) {
         // 1. 创建 ClusterProvider
         AtomicIOClusterProvider clusterProvider = createClusterProvider(properties);
@@ -56,12 +56,14 @@ public class AtomicIOEngineAutoConfiguration {
      * @return
      */
     @Bean
+    @ConditionalOnProperty(prefix = AtomicIOConstant.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
     public SmartLifecycle atomicIOEngineLifecycleManager(
             AtomicIOEngine engine,
             ObjectProvider<List<ConnectEventListener>> connectEventListenersProvider,
             ObjectProvider<List<DisconnectEventListener>> disconnectEventListenerProvider,
             ObjectProvider<List<MessageEventListener>> messageEventListenersProvider,
-            ObjectProvider<List<ErrorEventListener>> errorEventListenersProvider
+            ObjectProvider<List<ErrorEventListener>> errorEventListenersProvider,
+            ObjectProvider<List<IdleEventListener>> idleEventListenersProvider
     ) {
         if (!(engine instanceof DefaultAtomicIOEngine)) {
             return new NoOpSmartLifecycle(); // 返回一个空实现
@@ -72,11 +74,12 @@ public class AtomicIOEngineAutoConfiguration {
                 connectEventListenersProvider.getIfAvailable(Collections::emptyList),
                 disconnectEventListenerProvider.getIfAvailable(Collections::emptyList),
                 messageEventListenersProvider.getIfAvailable(Collections::emptyList),
-                errorEventListenersProvider.getIfAvailable(Collections::emptyList)
+                errorEventListenersProvider.getIfAvailable(Collections::emptyList),
+                idleEventListenersProvider.getIfAvailable(Collections::emptyList)
         );
     }
 
-    private AtomicIOClusterProvider createClusterProvider(AtomicIOProperties properties) {
+    private static AtomicIOClusterProvider createClusterProvider(AtomicIOProperties properties) {
         AtomicIOProperties.Cluster clusterProps = properties.getCluster();
         if (!clusterProps.isEnabled()) {
             return null;

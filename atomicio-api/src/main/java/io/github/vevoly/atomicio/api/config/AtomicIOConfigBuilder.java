@@ -2,7 +2,7 @@ package io.github.vevoly.atomicio.api.config;
 
 import io.github.vevoly.atomicio.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterType;
-import io.github.vevoly.atomicio.api.constants.DefaultConfig;
+import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import lombok.AllArgsConstructor;
 
 /**
@@ -31,7 +31,7 @@ public class AtomicIOConfigBuilder {
     }
 
     public AtomicIOConfigBuilder enableClusterWithRedis(String redisUri) {
-        config.getClusterConfig().setEnabled(DefaultConfig.DEFAULT_CLUSTER_ENABLED);
+        config.getClusterConfig().setEnabled(AtomicIOConstant.DEFAULT_CLUSTER_ENABLED);
         config.getClusterConfig().setType(AtomicIOClusterType.REDIS.name());
         config.getClusterConfig().setRedisUri(redisUri);
         return this;

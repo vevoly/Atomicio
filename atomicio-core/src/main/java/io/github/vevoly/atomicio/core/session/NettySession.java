@@ -1,5 +1,6 @@
 package io.github.vevoly.atomicio.core.session;
 
+import io.github.vevoly.atomicio.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.netty.channel.Channel;
@@ -16,12 +17,22 @@ import java.util.Objects;
  */
 public class NettySession implements AtomicIOSession {
 
-    // Netty 的 Channel 是实际的网络连接管道
+    /**
+     * Netty 的 Channel 是实际的网络连接管道
+     */
     private final Channel channel;
+
+    /**
+     * IO 引擎
+     * Session 持有 IO 引擎
+     */
+    private final AtomicIOEngine engine;
+
     private final long creationTime = System.currentTimeMillis();
 
-    public NettySession(Channel channel) {
+    public NettySession(Channel channel, AtomicIOEngine engine) {
         this.channel = Objects.requireNonNull(channel, "Channel cannot be null");
+        this.engine = Objects.requireNonNull(engine, "Engine cannot be null");
     }
 
     @Override
@@ -44,6 +55,11 @@ public class NettySession implements AtomicIOSession {
     @Override
     public boolean isActive() {
         return channel.isActive();
+    }
+
+    @Override
+    public AtomicIOEngine getEngine() {
+        return this.engine;
     }
 
     @Override

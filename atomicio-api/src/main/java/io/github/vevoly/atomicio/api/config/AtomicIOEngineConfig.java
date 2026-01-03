@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.api.config;
 
-import io.github.vevoly.atomicio.api.constants.DefaultConfig;
+import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import lombok.Data;
 import lombok.ToString;
 
@@ -14,17 +14,17 @@ import lombok.ToString;
 @Data
 @ToString
 public class AtomicIOEngineConfig {
-    private int port = DefaultConfig.DEFAULT_PORT;
-    private int bossThreads = DefaultConfig.DEFAULT_BOSS_THREADS;
-    private int workerThreads = DefaultConfig.DEFAULT_WORKER_THREADS; // 0 代表 Netty 默认 (CPU核心数 * 2)
+    private int port = AtomicIOConstant.DEFAULT_PORT;
+    private int bossThreads = AtomicIOConstant.DEFAULT_BOSS_THREADS;
+    private int workerThreads = AtomicIOConstant.DEFAULT_WORKER_THREADS; // 0 代表 Netty 默认 (CPU核心数 * 2)
 
     private ClusterConfig clusterConfig = new ClusterConfig();
 
     @Data
     @ToString
     public static class ClusterConfig {
-        private boolean enabled = DefaultConfig.DEFAULT_CLUSTER_ENABLED; // 默认不开启集群
-        private String type = DefaultConfig.DEFAULT_CLUSTER_MODE;   // 默认集群类型
+        private boolean enabled = AtomicIOConstant.DEFAULT_CLUSTER_ENABLED; // 默认不开启集群
+        private String type = AtomicIOConstant.DEFAULT_CLUSTER_MODE;   // 默认集群类型
         private String redisUri;
         // todo 扩展 kafka, rocketmq 等配置
     }

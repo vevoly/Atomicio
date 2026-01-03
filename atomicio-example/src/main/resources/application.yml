@@ -1,5 +1,6 @@
 
 atomicio:
+  enabled: false
   port: 8308
   workerThreads: 4
   cluster:
