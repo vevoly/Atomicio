@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.core.protocol;
+package io.github.vevoly.atomicio.codc.text;
 
 import io.github.vevoly.atomicio.api.message.TextMessage;
 import io.netty.buffer.ByteBuf;

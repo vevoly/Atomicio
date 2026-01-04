@@ -3,8 +3,11 @@ package io.github.vevoly.atomicio.starter.autoconfiguration;
 import io.github.vevoly.atomicio.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterType;
+import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.api.codec.AtomicIOCodecType;
 import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.api.listeners.*;
+import io.github.vevoly.atomicio.codc.TextCodecProvider;
 import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;
 import io.github.vevoly.atomicio.core.engine.AtomicIOEngineLifecycleManager;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
@@ -37,10 +40,23 @@ public class AtomicIOEngineAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public AtomicIOCodecProvider codecProvider(AtomicIOProperties properties) {
+        String type = properties.getCodec().getType();
+
+        // 目前只支持 "text"
+        if (AtomicIOCodecType.TEXT.name().equalsIgnoreCase(type)) {
+            return new TextCodecProvider();
+        } else {
+            throw new IllegalArgumentException("Unsupported codec type: " + type + ". Currently only 'text' is supported.");
+        }
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = AtomicIOConstant.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
-    public AtomicIOEngine atomicIOEngine(AtomicIOProperties properties) {
+    public AtomicIOEngine atomicIOEngine(AtomicIOProperties properties, AtomicIOCodecProvider codecProvider) {
         AtomicIOClusterProvider clusterProvider = createClusterProvider(properties);
-        return new DefaultAtomicIOEngine(properties, clusterProvider);
+        return new DefaultAtomicIOEngine(properties, clusterProvider, codecProvider);
     }
 
     /**

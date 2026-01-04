@@ -40,6 +40,7 @@
         <module>atomicio-core</module>
         <module>atomicio-example</module>
         <module>atomicio-spring-boot-starter</module>
+        <module>atomicio-codec</module>
     </modules>
 
     <!-- 指定发布仓库 -->
@@ -62,7 +63,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 核心依赖版本 -->
-        <revision>0.1.5</revision>
+        <revision>0.2.0</revision>
         <netty.version>4.2.9.Final</netty.version>
         <spring-boot.version>3.2.0</spring-boot.version>
         <disruptor.version>3.4.4</disruptor.version>
@@ -77,6 +78,28 @@
     <!-- 依赖版本管理 -->
     <dependencyManagement>
         <dependencies>
+
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomico-codec-text</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>
@@ -121,21 +144,6 @@
                 <version>${guava.version}</version>
             </dependency>
 
-            <dependency>
-                <groupId>io.github.vevoly</groupId>
-                <artifactId>atomicio-api</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.github.vevoly</groupId>
-                <artifactId>atomicio-core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.github.vevoly</groupId>
-                <artifactId>atomicio-spring-boot-starter</artifactId>
-                <version>${project.version}</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 

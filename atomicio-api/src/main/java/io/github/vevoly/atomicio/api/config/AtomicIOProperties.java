@@ -1,5 +1,6 @@
 package io.github.vevoly.atomicio.api.config;
 
+import io.github.vevoly.atomicio.api.codec.AtomicIOCodecType;
 import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -35,10 +36,19 @@ public class AtomicIOProperties {
     private int workerThreads = AtomicIOConstant.DEFAULT_WORKER_THREADS;
 
     /**
+     * 解码器配置
+     */
+    private Codec codec = new Codec();
+
+    /**
      * 集群配置
      */
     private Cluster cluster = new Cluster();
 
+    @Data
+    public static class Codec {
+        private String type = AtomicIOCodecType.TEXT.name();
+    }
 
     @Data
     public static class Cluster {

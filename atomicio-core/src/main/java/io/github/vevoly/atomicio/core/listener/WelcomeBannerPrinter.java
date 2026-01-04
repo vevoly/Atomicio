@@ -28,7 +28,6 @@ public class WelcomeBannerPrinter implements EngineReadyListener {
 
     @Override
     public void onEngineReady(AtomicIOEngine engine) {
-//        AtomicIOProperties props = ((DefaultAtomicIOEngine) engine).getProperties();
         String version = getVersion(); // 获取版本号
         String separator = System.lineSeparator();
 

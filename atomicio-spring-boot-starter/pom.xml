@@ -21,6 +21,11 @@
             <artifactId>atomicio-core</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomico-codec-text</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>

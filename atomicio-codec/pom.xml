@@ -9,19 +9,28 @@
         <version>${revision}</version>
     </parent>
 
-    <name>Atomicio-Example</name>
-    <artifactId>atomicio-example</artifactId>
-    <url>https://github.com/vevoly/Atomicio</url>
-    <description>API simple example for Atomicio</description>
+    <artifactId>atomicio-codec</artifactId>
+    <packaging>pom</packaging>
+    <name>atomicio-codec</name>
+    <url>https://github.com/vevoly/j-atomic-ledger</url>
+    <modules>
+        <module>atomico-codec-text</module>
+    </modules>
+    <description>
+        Codec module for AtomicIO, Includes codec modules of AtomicIO engine .
+    </description>
+    <properties>
 
+    </properties>
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-spring-boot-starter</artifactId>
+            <artifactId>atomicio-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec</artifactId>
         </dependency>
     </dependencies>
-    <properties>
-        <maven.deploy.skip>true</maven.deploy.skip>
-    </properties>
 
 </project>

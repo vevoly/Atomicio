@@ -4,13 +4,12 @@ import io.github.vevoly.atomicio.api.*;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
+import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.api.listeners.*;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
-import io.github.vevoly.atomicio.core.protocol.TextMessageDecoder;
-import io.github.vevoly.atomicio.core.protocol.TextMessageEncoder;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -43,6 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
     private final AtomicIOProperties config;
+    private final AtomicIOCodecProvider codecProvider;
     private final AtomicIOClusterProvider clusterProvider;
 
     // Netty核心组件
@@ -67,9 +67,14 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     // 线程安全的状态机
     private final AtomicReference<AtomicIOLifeState> state = new AtomicReference<>(AtomicIOLifeState.NEW);
 
-    public DefaultAtomicIOEngine(AtomicIOProperties config, @Nullable AtomicIOClusterProvider clusterProvider) {
+    public DefaultAtomicIOEngine(
+            AtomicIOProperties config,
+            @Nullable AtomicIOClusterProvider clusterProvider,
+            AtomicIOCodecProvider codecProvider
+    ) {
         this.config = Objects.requireNonNull(config, "EngineConfig cannot be null");
         this.clusterProvider = clusterProvider;
+        this.codecProvider = Objects.requireNonNull(codecProvider, "CodecProvider cannot be null");
     }
 
     /**
@@ -135,12 +140,13 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                     protected void initChannel(SocketChannel socketChannel) throws Exception {
                         // 定义 ChannelPipeline
                         ChannelPipeline pipeline = socketChannel.pipeline();
-                        // 添加编码器，因为它只处理出站消息
-                        pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_ENCODER, new TextMessageEncoder());
-                        // 帧解码器 (Frame Decoder): 解决 TCP 粘包/半包问题
-                        pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_FRAME_DECODER, new LineBasedFrameDecoder(1024));
-                        // 消息解码器 (Message Decoder)
-                        pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_DECODER, new TextMessageDecoder());
+                        // 动态添加编解码器
+                        ChannelHandler frameDecoder = codecProvider.getFrameDecoder();
+                        if (frameDecoder != null) {
+                            pipeline.addLast(frameDecoder);
+                        }
+                        pipeline.addLast(codecProvider.getDecoder());
+                        pipeline.addLast(codecProvider.getEncoder());
                         // 心跳检测
                         pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_IDLE_STATE_HANDLER,
                                 new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));
