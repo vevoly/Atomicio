@@ -1,10 +1,9 @@
-package io.github.vevoly.atomicio.codc.text;
+package io.github.vevoly.atomicio.codec.text;
 
 import io.github.vevoly.atomicio.api.message.TextMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
-import io.netty.handler.codec.string.StringDecoder;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;

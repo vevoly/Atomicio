@@ -1,6 +1,7 @@
 package io.github.vevoly.atomicio.api.codec;
 
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelPipeline;
 
 /**
  * 编解码器提供者的顶层接口。
@@ -52,5 +53,12 @@ public interface AtomicIOCodecProvider {
     default ChannelHandler getFrameDecoder() {
         return null;
     }
+
+    /**
+     * 将此 Codec 所需的所有 ChannelHandlers 安装到 Pipeline 中。
+     *
+     * @param pipeline The ChannelPipeline to build upon.
+     */
+    void buildPipeline(ChannelPipeline pipeline);
 
 }

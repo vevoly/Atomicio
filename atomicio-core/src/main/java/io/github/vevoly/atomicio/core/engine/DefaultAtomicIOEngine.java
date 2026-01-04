@@ -141,12 +141,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                         // 定义 ChannelPipeline
                         ChannelPipeline pipeline = socketChannel.pipeline();
                         // 动态添加编解码器
-                        ChannelHandler frameDecoder = codecProvider.getFrameDecoder();
-                        if (frameDecoder != null) {
-                            pipeline.addLast(frameDecoder);
-                        }
-                        pipeline.addLast(codecProvider.getDecoder());
-                        pipeline.addLast(codecProvider.getEncoder());
+                        codecProvider.buildPipeline(pipeline);
                         // 心跳检测
                         pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_IDLE_STATE_HANDLER,
                                 new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));
@@ -155,7 +150,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                     }
                 });
         serverChannelFuture = bootstrap.bind(config.getPort()).sync(); // 绑定端口
-        log.info("Atomicio Engine bound successfully to port {}.", config.getPort());
+        log.info("Atomicio Engine bound successfully to port {}. codec: {}", config.getPort(), codecProvider.toString());
         // 在所有启动工作都完成后，宣告引擎就绪
         disruptorManager.publishEvent(AtomicIOEventType.READY, null, null, null);
     }

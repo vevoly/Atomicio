@@ -14,14 +14,13 @@
     <name>atomicio-codec</name>
     <url>https://github.com/vevoly/j-atomic-ledger</url>
     <modules>
-        <module>atomico-codec-text</module>
+        <module>atomicio-codec-text</module>
+        <module>atomicio-codec-protobuf</module>
     </modules>
     <description>
         Codec module for AtomicIO, Includes codec modules of AtomicIO engine .
     </description>
-    <properties>
 
-    </properties>
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
@@ -30,6 +29,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec</artifactId>
+            <version>${netty.version}</version>
         </dependency>
     </dependencies>
 

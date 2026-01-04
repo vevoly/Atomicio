@@ -7,7 +7,8 @@ import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.api.codec.AtomicIOCodecType;
 import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.api.listeners.*;
-import io.github.vevoly.atomicio.codc.TextCodecProvider;
+import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
+import io.github.vevoly.atomicio.codec.TextCodecProvider;
 import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;
 import io.github.vevoly.atomicio.core.engine.AtomicIOEngineLifecycleManager;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
@@ -42,12 +43,17 @@ public class AtomicIOEngineAutoConfiguration {
     @ConditionalOnMissingBean
     public AtomicIOCodecProvider codecProvider(AtomicIOProperties properties) {
         String type = properties.getCodec().getType();
-
-        // 目前只支持 "text"
         if (AtomicIOCodecType.TEXT.name().equalsIgnoreCase(type)) {
             return new TextCodecProvider();
+        } else if (AtomicIOCodecType.PROTOBUF.name().equalsIgnoreCase(type)) {
+            try {
+                Class.forName("io.github.vevoly.atomicio.codec.ProtobufCodecProvider");
+                return new ProtobufCodecProvider();
+            } catch (ClassNotFoundException e) {
+                throw new IllegalStateException("Protobuf codec is configured, but 'atomicio-codec-protobuf' module is not on the classpath.", e);
+            }
         } else {
-            throw new IllegalArgumentException("Unsupported codec type: " + type + ". Currently only 'text' is supported.");
+            throw new IllegalStateException("Not support type of codec:" + type);
         }
     }
 

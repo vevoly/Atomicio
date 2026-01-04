@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package io.atomic.codec.protobuf;
+import "google/protobuf/any.proto";
+
+option java_multiple_files = true;
+option java_package = "io.github.vevoly.atomicio.codec.protobuf.proto";
+
+/**
+  所有 Protobuf 消息的“信封”
+  用户业务逻辑在收到 GenericMessage 后，根据 commandId 和 Any 中的类型信息，再将其解包成自己定义的具体业务 message（如 MyLoginRequest, MyPlayerMove）。
+ */
+message GenericMessage {
+  int32 commandId = 1;
+  google.protobuf.Any payload = 2; // payload 是 Any 类型，
+}
