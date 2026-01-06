@@ -19,6 +19,5 @@
         <module>atomicio-api</module>
         <module>atomicio-core</module>
         <module>atomicio-spring-boot-starter</module>
-        <module>atomicio-example</module>
     </modules>
 </project>

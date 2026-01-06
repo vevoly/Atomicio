@@ -17,10 +17,12 @@
         <dependency>
             <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-spring-boot-starter</artifactId>
+            <version>${revision}</version>
         </dependency>
         <dependency>
             <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-codec-protobuf</artifactId>
+            <version>${revision}</version>
         </dependency>
     </dependencies>
 

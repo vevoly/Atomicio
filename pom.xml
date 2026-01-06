@@ -59,7 +59,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 核心依赖版本 -->
-        <revision>0.4.2</revision>
+        <revision>0.4.3</revision>
         <netty.version>4.2.9.Final</netty.version>
         <google-protobuf.version>4.33.2</google-protobuf.version>
         <spring-boot.version>3.2.0</spring-boot.version>
@@ -128,18 +128,18 @@
                 <version>${disruptor.version}</version>
             </dependency>
 
-            <dependency>
-                <groupId>net.openhft</groupId>
-                <artifactId>chronicle-queue</artifactId>
-                <version>${chronicle.version}</version>
-                <!-- 排除可能与Spring Boot冲突的旧版日志包 -->
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.slf4j</groupId>
-                        <artifactId>slf4j-api</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
+<!--            <dependency>-->
+<!--                <groupId>net.openhft</groupId>-->
+<!--                <artifactId>chronicle-queue</artifactId>-->
+<!--                <version>${chronicle.version}</version>-->
+<!--                &lt;!&ndash; 排除可能与Spring Boot冲突的旧版日志包 &ndash;&gt;-->
+<!--                <exclusions>-->
+<!--                    <exclusion>-->
+<!--                        <groupId>org.slf4j</groupId>-->
+<!--                        <artifactId>slf4j-api</artifactId>-->
+<!--                    </exclusion>-->
+<!--                </exclusions>-->
+<!--            </dependency>-->
 
         </dependencies>
     </dependencyManagement>

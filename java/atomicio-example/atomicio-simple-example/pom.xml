@@ -5,22 +5,20 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.github.vevoly</groupId>
-        <artifactId>atomicio-server</artifactId>
+        <artifactId>atomicio-example</artifactId>
         <version>${revision}</version>
     </parent>
 
-    <packaging>pom</packaging>
-    <name>Atomicio-Example</name>
-    <modules>
-        <module>atomicio-simple-example</module>
-        <module>atomicio-protobuf-example</module>
-    </modules>
-    <artifactId>atomicio-example</artifactId>
+    <name>Atomicio-Simple-Example</name>
+    <artifactId>atomicio-simple-example</artifactId>
     <url>https://github.com/vevoly/Atomicio</url>
-    <description>API simple example for Atomicio</description>
-
-    <properties>
-        <maven.deploy.skip>true</maven.deploy.skip>
-    </properties>
+    <description>A simple example with Text protocol for Atomicio</description>
+    <dependencies>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-spring-boot-starter</artifactId>
+            <version>${revision}</version>
+        </dependency>
+    </dependencies>
 
 </project>

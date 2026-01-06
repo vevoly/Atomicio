@@ -16,8 +16,9 @@
     <description>Parent POM for all Java modules of the Atomicio project.</description>
 
     <modules>
+        <module>atomicio-common</module>
         <module>atomicio-server</module>
         <module>atomicio-client</module>
-        <module>atomicio-common</module>
+        <module>atomicio-example</module>
     </modules>
 </project>
