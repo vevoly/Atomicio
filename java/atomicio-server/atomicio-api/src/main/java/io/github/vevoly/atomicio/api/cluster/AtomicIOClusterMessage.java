@@ -38,7 +38,14 @@ public class AtomicIOClusterMessage implements Serializable {
     private Set<String> excludeUserIds;
 
     /**
-     * 原始消息
+     * 指令号
+     * 与协议无关
      */
-    private AtomicIOMessage originalMessage;
+    private int CommandId;
+
+    /**
+     * 消息负载
+     * 与协议无关
+     */
+    private byte[] payload;
 }

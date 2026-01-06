@@ -29,17 +29,18 @@ public class ProtobufMessage implements AtomicIOMessage {
 
     // 反向转换的方法，方便编码
     public static GenericMessage toProto(AtomicIOMessage message) {
-        try {
+//        try {
             if (message instanceof ProtobufMessage) {
                 return ((ProtobufMessage) message).protoMessage;
             }
             return GenericMessage.newBuilder()
                     .setCommandId(message.getCommandId())
-                    .setPayload(Any.parseFrom(ByteString.copyFrom(message.getPayload())))
+//                    .setPayload(Any.parseFrom(ByteString.copyFrom(message.getPayload())))
+                    .setPayload(ByteString.copyFrom(message.getPayload()))
                     .build();
-        } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
-        }
+//        } catch (InvalidProtocolBufferException e) {
+//            throw new RuntimeException(e);
+//        }
     }
 
 }

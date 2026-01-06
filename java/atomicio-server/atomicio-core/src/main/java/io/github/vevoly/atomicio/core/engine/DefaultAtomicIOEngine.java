@@ -254,10 +254,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     public void sendToUser(String userId, AtomicIOMessage message) {
         boolean sentLocally = sendToUserLocally(userId, message);
         if (!sentLocally && clusterProvider != null) {
-            AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
-            clusterMessage.setMessageType(AtomicIOClusterMessageType.SEND_TO_USER);
-            clusterMessage.setTarget(userId);
-            clusterMessage.setOriginalMessage(message);
+            AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_USER, userId);
             clusterProvider.publish(clusterMessage);
         }
     }
@@ -341,13 +338,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         sendToGroupLocally(groupId, message, excludeUserIds);
         // 集群模式下，通知其他节点
         if (clusterProvider != null) {
-            AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
-            clusterMessage.setMessageType(AtomicIOClusterMessageType.SEND_TO_GROUP);
-            clusterMessage.setTarget(groupId);
-            clusterMessage.setOriginalMessage(message);
-            if (excludeUserIds != null && excludeUserIds.length > 0) {
-                clusterMessage.setExcludeUserIds(Set.of(excludeUserIds));
-            }
+            AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_GROUP, groupId, excludeUserIds);
             clusterProvider.publish(clusterMessage);
         }
     }
@@ -393,9 +384,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         broadcastLocally(message);
         // 集群模式下，通知其他节点
         if (clusterProvider != null) {
-            AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
-            clusterMessage.setMessageType(AtomicIOClusterMessageType.BROADCAST);
-            clusterMessage.setOriginalMessage(message);
+            AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.BROADCAST, null);
             clusterProvider.publish(clusterMessage);
         }
     }
@@ -532,6 +521,28 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             }
             log.info("User {} (session {}) automatically unbound and left all groups due to disconnect.", userId, session.getId());
         }
+    }
+
+    /**
+     * 构建集群消息
+     * @param message        消息
+     * @param messageType    消息类型
+     * @param target         目标
+     * @param excludeUserIds 排除的用户
+     * @return
+     */
+    private AtomicIOClusterMessage buildClusterMessage(AtomicIOMessage message, AtomicIOClusterMessageType messageType, String target, String... excludeUserIds) {
+        AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
+        clusterMessage.setMessageType(messageType);
+        clusterMessage.setCommandId(message.getCommandId());
+        clusterMessage.setPayload(message.getPayload());
+        if (null != target) {
+            clusterMessage.setTarget(target);
+        }
+        if (excludeUserIds != null && excludeUserIds.length > 0) {
+            clusterMessage.setExcludeUserIds(Set.of(excludeUserIds));
+        }
+        return clusterMessage;
     }
 
 }

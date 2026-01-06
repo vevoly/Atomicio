@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.example.service;
+package io.github.vevoly.atomicio.example.simple.service;
 
 /**
  * 模拟认证

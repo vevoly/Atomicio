@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.example.listeners;
+package io.github.vevoly.atomicio.example.simple.listeners;
 
 import io.github.vevoly.atomicio.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.api.listeners.EngineReadyListener;

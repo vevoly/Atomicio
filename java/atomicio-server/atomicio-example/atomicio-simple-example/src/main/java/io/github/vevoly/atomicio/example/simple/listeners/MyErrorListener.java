@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.example.listeners;
+package io.github.vevoly.atomicio.example.simple.listeners;
 
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.listeners.ErrorEventListener;

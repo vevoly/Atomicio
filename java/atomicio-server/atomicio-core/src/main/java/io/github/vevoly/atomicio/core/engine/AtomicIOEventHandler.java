@@ -1,7 +1,9 @@
 package io.github.vevoly.atomicio.core.engine;
 
 import com.lmax.disruptor.EventHandler;
+import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
+import io.github.vevoly.atomicio.core.cluster.ReconstructedMessage;
 import io.github.vevoly.atomicio.core.event.AtomicIOEvent;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,16 +41,18 @@ public class AtomicIOEventHandler implements EventHandler<AtomicIOEvent> {
      * @param message   集群消息
      */
     private void handleClusterMessage(AtomicIOClusterMessage message) {
+
+        AtomicIOMessage atomicIOMessage = new ReconstructedMessage(message.getCommandId(), message.getPayload());
         switch (message.getMessageType()) {
             case SEND_TO_USER:
-                engine.sendToUserLocally(message.getTarget(), message.getOriginalMessage());
+                engine.sendToUserLocally(message.getTarget(), atomicIOMessage);
                 break;
             case SEND_TO_GROUP:
-                engine.sendToGroupLocally(message.getTarget(), message.getOriginalMessage(),
+                engine.sendToGroupLocally(message.getTarget(), atomicIOMessage,
                         message.getExcludeUserIds() != null ? message.getExcludeUserIds().toArray(new String[0]) : null);
                 break;
             case BROADCAST:
-                engine.broadcastLocally(message.getOriginalMessage());
+                engine.broadcastLocally(atomicIOMessage);
                 break;
             default:
                 log.warn("Unhandled cluster message type: {}", message.getMessageType());

@@ -1,8 +1,7 @@
-package io.github.vevoly.atomicio.example.listeners;
+package io.github.vevoly.atomicio.example.simple.listeners;
 
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.listeners.ConnectEventListener;
-import io.github.vevoly.atomicio.api.listeners.SessionEventListener;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
