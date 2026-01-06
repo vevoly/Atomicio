@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.github.vevoly</groupId>
+        <artifactId>atomicio-java</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <name>Atomicio-Server</name>
+    <packaging>pom</packaging>
+    <artifactId>atomicio-server</artifactId>
+    <url>https://github.com/vevoly/Atomicio</url>
+    <description>Server module for Atomicio</description>
+
+    <modules>
+        <module>atomicio-api</module>
+        <module>atomicio-core</module>
+        <module>atomicio-spring-boot-starter</module>
+        <module>atomicio-example</module>
+    </modules>
+</project>
