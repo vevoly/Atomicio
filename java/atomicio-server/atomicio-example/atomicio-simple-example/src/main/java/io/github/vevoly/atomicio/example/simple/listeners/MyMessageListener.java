@@ -2,6 +2,7 @@ package io.github.vevoly.atomicio.example.simple.listeners;
 
 import io.github.vevoly.atomicio.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
+import io.github.vevoly.atomicio.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
 import io.github.vevoly.atomicio.api.message.TextMessage;
 import io.github.vevoly.atomicio.example.simple.service.AuthService;
@@ -76,7 +77,7 @@ public class MyMessageListener implements MessageEventListener {
 
         String toUserId = parts[0];
         String messageContent = parts[1];
-        String fromUserId = session.getAttribute("userId");
+        String fromUserId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
 
         System.out.println("用户 " + fromUserId + " 发送消息给 " + toUserId + ": " + messageContent);
         // **调用引擎的 sendToUser 方法！**
@@ -87,7 +88,7 @@ public class MyMessageListener implements MessageEventListener {
     private void handleJoinGroup(AtomicIOSession session, TextMessage message) {
         // 协议: content = "groupId"
         String groupId = message.getContent();
-        String userId = session.getAttribute("userId");
+        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
 
         if (userId != null && groupId != null && !groupId.isEmpty()) {
             System.out.println("用户 " + userId + " 尝试加入群组 " + groupId);

@@ -13,6 +13,7 @@
     <name>Atomicio-Example</name>
     <modules>
         <module>atomicio-simple-example</module>
+        <module>atomicio-protobuf-example</module>
     </modules>
     <artifactId>atomicio-example</artifactId>
     <url>https://github.com/vevoly/Atomicio</url>

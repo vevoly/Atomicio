@@ -15,7 +15,12 @@ public class AtomicIOCommand {
 
     // --- 业务指令 ---
     public static final int LOGIN = 1001;
+    public static final int LOGIN_RESPONSE = 1002;
+
     public static final int P2P_MESSAGE = 2001;
+    public static final int P2P_MESSAGE_NOTIFY = 2002;
+    public static final int P2P_MESSAGE_ACK = 2003;
+
     public static final int JOIN_GROUP = 3001;
-    public static final int GROUP_MESSAGE = 3002;
+    public static final int GROUP_MESSAGE = 3003;
 }

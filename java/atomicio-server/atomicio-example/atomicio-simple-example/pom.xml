@@ -6,13 +6,13 @@
     <parent>
         <groupId>io.github.vevoly</groupId>
         <artifactId>atomicio-example</artifactId>
-        <version>0.4.1</version>
+        <version>${revision}</version>
     </parent>
 
     <name>Atomicio-Simple-Example</name>
     <artifactId>atomicio-simple-example</artifactId>
     <url>https://github.com/vevoly/Atomicio</url>
-    <description>A simple example for Atomicio</description>
+    <description>A simple example with Text protocol for Atomicio</description>
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>

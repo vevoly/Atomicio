@@ -12,6 +12,5 @@ option java_package = "io.github.vevoly.atomicio.codec.protobuf.proto";
  */
 message GenericMessage {
   int32 commandId = 1;
-//  google.protobuf.Any payload = 2; // payload 是 Any 类型，
-  bytes payload = 2; // 用于测试
+  google.protobuf.Any payload = 2; // payload 是 Any 类型，
 }

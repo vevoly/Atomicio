@@ -3,6 +3,7 @@ package io.github.vevoly.atomicio.core.engine;
 import com.lmax.disruptor.EventHandler;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
+import io.github.vevoly.atomicio.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.core.cluster.ReconstructedMessage;
 import io.github.vevoly.atomicio.core.event.AtomicIOEvent;
 import lombok.AllArgsConstructor;
@@ -73,7 +74,7 @@ public class AtomicIOEventHandler implements EventHandler<AtomicIOEvent> {
                 engine.fireConnectEvent(atomicIOEvent.getSession());
                 break;
             case DISCONNECT:
-                String userId = atomicIOEvent.getSession().getAttribute("userId");
+                String userId = atomicIOEvent.getSession().getAttribute(AtomicIOSessionAttributes.USER_ID);
                 if (userId != null) {
                     engine.unbindUserInternal(userId, atomicIOEvent.getSession());
                 }

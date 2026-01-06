@@ -7,6 +7,7 @@ import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
+import io.github.vevoly.atomicio.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.api.listeners.*;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
@@ -245,8 +246,8 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         }
 
         // 2. 将用户ID存储在 Session 属性中，方便 Session 内部访问
-        session.setAttribute("userId", userId);
-        session.setAttribute("isAuthenticated", true); // 标记为已认证
+        session.setAttribute(AtomicIOSessionAttributes.USER_ID, userId);
+        session.setAttribute(AtomicIOSessionAttributes.IS_AUTHENTICATED, true); // 标记为已认证
         log.info("User {} bound to session {}", userId, session.getId());
     }
 
@@ -293,10 +294,10 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         // 将 NettySession 内部的 Channel 加入到 ChannelGroup
         group.add(((NettySession) session).getNettyChannel());
         // 群组信息存储在 Session 属性中，方便后续清理
-        Set<String> userGroups = session.getAttribute("groups");
+        Set<String> userGroups = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
         if (userGroups == null) {
             userGroups = ConcurrentHashMap.newKeySet(); // 线程安全的 Set
-            session.setAttribute("groups", userGroups);
+            session.setAttribute(AtomicIOSessionAttributes.GROUPS, userGroups);
         }
         userGroups.add(groupId);
         log.info("User {} joined group {}. Current group size: {}", userId, groupId, group.size());
@@ -318,7 +319,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         if (group != null) {
             group.remove(((NettySession) session).getNettyChannel());
             // 从 Session 属性中移除群组信息
-            Set<String> userGroups = session.getAttribute("groups");
+            Set<String> userGroups = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
             if (userGroups != null) {
                 userGroups.remove(groupId);
             }
@@ -363,7 +364,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                 //  allUserIdsInGroup.removeAll(excludeSet) 得到最终需要发送的 userId 列表
                 group.forEach(channel -> {
                     AtomicIOSession session = new NettySession(channel, DefaultAtomicIOEngine.this);
-                    String userId = session.getAttribute("userId");
+                    String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
                     if (userId != null && !excludeSet.contains(userId)) {
                         session.send(message);
                     }
@@ -512,12 +513,12 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             // 从SessionID到用户ID的映射中移除
             sessionIdToUserIdMap.remove(session.getId());
             // 自动让用户离开所有他加入的群组
-            Set<String> userGroups = session.getAttribute("groups");
+            Set<String> userGroups = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
             if (userGroups != null && !userGroups.isEmpty()) {
                 for (String groupId : userGroups) {
                     leaveGroup(groupId, userId); // 调用 leaveGroup，内部会清理 ChannelGroup
                 }
-                session.setAttribute("groups", null); // 清理 Session 属性
+                session.setAttribute(AtomicIOSessionAttributes.GROUPS, null); // 清理 Session 属性
             }
             log.info("User {} (session {}) automatically unbound and left all groups due to disconnect.", userId, session.getId());
         }

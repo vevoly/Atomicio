@@ -93,7 +93,7 @@ public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
         errorEventListeners.forEach(engine::onError);
         idleEventListeners.forEach(engine::onIdle);
         log.info("Registered: {} EngineReadyListener {} ConnectEventListener, {} DisconnectEventListener, " +
-                        "{} MessageEventListener, {} ErrorEventListener, {} ErrorEventListener.",
+                        "{} MessageEventListener, {} ErrorEventListener, {} IdleEventListener.",
                 engineReadyListeners.size(), connectEventListeners.size(), disconnectEventListeners.size(),
                 messageEventListeners.size(), errorEventListeners.size(), idleEventListeners.size());
     }
