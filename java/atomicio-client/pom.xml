@@ -10,32 +10,13 @@
     </parent>
 
     <name>Atomicio-Client</name>
+    <modules>
+        <module>atomicio-client-api</module>
+        <module>atomicio-client-core</module>
+        <module>atomicio-client-sdk</module>
+    </modules>
     <packaging>pom</packaging>
     <artifactId>atomicio-client</artifactId>
     <url>https://github.com/vevoly/Atomicio</url>
     <description>Client SDK module for Atomicio</description>
-    <dependencies>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-protocol-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-codec-protobuf</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-
-    </dependencies>
 </project>

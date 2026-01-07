@@ -47,15 +47,15 @@ public class ProtobufCodecProvider implements AtomicIOCodecProvider {
 
 
         // Inbound
-        pipeline.addLast("A_Logger", new LoggingHandler(LogLevel.INFO)); // 窃听点 A: 原始数据流
+//        pipeline.addLast("A_Logger", new LoggingHandler(LogLevel.INFO)); // 窃听点 A: 原始数据流（仅用于调试）
         pipeline.addLast(getFrameDecoder());
-        pipeline.addLast("B_Logger", new LoggingHandler(LogLevel.INFO)); // 窃听点 B: 检查分帧结果
+//        pipeline.addLast("B_Logger", new LoggingHandler(LogLevel.INFO)); // 窃听点 B: 检查分帧结果
         pipeline.addLast(getDecoder());
 
         // 适配器
-        pipeline.addLast("C_Logger", new LoggingHandler(LogLevel.INFO)); // 窃听点 C: 检查 Protobuf 解码结果
+//        pipeline.addLast("C_Logger", new LoggingHandler(LogLevel.INFO)); // 窃听点 C: 检查 Protobuf 解码结果
         pipeline.addLast(new ProtobufAdapterHandler());
-        pipeline.addLast("D_Logger", new LoggingHandler(LogLevel.INFO)); // 窃听点 D: 检查适配器转换结果
+//        pipeline.addLast("D_Logger", new LoggingHandler(LogLevel.INFO)); // 窃听点 D: 检查适配器转换结果
     }
 
     // **我们还需要一个 Prepender (前置器) 来配合 FrameDecoder**

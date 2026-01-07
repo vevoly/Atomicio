@@ -1,6 +1,5 @@
 package io.github.vevoly.atomicio.client;
 
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import io.github.vevoly.atomicio.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.codec.protobuf.proto.GenericMessage;

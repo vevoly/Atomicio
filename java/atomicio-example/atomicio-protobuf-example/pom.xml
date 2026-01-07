@@ -24,6 +24,11 @@
             <artifactId>atomicio-codec-protobuf</artifactId>
             <version>${revision}</version>
         </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-client-sdk</artifactId>
+            <version>${revision}</version>
+        </dependency>
     </dependencies>
 
     <!-- 配置 Protobuf 编译器插件 -->
