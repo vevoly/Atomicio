@@ -14,3 +14,11 @@ message GenericMessage {
   int32 commandId = 1;
   google.protobuf.Any payload = 2; // payload 是 Any 类型，
 }
+
+/**
+  心跳
+ */
+message Heartbeat {
+  int64 timestamp = 1;
+}
+

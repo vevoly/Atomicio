@@ -10,12 +10,14 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 客户端实现
@@ -48,6 +50,7 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
     private void init() {
         this.group = new NioEventLoopGroup();
         final AtomicIOClientChannelHandler clientHandler = new AtomicIOClientChannelHandler(this);
+        final AtomicIOReconnectHandler reconnectHandler = new AtomicIOReconnectHandler(this);
         this.bootstrap = new Bootstrap();
 
         bootstrap.group(group)
@@ -59,15 +62,29 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
                     protected void initChannel(SocketChannel ch) throws Exception {
                         ChannelPipeline pipeline = ch.pipeline();
 
-                        // 1. 使用 CodecProvider 构建协议栈
+                        // 1. 协议层, 使用 CodecProvider 构建协议栈
                         codecProvider.buildPipeline(pipeline);
 
-                        // todo 2. 添加心跳和重连 Handler (暂时留空，后续实现)
-                        // pipeline.addLast(new IdleStateHandler(...));
-                        // pipeline.addLast(new ReconnectHandler(DefaultAtomicIOClient.this));
-
-                        // 3. 添加我们的核心逻辑 Handler
+                        // 2. 心跳机制层
+                        if (config.isHeartbeatEnabled() && config.getWriterIdleSeconds() > 0) {
+                            // 从 CodecProvider 中获取心跳
+                            AtomicIOMessage heartbeatMessage = codecProvider.getHeartbeat();
+                            if (null == heartbeatMessage) {
+                                throw new IllegalStateException("心跳已开启, 但是 CodecProvider 为找到默认心跳消息.");
+                            }
+                            // 2.1 Netty 空闲检测，必须是每个 channel new 一个
+                            pipeline.addLast(new IdleStateHandler(0, config.getWriterIdleSeconds(),
+                                     0, TimeUnit.SECONDS));
+                            // 2.2 心跳发送
+                            pipeline.addLast(new AtomicIOHeartbeatHandler(heartbeatMessage));
+                        }
+                        // 3. 核心业务与事件翻译层
                         pipeline.addLast(clientHandler);
+
+                        // 4. 连接管理与重连层
+                        if (config.isReconnectEnabled()) {
+                            pipeline.addLast(reconnectHandler);
+                        }
                     }
                 });
     }
@@ -176,5 +193,16 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
 
     void fireReconnectingEvent(int attempt, int delay) {
         reconnectingListeners.forEach(l -> l.onReconnecting(attempt, delay));
+    }
+
+    AtomicIOClientConfig getConfig() {
+        return config;
+    }
+
+    Bootstrap getBootstrap() {
+        return bootstrap;
+    }
+    EventLoopGroup getEventLoopGroup() {
+        return group;
     }
 }

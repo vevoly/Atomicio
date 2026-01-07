@@ -1,8 +1,12 @@
 package io.github.vevoly.atomicio.codec;
 
+import io.github.vevoly.atomicio.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufAdapterHandler;
+import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.GenericMessage;
+import io.github.vevoly.atomicio.codec.protobuf.proto.Heartbeat;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
@@ -37,6 +41,14 @@ public class ProtobufCodecProvider implements AtomicIOCodecProvider {
         // Protobuf 官方推荐的、基于 Varint32 的帧解码器
         // 自动处理 TCP 粘包/半包问题
         return new ProtobufVarint32FrameDecoder();
+    }
+
+    @Override
+    public AtomicIOMessage getHeartbeat() {
+        Heartbeat heartbeat = Heartbeat.newBuilder()
+                .setTimestamp(System.currentTimeMillis())
+                .build();
+        return ProtobufMessage.of(AtomicIOCommand.HEARTBEAT, heartbeat);
     }
 
     @Override

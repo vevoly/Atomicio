@@ -1,5 +1,6 @@
 package io.github.vevoly.atomicio.api.codec;
 
+import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 
@@ -51,6 +52,14 @@ public interface AtomicIOCodecProvider {
      * @return a new ChannelHandler instance for frame decoding, or null if not needed.
      */
     default ChannelHandler getFrameDecoder() {
+        return null;
+    }
+
+    /**
+     * 提供一个默认的心跳消息。
+     * @return A default heartbeat message, or null if not supported.
+     */
+    default AtomicIOMessage getHeartbeat() {
         return null;
     }
 
