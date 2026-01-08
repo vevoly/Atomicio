@@ -14,6 +14,11 @@ public class AtomicIOSessionAttributes {
     public static final String USER_ID = "userId";
 
     /**
+     * 设备id
+     */
+    public static final String DEVICE_ID = "deviceId";
+
+    /**
      * 是否已认证
      */
     public static final String IS_AUTHENTICATED = "isAuthenticated";

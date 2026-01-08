@@ -1,7 +1,10 @@
 package io.github.vevoly.atomicio.api;
 
 import io.github.vevoly.atomicio.api.listeners.*;
+import io.github.vevoly.atomicio.api.session.AtomicIOBindRequest;
+import org.springframework.lang.Nullable;
 
+import java.util.List;
 import java.util.concurrent.Future;
 
 /**
@@ -61,12 +64,18 @@ public interface AtomicIOEngine {
     void onIdle(IdleEventListener listener);
 
     /**
+     * 会话被  事件的监听器
+     * @param listener
+     */
+    void onSessionReplaced(SessionReplacedListener listener);
+
+    /**
      * 将一个已认证的用户ID与一个Session进行双向绑定。
      * 这个方法应该由认证成功后的业务逻辑来调用。
-     * @param userId 用户ID
+     * @param request 绑定请求
      * @param session 用户的会话
      */
-    void bindUser(String userId, AtomicIOSession session);
+    void bindUser(AtomicIOBindRequest request, AtomicIOSession session);
 
     /**
      * 向指定用户发送消息。引擎会自动寻找该用户所在的节点并投递。
@@ -76,7 +85,7 @@ public interface AtomicIOEngine {
     void sendToUser(String userId, AtomicIOMessage message);
 
     /**
-     * 将一个用户加入到指定的组。
+     * 将用户加入到指定的组（用户的所有会话）。
      * 组可以是任何业务概念：房间、队伍、公会、聊天频道等。
      * 如果组不存在，引擎应自动创建。
      * @param groupId 组的唯一标识符，例如 "room-123", "guild-avengers"
@@ -85,11 +94,28 @@ public interface AtomicIOEngine {
     void joinGroup(String groupId, String userId);
 
     /**
+     * 用户的其中一个会话加入群组
+     * 多端模式下精确控制
+     * @param groupId   群组 id
+     * @param session   会话
+     */
+    void joinGroup(String groupId, AtomicIOSession session);
+
+    /**
      * 将一个用户从指定的组中移除。
+     * 指定用户所有在线会话都离开一个组
      * @param groupId 组的唯一标识符
      * @param userId 要移除的用户ID
      */
     void leaveGroup(String groupId, String userId);
+
+    /**
+     * 让一个指定的会话离开一个组。
+     * 多端模式下精确控制
+     * @param groupId 组ID
+     * @param session 要离开的会话
+     */
+    void leaveGroup(String groupId, AtomicIOSession session);
 
     /**
      * 向一个组内的所有成员（除了可选的排除者）发送消息。
@@ -105,4 +131,12 @@ public interface AtomicIOEngine {
      * @param message 消息对象
      */
     void broadcast(AtomicIOMessage message);
+
+    /**
+     * 主动踢掉一个用户的所有在线会话。
+     * @param userId 要踢掉的用户ID
+     * @param kickOutMessage 一个可选的、在关闭连接前要发送的通知消息。如果为 null，则不发送通知。
+     * @return a List of the sessions that were kicked.
+     */
+    List<AtomicIOSession> kickUser(String userId, @Nullable AtomicIOMessage kickOutMessage);
 }

@@ -43,5 +43,10 @@ public enum AtomicIOEventType {
     /**
      * 当连接空闲超时时触发（心跳）。
      */
-    IDLE
+    IDLE,
+
+    /**
+     * 当用户会话被替换时触发（单点登录）。
+     */
+    SESSION_REPLACED,
 }

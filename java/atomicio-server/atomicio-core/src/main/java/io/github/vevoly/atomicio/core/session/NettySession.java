@@ -4,9 +4,11 @@ import io.github.vevoly.atomicio.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.util.AttributeKey;
 
 import java.util.Objects;
+import java.util.concurrent.Future;
 
 /**
  * AtomicIOSession 的默认实现，基于 Netty Channel。
@@ -42,9 +44,8 @@ public class NettySession implements AtomicIOSession {
     }
 
     @Override
-    public void send(AtomicIOMessage message) {
-        // 直接将消息写入 Channel，ChannelPipeline 中的 Encoder 会负责将其转换为 ByteBuf
-        channel.writeAndFlush(message);
+    public ChannelFuture send(AtomicIOMessage message) {
+        return channel.writeAndFlush(message);
     }
 
     @Override

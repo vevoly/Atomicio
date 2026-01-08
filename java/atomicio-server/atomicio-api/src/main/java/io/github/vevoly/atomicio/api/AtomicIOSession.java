@@ -1,5 +1,9 @@
 package io.github.vevoly.atomicio.api;
 
+import io.netty.channel.ChannelFuture;
+
+import java.util.concurrent.Future;
+
 /**
  * 代表一个客户端与服务器之间的连接会话。
  * 它屏蔽了底层的网络细节 (如 Netty Channel)。
@@ -16,10 +20,11 @@ public interface AtomicIOSession {
     String getId();
 
     /**
-     * 向当前会话发送消息。
+     * 异步地向当前会话发送一条消息。
      * @param message 消息对象
+     * @return Future 将在消息被写入传输后通知。
      */
-    void send(AtomicIOMessage message);
+    ChannelFuture send(AtomicIOMessage message);
 
     /**
      * 关闭当前会话。

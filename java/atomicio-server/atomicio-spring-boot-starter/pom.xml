@@ -9,9 +9,8 @@
         <version>${revision}</version>
     </parent>
 
-    <artifactId>atomicio-spring-boot-starter</artifactId>
     <name>Atomicio-Spring-Boot-Starter</name>
-    <packaging>jar</packaging>
+    <artifactId>atomicio-spring-boot-starter</artifactId>
     <url>https://github.com/vevoly/Atomicio</url>
     <description>Spring Boot Starter for Atomicio</description>
 

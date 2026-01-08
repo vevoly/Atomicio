@@ -10,6 +10,7 @@ import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.api.listeners.*;
+import io.github.vevoly.atomicio.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
@@ -25,10 +26,7 @@ import io.netty.util.concurrent.GlobalEventExecutor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.util.annotation.Nullable;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -59,9 +57,11 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     private final List<MessageEventListener> messageListeners = new CopyOnWriteArrayList<>();
     private final List<ErrorEventListener> errorListeners = new CopyOnWriteArrayList<>();
     private final List<IdleEventListener> idleEventListeners = new CopyOnWriteArrayList<>();
+    private final List<SessionReplacedListener> sessionReplacedListeners = new CopyOnWriteArrayList<>();
 
     // 映射表
-    private final Map<String, AtomicIOSession> userIdToSessionMap = new ConcurrentHashMap<>(); // Key: 用户ID, Value: 对应的会话
+    private final Map<String, AtomicIOSession> userIdToSessionMap = new ConcurrentHashMap<>(); // 单点登录时使用
+    private final Map<String, CopyOnWriteArrayList<AtomicIOSession>> userIdToSessionsMap = new ConcurrentHashMap<>(); // 多点登录时使用
     private final Map<String, String> sessionIdToUserIdMap = new ConcurrentHashMap<>(); // Key: 会话ID, Value: 对应的用户ID
     private final Map<String, ChannelGroup> groups = new ConcurrentHashMap<>(); // Key: 组ID, Value: 组内的所有会话
 
@@ -223,32 +223,51 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         this.idleEventListeners.add(listener);
     }
 
+    @Override
+    public void onSessionReplaced(SessionReplacedListener listener) {
+        this.sessionReplacedListeners.add(listener);
+    }
 
     @Override
-    public void bindUser(String userId, AtomicIOSession session) {
+    public void bindUser(AtomicIOBindRequest request, AtomicIOSession newSession) {
+        String userId = request.getUserId();
         Objects.requireNonNull(userId, "User ID cannot be null");
-        Objects.requireNonNull(session, "Session cannot be null");
+        Objects.requireNonNull(newSession, "Session cannot be null");
 
-        // 1. 先进行清理：如果这个 Session 之前绑定过其他用户，或者这个用户之前绑定过其他 Session
-        String oldUserId = sessionIdToUserIdMap.put(session.getId(), userId);
-        if (oldUserId != null && !oldUserId.equals(userId)) {
-            // 同一个 Session 绑定了新用户，移除旧用户的关联
-            userIdToSessionMap.remove(oldUserId);
-            log.warn("Session {} re-bound from user {} to user {}", session.getId(), oldUserId, userId);
+        // 处理任何可能存在的、与当前 session 关联的旧绑定
+        String oldUserIdForThisSession = sessionIdToUserIdMap.put(newSession.getId(), userId);
+        if (oldUserIdForThisSession != null && !oldUserIdForThisSession.equals(userId)) {
+            // 这个 Session 之前绑定了另一个用户，现在要换绑
+            // 这是一个罕见的场景，但需要正确处理
+            log.warn("Session {} is being re-bound from old user '{}' to new user '{}'.",
+                    newSession.getId(), oldUserIdForThisSession, userId);
+            unbindUserInternal(oldUserIdForThisSession, newSession); // 用旧用户ID和新Session来清理
         }
-        AtomicIOSession oldSession = userIdToSessionMap.put(userId, session);
-        if (oldSession != null && !oldSession.getId().equals(session.getId())) {
-            // 同一个用户在其他 Session 上登录了，旧的 Session 失效
-            log.warn("User {} re-logged in. Old session {} will be closed.", userId, oldSession.getId());
-            oldSession.close(); // 强制关闭旧的连接
-            // 同时清理旧 Session 的反向映射
-            sessionIdToUserIdMap.remove(oldSession.getId());
+        // 根据配置决定是多端登录还是单点登录
+        if (config.getSession().isMultiLogin()) {
+            // 多端登录逻辑
+            CopyOnWriteArrayList<AtomicIOSession> sessions = userIdToSessionsMap.computeIfAbsent(
+                    userId, k -> new CopyOnWriteArrayList<>()
+            );
+            sessions.add(newSession);
+            log.info("User {} bound to a new session {} (Multi-session mode). Total sessions for user: {}.",
+                    userId, newSession.getId(), sessions.size());
+        } else {
+            // 单点登录逻辑 (踢掉旧连接)
+            AtomicIOSession oldSession = userIdToSessionMap.put(userId, newSession);
+            if (oldSession != null && !oldSession.getId().equals(newSession.getId())) {
+                log.warn("User {} re-logged in. replaced old session {}.", userId, oldSession.getId());
+                fireSessionReplacedEvent(oldSession, newSession);
+            }
         }
+        // 将用户ID和设备ID等信息存储在 Session 属性中
+        newSession.setAttribute(AtomicIOSessionAttributes.USER_ID, userId);
+        if (request.getDeviceId() != null) {
+            newSession.setAttribute(AtomicIOSessionAttributes.DEVICE_ID, request.getDeviceId());
+        }
+        newSession.setAttribute(AtomicIOSessionAttributes.IS_AUTHENTICATED, true);
+        log.info("User {} successfully bound to session {}.", userId, newSession.getId());
 
-        // 2. 将用户ID存储在 Session 属性中，方便 Session 内部访问
-        session.setAttribute(AtomicIOSessionAttributes.USER_ID, userId);
-        session.setAttribute(AtomicIOSessionAttributes.IS_AUTHENTICATED, true); // 标记为已认证
-        log.info("User {} bound to session {}", userId, session.getId());
     }
 
     @Override
@@ -269,11 +288,25 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     boolean sendToUserLocally(String userId, AtomicIOMessage message) {
         Objects.requireNonNull(userId, "User ID cannot be null");
         Objects.requireNonNull(message, "Message cannot be null");
-        AtomicIOSession localSession = userIdToSessionMap.get(userId);
-        if (localSession != null && localSession.isActive()) {
-            localSession.send(message);
-            log.debug("Sent message from cluster to local user {}", userId);
-            return true;
+
+        if (config.getSession().isMultiLogin()) {
+            // 多端模式
+            List<AtomicIOSession> sessions = userIdToSessionsMap.get(userId);
+            if (sessions != null && !sessions.isEmpty()) {
+                log.debug("Sending message to user {} on {} device(s).", userId, sessions.size());
+                sessions.forEach(s -> {
+                    if (s.isActive()) s.send(message);
+                });
+                return true;
+            }
+        } else {
+            // 单点模式
+            AtomicIOSession session = userIdToSessionMap.get(userId);
+            if (session != null && session.isActive()) {
+                session.send(message);
+                log.debug("Sent message to user {} (session {})", userId, session.getId());
+                return true;
+            }
         }
         return false;
     }
@@ -283,24 +316,56 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         Objects.requireNonNull(groupId, "Group ID cannot be null");
         Objects.requireNonNull(userId, "User ID cannot be null");
 
-        AtomicIOSession session = userIdToSessionMap.get(userId);
-        if (session == null || !session.isActive()) {
+        // 用户的所有 session 都加入群组
+        List<AtomicIOSession> sessionsToJoin = findSessionsByUserId(userId);
+        if (sessionsToJoin.isEmpty()) {
             log.warn("Cannot join group {}: User {} is not online.", groupId, userId);
             return;
         }
+        log.info("User {} is joining group {} with all {} session(s).", userId, groupId, sessionsToJoin.size());
+        for (AtomicIOSession session : sessionsToJoin) {
+            joinGroup(groupId, session);
+        }
 
-        // 获取或创建 ChannelGroup
-        ChannelGroup group = groups.computeIfAbsent(groupId, k -> new DefaultChannelGroup(GlobalEventExecutor.INSTANCE)); // GlobalEventExecutor.INSTANCE 确保 Group 资源的正确管理
+    }
+
+    @Override
+    public void joinGroup(String groupId, AtomicIOSession session) {
+        Objects.requireNonNull(groupId, "Group ID cannot be null");
+        Objects.requireNonNull(session, "Session cannot be null");
+
+        // 安全检查
+        if (!session.isActive()) {
+            log.warn("Cannot join group {}: Session {} is not active.", groupId, session.getId());
+            return;
+        }
+        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
+        if (userId == null) {
+            log.warn("Cannot join group {}: Session {} is not bound to a user.", groupId, session.getId());
+            return;
+        }
+        // 获取或创建 ChannelGroup, GlobalEventExecutor.INSTANCE 确保 Group 资源的正确管理
+        ChannelGroup group = groups.computeIfAbsent(groupId, k -> new DefaultChannelGroup(GlobalEventExecutor.INSTANCE));
         // 将 NettySession 内部的 Channel 加入到 ChannelGroup
-        group.add(((NettySession) session).getNettyChannel());
-        // 群组信息存储在 Session 属性中，方便后续清理
+        if (session instanceof NettySession) {
+            group.add(((NettySession) session).getNettyChannel());
+        } else {
+            // 如果未来有其他 Session 实现，这里需要处理
+            log.error("Unsupported session type for group operations: {}", session.getClass().getName());
+            return;
+        }
+        // 将群组信息存储在 Session 属性中，方便后续清理
         Set<String> userGroups = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
         if (userGroups == null) {
-            userGroups = ConcurrentHashMap.newKeySet(); // 线程安全的 Set
+            userGroups = ConcurrentHashMap.newKeySet();
             session.setAttribute(AtomicIOSessionAttributes.GROUPS, userGroups);
         }
-        userGroups.add(groupId);
-        log.info("User {} joined group {}. Current group size: {}", userId, groupId, group.size());
+        // add 方法幂等，重复添加不会有问题
+        boolean added = userGroups.add(groupId);
+        if (added) {
+            log.info("Session {} (user: {}) joined group {}. Current group size: {}",
+                    session.getId(), userId, groupId, group.size());
+        }
     }
 
     @Override
@@ -308,29 +373,43 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         Objects.requireNonNull(groupId, "Group ID cannot be null");
         Objects.requireNonNull(userId, "User ID cannot be null");
 
-        AtomicIOSession session = userIdToSessionMap.get(userId);
-        if (session == null || !session.isActive()) {
-            // 如果用户不在线
-            log.debug("User {} is not online, no need to leave group {} actively.", userId, groupId);
+        List<AtomicIOSession> sessionsToLeave = findSessionsByUserId(userId);
+        if (sessionsToLeave.isEmpty()) {
+            log.debug("User {} is not online, no need to leave group {} actively.", userId);
             return;
         }
+        log.info("User {} is leaving group {} with all {} session(s).", userId, groupId, sessionsToLeave.size());
+        for (AtomicIOSession session : sessionsToLeave) {
+            leaveGroup(groupId, session);
+        }
+    }
 
+    @Override
+    public void leaveGroup(String groupId, AtomicIOSession session) {
+        Objects.requireNonNull(groupId, "Group ID cannot be null");
+        Objects.requireNonNull(session, "Session cannot be null");
+
+        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
         ChannelGroup group = groups.get(groupId);
         if (group != null) {
-            group.remove(((NettySession) session).getNettyChannel());
-            // 从 Session 属性中移除群组信息
+            // 从 ChannelGroup 中移除
+            if (session instanceof NettySession) {
+                group.remove(((NettySession) session).getNettyChannel());
+            }
+            // 从 Session 属性中移除
             Set<String> userGroups = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
             if (userGroups != null) {
-                userGroups.remove(groupId);
+                boolean removed = userGroups.remove(groupId);
+                if(removed){
+                    log.info("Session {} (user: {}) left group {}. Current group size: {}",
+                            session.getId(), userId, groupId, group.size());
+                }
             }
-            log.info("User {} left group {}. Current group size: {}", userId, groupId, group.size());
-            // 如果群组为空，移除 ChannelGroup 实例以节省内存
+            // 如果群组为空，则清理
             if (group.isEmpty()) {
                 groups.remove(groupId);
-                log.info("Group {} is empty and removed.", groupId);
+                log.info("Group {} is empty and has been removed.", groupId);
             }
-        } else {
-            log.warn("Group {} does not exist for user {}", groupId, userId);
         }
     }
 
@@ -390,12 +469,35 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         }
     }
 
-    /**
-     * 获取配置信息
-     * @return
-     */
-    public AtomicIOProperties getProperties() {
-        return this.config;
+    @Override
+    public List<AtomicIOSession> kickUser(String userId, @Nullable AtomicIOMessage kickOutMessage) {
+        Objects.requireNonNull(userId, "User ID cannot be null");
+        log.warn("用户【{}】，被管理员强制下线.", userId);
+        List<AtomicIOSession> kickedSessions = findSessionsByUserId(userId);
+        if (kickedSessions.isEmpty()) {
+            return Collections.emptyList();
+        }
+        for (AtomicIOSession session : kickedSessions) {
+            if (session.isActive()) {
+                if (kickOutMessage != null) {
+                    // 1. 检查 session 是否是我们内部的 NettySession 实现
+                    if (session instanceof NettySession) {
+                        // 2. 如果是，便安全地进行转换，并调用 Netty 专属的方法
+                        ChannelFuture sendFuture = ((NettySession) session).getNettyChannel().writeAndFlush(kickOutMessage);
+                        // 3. 为 Netty 的 ChannelFuture 添加 CLOSE 监听器
+                        sendFuture.addListener(ChannelFutureListener.CLOSE);
+                        log.debug("Sent kick-out message to session {} and scheduled for closing.", session.getId());
+                    } else {
+                        // 安全回退: 如果 session 是其他未知实现，使用标准的 Future
+                        log.warn("Session {} is not a NettySession. kick-out Failed.", session.getId());
+                    }
+                } else {
+                    // 如果没有通知消息，直接关闭
+                    session.close();
+                }
+            }
+        }
+        return kickedSessions;
     }
 
     /**
@@ -501,26 +603,84 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             }
     }
 
+    void fireSessionReplacedEvent(AtomicIOSession oldSession, AtomicIOSession newSession) {
+        if (sessionReplacedListeners.isEmpty()) {
+            log.warn("No SessionReplacedListeners registered. Closing old session {} by default.", oldSession.getId());
+            if (oldSession.isActive()) {
+                oldSession.close();
+            }
+            return;
+        }
+        for (SessionReplacedListener listener : sessionReplacedListeners) {
+            try {
+                listener.onSessionReplaced(oldSession, newSession);
+            } catch (Exception e) {
+                log.error("Error executing SessionReplacedListener", e);
+            }
+        }
+        if (oldSession.isActive()) {
+            log.debug("Closing old session {} after firing sessionReplaced event.", oldSession.getId());
+            oldSession.close();
+        }
+    }
+
 
     /**
      * 引擎内部的清理方法：当 Session 断开时，自动解除用户绑定和群组关系。
      * 这个方法不应该暴露给外部，只由 EngineChannelHandler 调用。
      */
     void unbindUserInternal(String userId, AtomicIOSession session) {
-        if (userId != null && session != null) {
-            // 从用户ID到Session的映射中移除
-            userIdToSessionMap.remove(userId, session);
-            // 从SessionID到用户ID的映射中移除
-            sessionIdToUserIdMap.remove(session.getId());
-            // 自动让用户离开所有他加入的群组
-            Set<String> userGroups = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
-            if (userGroups != null && !userGroups.isEmpty()) {
-                for (String groupId : userGroups) {
-                    leaveGroup(groupId, userId); // 调用 leaveGroup，内部会清理 ChannelGroup
+        if (userId == null || session == null) {
+            return;
+        }
+        // 从 SessionID -> UserID 的映射中移除
+        sessionIdToUserIdMap.remove(session.getId());
+        // 根据配置决定从哪个 Map 中移除
+        if (config.getSession().isMultiLogin()) {
+            // 多端登录清理逻辑
+            CopyOnWriteArrayList<AtomicIOSession> sessions = userIdToSessionsMap.get(userId);
+            if (sessions != null) {
+                boolean removed = sessions.remove(session);
+                if(removed) {
+                    log.info("Session {} for user {} unbound due to disconnect. Remaining sessions: {}.",
+                            session.getId(), userId, sessions.size());
                 }
-                session.setAttribute(AtomicIOSessionAttributes.GROUPS, null); // 清理 Session 属性
+                if (sessions.isEmpty()) {
+                    userIdToSessionsMap.remove(userId);
+                    log.info("All sessions for user {} are disconnected. User is now offline.", userId);
+                }
             }
-            log.info("User {} (session {}) automatically unbound and left all groups due to disconnect.", userId, session.getId());
+        } else {
+            // 单点登录清理逻辑
+            // 仅当 Map 中存储的确实是当前这个 session 时才移除，防止并发问题
+            boolean removed = userIdToSessionMap.remove(userId, session);
+            if (removed) {
+                log.info("User {} (session {}) unbound due to disconnect.", userId, session.getId());
+            }
+        }
+
+        // 自动让用户离开所有他加入的群组
+        Set<String> userGroups = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
+        if (userGroups != null && !userGroups.isEmpty()) {
+            // 创建副本以避免在遍历时修改
+            for (String groupId : new CopyOnWriteArraySet<>(userGroups)) {
+                leaveGroup(groupId, session);
+            }
+            session.setAttribute(AtomicIOSessionAttributes.GROUPS, null);
+        }
+    }
+
+    /**
+     * 根据 userId 查找 session(s)
+     * @param userId
+     * @return
+     */
+    private List<AtomicIOSession> findSessionsByUserId(String userId) {
+        if (config.getSession().isMultiLogin()) {
+            return userIdToSessionsMap.getOrDefault(userId, new CopyOnWriteArrayList<>());
+        } else {
+            AtomicIOSession session = userIdToSessionMap.get(userId);
+            return session != null ? List.of(session) : List.of();
         }
     }
 

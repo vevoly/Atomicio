@@ -20,4 +20,27 @@
         <module>atomicio-core</module>
         <module>atomicio-spring-boot-starter</module>
     </modules>
+
+<!--    <dependencies>-->
+<!--        <dependency>-->
+<!--            <groupId>io.github.vevoly</groupId>-->
+<!--            <artifactId>atomicio-api</artifactId>-->
+<!--            <version>${revision}</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>io.github.vevoly</groupId>-->
+<!--            <artifactId>atomicio-core</artifactId>-->
+<!--            <version>${revision}</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>io.github.vevoly</groupId>-->
+<!--            <artifactId>atomicio-codec-text</artifactId>-->
+<!--            <version>${revision}</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>io.github.vevoly</groupId>-->
+<!--            <artifactId>atomicio-codec-protobuf</artifactId>-->
+<!--            <version>${revision}</version>-->
+<!--        </dependency>-->
+<!--    </dependencies>-->
 </project>

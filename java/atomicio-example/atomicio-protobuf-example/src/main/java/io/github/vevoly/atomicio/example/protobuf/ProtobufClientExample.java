@@ -9,6 +9,7 @@ import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.core.DefaultAtomicIOClient;
 import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
+import io.github.vevoly.atomicio.example.protobuf.cmd.ProtobufExampleCmd;
 import io.github.vevoly.atomicio.example.protobuf.proto.LoginRequest;
 import io.github.vevoly.atomicio.example.protobuf.proto.LoginResponse;
 import io.github.vevoly.atomicio.example.protobuf.proto.P2PMessageNotify;
@@ -65,7 +66,7 @@ public class ProtobufClientExample {
     private static void sendLoginRequest(AtomicIOClient client, String userId, String token) {
         LoginRequest loginRequestBody = LoginRequest.newBuilder()
                 .setUserId(userId).setToken(token).build();
-        AtomicIOMessage loginMessage = ProtobufMessage.of(AtomicIOCommand.LOGIN, loginRequestBody);
+        AtomicIOMessage loginMessage = ProtobufMessage.of(ProtobufExampleCmd.LOGIN, loginRequestBody);
         log.info("Sending LoginRequest for user '{}'...", userId);
         client.send(loginMessage);
     }
@@ -78,7 +79,7 @@ public class ProtobufClientExample {
         byte[] payload = message.getPayload();
         try {
             switch (commandId) {
-                case AtomicIOCommand.LOGIN_RESPONSE:
+                case ProtobufExampleCmd.LOGIN_RESPONSE:
                     LoginResponse loginResponse = LoginResponse.parseFrom(payload);
                     if (loginResponse.getSuccess()) {
                         log.info("<<<<<<<<< 登录成功! Server time: {}", loginResponse.getServerTime());
@@ -87,12 +88,12 @@ public class ProtobufClientExample {
                     }
                     break;
 
-                case AtomicIOCommand.P2P_MESSAGE_NOTIFY:
+                case ProtobufExampleCmd.P2P_MESSAGE_NOTIFY:
                     P2PMessageNotify notify = P2PMessageNotify.parseFrom(payload);
                     log.info("<<<<<<<<< 新消息 from [{}]: {}", notify.getFromUserId(), notify.getContent());
                     break;
 
-                case AtomicIOCommand.P2P_MESSAGE_ACK:
+                case ProtobufExampleCmd.P2P_MESSAGE_ACK:
                     // 在这里可以处理消息发送回执
                     break;
 
@@ -133,7 +134,7 @@ public class ProtobufClientExample {
                         .setClientMessageId("client-" + System.nanoTime()) // 生成一个唯一的客户端消息ID
                         .build();
 
-                AtomicIOMessage p2pMessage = ProtobufMessage.of(AtomicIOCommand.P2P_MESSAGE, p2pRequestBody);
+                AtomicIOMessage p2pMessage = ProtobufMessage.of(ProtobufExampleCmd.P2P_MESSAGE, p2pRequestBody);
 
                 log.info("Sending P2P message to '{}'...", toUserId);
                 client.send(p2pMessage);

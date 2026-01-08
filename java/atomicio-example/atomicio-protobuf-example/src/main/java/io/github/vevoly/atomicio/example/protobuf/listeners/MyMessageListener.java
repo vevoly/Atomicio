@@ -6,7 +6,9 @@ import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
+import io.github.vevoly.atomicio.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
+import io.github.vevoly.atomicio.example.protobuf.cmd.ProtobufExampleCmd;
 import io.github.vevoly.atomicio.example.protobuf.proto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,12 +30,12 @@ public class MyMessageListener implements MessageEventListener {
 
         try {
             switch (commandId) {
-                case AtomicIOCommand.LOGIN:
+                case ProtobufExampleCmd.LOGIN:
                     // 将 payload 字节解码成我们自己的业务消息
                     LoginRequest loginRequest = LoginRequest.parseFrom(payload);
                     handleLogin(session, loginRequest);
                     break;
-                 case AtomicIOCommand.P2P_MESSAGE:
+                 case ProtobufExampleCmd.P2P_MESSAGE:
                      P2PMessageRequest p2pMessage = P2PMessageRequest.parseFrom(payload);
                      handleP2PMessage(session, p2pMessage);
                      break;
@@ -59,10 +61,10 @@ public class MyMessageListener implements MessageEventListener {
         // 模拟认证
         if (token != null && !token.isEmpty()) {
             // 通过 session.getEngine() 调用引擎服务
-            session.getEngine().bindUser(userId, session);
+            session.getEngine().bindUser(AtomicIOBindRequest.of(userId), session);
             log.info("User {} authenticated and bound to session {}", userId, session.getId());
             // 回复客户端
-            AtomicIOMessage response = ProtobufMessage.of(AtomicIOCommand.LOGIN_RESPONSE,
+            AtomicIOMessage response = ProtobufMessage.of(ProtobufExampleCmd.LOGIN_RESPONSE,
                     LoginResponse.newBuilder().setSuccess(true).setServerTime(System.currentTimeMillis()).build());
             session.send(response);
         } else {
@@ -97,7 +99,7 @@ public class MyMessageListener implements MessageEventListener {
                     .setCode(400)
                     .setMessage("Missing recipient or client message id")
                     .build();
-            session.send(ProtobufMessage.of(AtomicIOCommand.P2P_MESSAGE_ACK, invalidAck));
+            session.send(ProtobufMessage.of(ProtobufExampleCmd.P2P_MESSAGE_ACK, invalidAck));
             return;
         }
         log.info("User '{}' sends message (clientMsgId:{}) to user '{}'", fromUserId, clientMessageId, toUserId);
@@ -109,7 +111,7 @@ public class MyMessageListener implements MessageEventListener {
                 .setServerMessageId(serverMessageId)
                 .setServerTime(System.currentTimeMillis())
                 .build();
-        AtomicIOMessage messageToForward = ProtobufMessage.of(AtomicIOCommand.P2P_MESSAGE_NOTIFY, notifyMessageBody);
+        AtomicIOMessage messageToForward = ProtobufMessage.of(ProtobufExampleCmd.P2P_MESSAGE_NOTIFY, notifyMessageBody);
         // 5. 调用引擎的 sendToUser 方法进行消息路由和投递
         session.getEngine().sendToUser(toUserId, messageToForward);
         // 6. 给发送者一个发送成功的回执 (ACK)
@@ -119,7 +121,7 @@ public class MyMessageListener implements MessageEventListener {
                 .setServerMessageId(serverMessageId)
                 .setTimestamp(System.currentTimeMillis())
                 .build();
-        session.send(ProtobufMessage.of(AtomicIOCommand.P2P_MESSAGE_ACK, successAck));
+        session.send(ProtobufMessage.of(ProtobufExampleCmd.P2P_MESSAGE_ACK, successAck));
     }
 
 }

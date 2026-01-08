@@ -5,6 +5,8 @@ import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
 import io.github.vevoly.atomicio.api.message.TextMessage;
+import io.github.vevoly.atomicio.api.session.AtomicIOBindRequest;
+import io.github.vevoly.atomicio.example.simple.cmd.BusinessCommand;
 import io.github.vevoly.atomicio.example.simple.service.AuthService;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -25,15 +27,17 @@ public class MyMessageListener implements MessageEventListener {
         log.info("收到消息: {}", message);
         int commandId = message.getCommandId();
         switch (commandId) {
-            case AtomicIOCommand.LOGIN:
+            case BusinessCommand.LOGIN:
                 handleLogin(session, (TextMessage) message);
                 break;
-            case AtomicIOCommand.P2P_MESSAGE:
+            case BusinessCommand.P2P_MESSAGE:
                 handleP2PMessage(session, (TextMessage) message);
                 break;
-            case AtomicIOCommand.JOIN_GROUP:
+            case BusinessCommand.JOIN_GROUP:
                 handleJoinGroup(session, (TextMessage) message);
                 break;
+            case BusinessCommand.LOGOUT:
+                handleKickOut(session, (TextMessage) message);
             default:
                 log.info("收到未知指令: " + commandId);
                 break;
@@ -46,7 +50,7 @@ public class MyMessageListener implements MessageEventListener {
         String content = message.getContent();
         String[] parts = content.split(":", 2);
         if (parts.length != 2) {
-            session.send(new TextMessage(AtomicIOCommand.LOGIN, "Error:Invalid format. Use userId:token"));
+            session.send(new TextMessage(BusinessCommand.LOGIN, "Error:Invalid format. Use userId:token"));
             session.close();
             return;
         }
@@ -56,13 +60,13 @@ public class MyMessageListener implements MessageEventListener {
 
         // 调用业务层的认证服务
         if (AuthService.verify(token)) {
-            // **关键一步：认证成功后，调用引擎的 bindUser 方法！**
-            session.getEngine().bindUser(userId, session);
+            // 认证成功后，调用引擎的 bindUser 方法
+            session.getEngine().bindUser(AtomicIOBindRequest.of(userId), session);
             System.out.println("用户 " + userId + " 登录成功!");
-            session.send(new TextMessage(AtomicIOCommand.LOGIN, "Success:Welcome " + userId));
+            session.send(new TextMessage(BusinessCommand.LOGIN, "Success:Welcome " + userId));
         } else {
             System.out.println("用户 " + userId + " 登录失败!");
-            session.send(new TextMessage(AtomicIOCommand.LOGIN, "Error:Invalid token"));
+            session.send(new TextMessage(BusinessCommand.LOGIN, "Error:Invalid token"));
             session.close();
         }
     }
@@ -81,7 +85,7 @@ public class MyMessageListener implements MessageEventListener {
 
         System.out.println("用户 " + fromUserId + " 发送消息给 " + toUserId + ": " + messageContent);
         // **调用引擎的 sendToUser 方法！**
-        TextMessage forwardMessage = new TextMessage(AtomicIOCommand.P2P_MESSAGE, fromUserId + ":" + messageContent);
+        TextMessage forwardMessage = new TextMessage(BusinessCommand.P2P_MESSAGE, fromUserId + ":" + messageContent);
         session.getEngine().sendToUser(toUserId, forwardMessage);
     }
 
@@ -94,8 +98,14 @@ public class MyMessageListener implements MessageEventListener {
             System.out.println("用户 " + userId + " 尝试加入群组 " + groupId);
             // **调用引擎的 joinGroup 方法！**
             session.getEngine().joinGroup(groupId, userId);
-            session.send(new TextMessage(AtomicIOCommand.JOIN_GROUP, "Success:Joined group " + groupId));
+            session.send(new TextMessage(BusinessCommand.JOIN_GROUP, "Success:Joined group " + groupId));
         }
+    }
+
+    private void handleKickOut(AtomicIOSession session, TextMessage message) {
+        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
+        String reason = message.getContent().split(":")[1];
+        session.getEngine().kickUser(userId, new TextMessage(BusinessCommand.LOGOUT, reason));
     }
 
 }

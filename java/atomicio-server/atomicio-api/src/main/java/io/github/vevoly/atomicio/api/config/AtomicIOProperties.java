@@ -40,15 +40,25 @@ public class AtomicIOProperties {
      */
     private Codec codec = new Codec();
 
-    /**
-     * 集群配置
-     */
-    private Cluster cluster = new Cluster();
-
     @Data
     public static class Codec {
         private String type = AtomicIOCodecType.TEXT.name();
     }
+
+    /**
+     * 会话配置
+     */
+    private Session session = new Session();
+
+    @Data
+    public static class Session {
+        private boolean multiLogin = false; // 默认为 false (单点登录)
+    }
+
+    /**
+     * 集群配置
+     */
+    private Cluster cluster = new Cluster();
 
     @Data
     public static class Cluster {
@@ -56,7 +66,7 @@ public class AtomicIOProperties {
         /**
          * 是否开启集群模式
          */
-        private boolean enabled = false;
+        private boolean enabled = false; // 默认 false 关闭集群
 
         /**
          * 集群模式类型

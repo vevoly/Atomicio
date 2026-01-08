@@ -79,7 +79,8 @@ public class AtomicIOEngineAutoConfiguration {
             ObjectProvider<List<DisconnectEventListener>> disconnectEventListenerProvider,
             ObjectProvider<List<MessageEventListener>> messageEventListenersProvider,
             ObjectProvider<List<ErrorEventListener>> errorEventListenersProvider,
-            ObjectProvider<List<IdleEventListener>> idleEventListenersProvider
+            ObjectProvider<List<IdleEventListener>> idleEventListenersProvider,
+            ObjectProvider<List<SessionReplacedListener>> sessionReplacedListenersProvider
     ) {
         if (!(engine instanceof DefaultAtomicIOEngine)) {
             return new NoOpSmartLifecycle(); // 返回一个空实现
@@ -92,7 +93,8 @@ public class AtomicIOEngineAutoConfiguration {
                 disconnectEventListenerProvider.getIfAvailable(Collections::emptyList),
                 messageEventListenersProvider.getIfAvailable(Collections::emptyList),
                 errorEventListenersProvider.getIfAvailable(Collections::emptyList),
-                idleEventListenersProvider.getIfAvailable(Collections::emptyList)
+                idleEventListenersProvider.getIfAvailable(Collections::emptyList),
+                sessionReplacedListenersProvider.getIfAvailable(Collections::emptyList)
         );
     }
 

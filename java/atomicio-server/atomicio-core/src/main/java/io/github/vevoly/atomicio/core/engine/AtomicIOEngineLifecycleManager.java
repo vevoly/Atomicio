@@ -26,6 +26,7 @@ public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
     private final List<MessageEventListener> messageEventListeners;
     private final List<ErrorEventListener> errorEventListeners;
     private final List<IdleEventListener> idleEventListeners;
+    private final List<SessionReplacedListener> sessionReplacedListeners;
 
     @Override
     public void start() {
@@ -92,10 +93,12 @@ public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
         messageEventListeners.forEach(engine::onMessage);
         errorEventListeners.forEach(engine::onError);
         idleEventListeners.forEach(engine::onIdle);
+        sessionReplacedListeners.forEach(engine::onSessionReplaced);
         log.info("Registered: {} EngineReadyListener {} ConnectEventListener, {} DisconnectEventListener, " +
-                        "{} MessageEventListener, {} ErrorEventListener, {} IdleEventListener.",
+                        "{} MessageEventListener, {} ErrorEventListener, {} IdleEventListener, " +
+                        "{} SessionReplacedListener, ",
                 engineReadyListeners.size(), connectEventListeners.size(), disconnectEventListeners.size(),
-                messageEventListeners.size(), errorEventListeners.size(), idleEventListeners.size());
+                messageEventListeners.size(), errorEventListeners.size(), idleEventListeners.size(), sessionReplacedListeners.size());
     }
 
 }
