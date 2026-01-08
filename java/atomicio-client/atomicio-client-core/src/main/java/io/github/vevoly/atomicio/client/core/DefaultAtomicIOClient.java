@@ -10,9 +10,12 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -30,6 +33,7 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
     private final AtomicIOClientConfig config;
     private final AtomicIOCodecProvider codecProvider;
 
+    private SslContext sslContext;
     private EventLoopGroup group;
     private Bootstrap bootstrap;
     private Channel channel;
@@ -48,6 +52,21 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
     }
 
     private void init() {
+        try {
+            if (config.getSsl().isEnabled()) {
+                log.info("Client SSL/TLS is enabled.");
+                File trustCertFile = new File(config.getSsl().getTrustCertPath());
+                if (!trustCertFile.exists()) {
+                    throw new IllegalArgumentException("SSL trust certificate file not found!");
+                }
+                this.sslContext = SslContextBuilder.forClient()
+                        .trustManager(trustCertFile) // 告诉 SslContext 信任这个证书文件
+                        .build();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build client SslContext", e);
+        }
+
         this.group = new NioEventLoopGroup();
         final AtomicIOClientChannelHandler clientHandler = new AtomicIOClientChannelHandler(this);
         final AtomicIOReconnectHandler reconnectHandler = new AtomicIOReconnectHandler(this);
@@ -61,10 +80,11 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
                         ChannelPipeline pipeline = ch.pipeline();
-
+                        if (sslContext != null) {
+                            pipeline.addLast(sslContext.newHandler(ch.alloc(), config.getHost(), config.getPort()));
+                        }
                         // 1. 协议层, 使用 CodecProvider 构建协议栈
                         codecProvider.buildPipeline(pipeline);
-
                         // 2. 心跳机制层
                         if (config.isHeartbeatEnabled() && config.getWriterIdleSeconds() > 0) {
                             // 从 CodecProvider 中获取心跳

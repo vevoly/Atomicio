@@ -14,6 +14,7 @@ import io.github.vevoly.atomicio.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.core.ssl.SslContextFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.group.ChannelGroup;
@@ -21,11 +22,15 @@ import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.util.annotation.Nullable;
 
+import javax.net.ssl.SSLException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,6 +50,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     private final AtomicIOClusterProvider clusterProvider;
 
     // Netty核心组件
+    private SslContext sslContext;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private ChannelFuture serverChannelFuture;
@@ -116,6 +122,11 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
      * @throws InterruptedException 如果启动被中断
      */
     void doStart() throws InterruptedException {
+        // 初始化 SSL
+        if (config.getSsl().isEnabled()) {
+            log.info("初始化 SSL/TLS 上下文 ...");
+            this.sslContext = SslContextFactory.createSslContext(config.getSsl());
+        }
         // 初始化 Netty 线程组
         bossGroup = new NioEventLoopGroup(config.getBossThreads());
         workerGroup = new NioEventLoopGroup(config.getWorkerThreads());
@@ -141,6 +152,32 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                     protected void initChannel(SocketChannel socketChannel) throws Exception {
                         // 定义 ChannelPipeline
                         ChannelPipeline pipeline = socketChannel.pipeline();
+
+                        // 窃听点 A: 加密前的明文
+//                        pipeline.addLast("A_Outbound_Logger", new LoggingHandler("PLAINTEXT_OUT", LogLevel.INFO));
+
+                        // 动态添加 SSL 处理器
+                        if (sslContext != null) {
+                            pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_SSL_HANDLER, sslContext.newHandler(socketChannel.alloc()));
+                            pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_SSL_EXCEPTION_HANDLER, new ChannelInboundHandlerAdapter() {
+                                @Override
+                                public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+                                    // 捕获 SSL 握手期间的异常
+                                    if (cause instanceof SSLException || (cause.getCause() != null && cause.getCause() instanceof SSLException)) {
+                                        log.warn("SSL 🤝 失败 from remote address [{}]: {}",
+                                                ctx.channel().remoteAddress(), cause.getMessage());
+                                        // 直接关闭连接，不把这个事件传递给后面的业务处理器
+                                        ctx.close();
+                                    } else {
+                                        // 如果不是 SSL 异常，则传递给下一个处理器
+                                        ctx.fireExceptionCaught(cause);
+                                    }
+                                }
+                            });
+                        }
+                        // 窃听点 B: 加密后的密文
+//                        pipeline.addLast("B_Encrypted_Logger", new LoggingHandler("ENCRYPTED_IO", LogLevel.INFO));
+
                         // 动态添加编解码器
                         codecProvider.buildPipeline(pipeline);
                         // 心跳检测

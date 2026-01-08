@@ -109,5 +109,18 @@ public class AtomicIOProperties {
         private String topic;
         private String consumerGroup;
     }
+
+    /**
+     * SSL/TLS 配置
+     */
+    private Ssl ssl = new Ssl();
+
+    @Data
+    public static class Ssl {
+        private boolean enabled = false;   // 默认 false 为关闭
+        private String certChainPath;      // SSL 证书链文件路径
+        private String privateKeyPath;     // private key 文件路径
+        private String privateKeyPassword; // private key 的密码
+    }
 }
 

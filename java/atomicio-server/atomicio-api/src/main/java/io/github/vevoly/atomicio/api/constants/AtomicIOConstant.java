@@ -17,6 +17,8 @@ public class AtomicIOConstant {
     public static final String CLUSTER_CHANNEL_NAME = "atomicio-cluster-channel";
 
     // -- Netty Pipeline 名称 --
+    public static final String PIPELINE_NAME_SSL_HANDLER = "sslHandler";
+    public static final String PIPELINE_NAME_SSL_EXCEPTION_HANDLER = "sslExceptionHandler";
     public static final String PIPELINE_NAME_ENCODER = "encoder";
     public static final String PIPELINE_NAME_DECODER = "decoder";
     public static final String PIPELINE_NAME_FRAME_DECODER = "frameDecoder";

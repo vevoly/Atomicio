@@ -12,11 +12,7 @@ atomicio:
       uri: redis://localhost:6379
       username:
       password:
-#    kafka:        # kafka 连接信息
-#      bootstrap-servers: kafka1:9092,kafka2:9092
-#      topic: atomicio-cluster-topic
-#      consumer-group: atomicio-group
-#    rocketmq:     # rocketmq 连接信息
-#      name-server: mq-server:9876
-#      topic: atomicio-cluster-topic
-#      consumer-group: atomicio-group
+  ssl:             # SSL 配置
+    enabled: true
+    cert-chain-path: "classpath:server.crt"
+    private-key-path: "classpath:server.key"

@@ -1,7 +1,6 @@
 package io.github.vevoly.atomicio.example.protobuf;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.github.vevoly.atomicio.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
@@ -16,8 +15,12 @@ import io.github.vevoly.atomicio.example.protobuf.proto.P2PMessageNotify;
 import io.github.vevoly.atomicio.example.protobuf.proto.P2PMessageRequest;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.Scanner;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -25,8 +28,10 @@ import java.util.concurrent.TimeoutException;
 public class ProtobufClientExample {
 
     public static void main(String[] args) {
+
         // 1. 配置客户端
         AtomicIOClientConfig config = new AtomicIOClientConfig(); // 使用默认配置
+//        config.getSsl().setTrustCertFromResource("server.crt"); // 信任服务端证书
         // 2. 选择解码器
         AtomicIOCodecProvider codecProvider = new ProtobufCodecProvider();
         // 3.创建客户端实例
@@ -35,7 +40,8 @@ public class ProtobufClientExample {
         client.onConnected(c -> {
             log.info(">>>>>>>>> 成功连接到服务器! <<<<<<<<<");
             // 连接成功后，自动发送登录请求
-            sendLoginRequest(c, "user001", "token-is-good");
+            String randomUser = "user_" + ThreadLocalRandom.current().nextInt(1000, 9999);
+            sendLoginRequest(c, randomUser, "token-is-good");
         })
         .onDisconnected(c -> {
             log.warn(">>>>>>>>> 与服务器断开连接. <<<<<<<<<");
@@ -48,9 +54,10 @@ public class ProtobufClientExample {
         try {
             log.info("尝试连接 ...");
             client.connect().get(5, TimeUnit.SECONDS); // 阻塞等待，直到连接成功或超时
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        } catch (Exception e) {
             log.error("连接服务器失败", e);
             client.disconnect(); // 清理资源
+            return;
         }
         // 6. 启动一个控制台输入线程，手动发送消息
         startConsoleInput(client);
