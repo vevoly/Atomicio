@@ -57,6 +57,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     private final DisruptorManager disruptorManager = new DisruptorManager(); // Disruptor 管理器
 
     // 存储监听器集合
+    private final List<SslHandshakeFailedListener> sslHandshakeFailedListeners = new CopyOnWriteArrayList<>();
     private final List<EngineReadyListener> readyListeners = new CopyOnWriteArrayList<>();
     private final List<ConnectEventListener> connectEventListeners = new CopyOnWriteArrayList<>();
     private final List<DisconnectEventListener> disconnectEventListeners = new CopyOnWriteArrayList<>();
@@ -162,10 +163,12 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                             pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_SSL_EXCEPTION_HANDLER, new ChannelInboundHandlerAdapter() {
                                 @Override
                                 public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+                                    Throwable rootCause = (cause.getCause() != null) ? cause.getCause() : cause;
                                     // 捕获 SSL 握手期间的异常
-                                    if (cause instanceof SSLException || (cause.getCause() != null && cause.getCause() instanceof SSLException)) {
+                                    if (rootCause instanceof SSLException) {
                                         log.warn("SSL 🤝 失败 from remote address [{}]: {}",
-                                                ctx.channel().remoteAddress(), cause.getMessage());
+                                                ctx.channel().remoteAddress(), rootCause.getMessage());
+                                        fireSslHandshakeFailedEvent(ctx.channel(), rootCause);
                                         // 直接关闭连接，不把这个事件传递给后面的业务处理器
                                         ctx.close();
                                     } else {
@@ -230,6 +233,10 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         return state.get() == AtomicIOLifeState.RUNNING;
     }
 
+    @Override
+    public void onSslHandshakeFailed(SslHandshakeFailedListener listener) {
+        this.sslHandshakeFailedListeners.add(listener);
+    }
     @Override
     public void onReady(EngineReadyListener listener) {
         this.readyListeners.add(listener);
@@ -552,9 +559,29 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     }
 
     /**
+     * 触发 SSL_HANDSHAKE_FAILED 事件。
+     * 这个方法是包级私有的，只应该被引擎内部的 Handler 调用。
+     */
+    void fireSslHandshakeFailedEvent(Channel channel, Throwable cause) {
+        if (sslHandshakeFailedListeners.isEmpty()) {
+            return;
+        }
+        for (SslHandshakeFailedListener listener : sslHandshakeFailedListeners) {
+            try {
+                listener.onSslHandshakeFailed(channel, cause);
+            } catch (Exception e) {
+                log.error("Error executing SslHandshakeFailedListener", e);
+            }
+        }
+    }
+
+    /**
      * 触发 READY 事件
      */
     void fireEngineReadyEvent() {
+        if (readyListeners.isEmpty()) {
+            return;
+        }
         for (EngineReadyListener listener : readyListeners) {
             try {
                 listener.onEngineReady(this);
@@ -568,6 +595,9 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
      * 触发 CONNECT 事件
      */
     void fireConnectEvent(AtomicIOSession session) {
+        if (connectEventListeners.isEmpty()) {
+            return;
+        }
         for (ConnectEventListener listener : connectEventListeners) {
             try {
                 listener.onConnected(session);
@@ -582,6 +612,9 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
      * 触发 DISCONNECT 事件
      */
     void fireDisconnectEvent(AtomicIOSession session) {
+        if (disconnectEventListeners.isEmpty()) {
+            return;
+        }
         for (DisconnectEventListener listener : disconnectEventListeners) {
             try {
                 listener.onDisconnected(session);

@@ -27,6 +27,12 @@ public interface AtomicIOEngine {
     void shutdown();
 
     /**
+     * 注册一个 SSL/TLS 握手失败时的监听器。
+     * @param listener
+     */
+    void onSslHandshakeFailed(SslHandshakeFailedListener listener);
+
+    /**
      * 在 READY 引擎准备就绪时事件监听器
      * @param listener
      */

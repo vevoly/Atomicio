@@ -16,5 +16,5 @@ public interface SessionEventListener {
      * 事件发生时被调用
      * @param session 当前会话
      */
-    void onEvent(AtomicIOSession session);
+    void onSessionEvent(AtomicIOSession session);
 }

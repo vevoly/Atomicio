@@ -20,6 +20,8 @@ import java.util.List;
 public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
 
     private final DefaultAtomicIOEngine engine;
+
+    private final List<SslHandshakeFailedListener> sslHandshakeFailedListeners;
     private final List<EngineReadyListener> engineReadyListeners;
     private final List<ConnectEventListener> connectEventListeners;
     private final List<DisconnectEventListener> disconnectEventListeners;
@@ -87,6 +89,7 @@ public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
      */
     private void registerListeners() {
         log.info("AtomicIO LifecycleManager: Auto-registering listeners...");
+        sslHandshakeFailedListeners.forEach(engine::onSslHandshakeFailed);
         engineReadyListeners.forEach(engine::onReady);
         connectEventListeners.forEach(engine::onConnect);
         disconnectEventListeners.forEach(engine::onDisconnect);
@@ -94,9 +97,8 @@ public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
         errorEventListeners.forEach(engine::onError);
         idleEventListeners.forEach(engine::onIdle);
         sessionReplacedListeners.forEach(engine::onSessionReplaced);
-        log.info("Registered: {} EngineReadyListener {} ConnectEventListener, {} DisconnectEventListener, " +
-                        "{} MessageEventListener, {} ErrorEventListener, {} IdleEventListener, " +
-                        "{} SessionReplacedListener, ",
+        log.info("已注册监听器: {} EngineReadyListener {} ConnectEventListener, {} DisconnectEventListener, {} MessageEventListener, \n" +
+                        " {} ErrorEventListener, {} IdleEventListener, {} SessionReplacedListener, {} SslHandshakeFailedListener",
                 engineReadyListeners.size(), connectEventListeners.size(), disconnectEventListeners.size(),
                 messageEventListeners.size(), errorEventListeners.size(), idleEventListeners.size(), sessionReplacedListeners.size());
     }
