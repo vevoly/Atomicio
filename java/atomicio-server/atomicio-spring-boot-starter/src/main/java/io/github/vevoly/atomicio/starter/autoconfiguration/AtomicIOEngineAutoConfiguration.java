@@ -75,7 +75,7 @@ public class AtomicIOEngineAutoConfiguration {
     @ConditionalOnProperty(prefix = AtomicIOConstant.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
     public SmartLifecycle atomicIOEngineLifecycleManager(
             AtomicIOEngine engine,
-            ObjectProvider<List<SslHandshakeFailedListener>> sslHandshakeFailedListenersProvider,
+            ObjectProvider<List<ConnectionRejectListener>> connectionRejectListenersProvider,
             ObjectProvider<List<EngineReadyListener>> engineReadyListenersProvider,
             ObjectProvider<List<ConnectEventListener>> connectEventListenersProvider,
             ObjectProvider<List<DisconnectEventListener>> disconnectEventListenerProvider,
@@ -90,7 +90,7 @@ public class AtomicIOEngineAutoConfiguration {
         // 将所有依赖都传递给 LifecycleManager
         return new AtomicIOEngineLifecycleManager(
                 (DefaultAtomicIOEngine) engine,
-                sslHandshakeFailedListenersProvider.getIfAvailable(Collections::emptyList),
+                connectionRejectListenersProvider.getIfAvailable(Collections::emptyList),
                 engineReadyListenersProvider.getIfAvailable(Collections::emptyList),
                 connectEventListenersProvider.getIfAvailable(Collections::emptyList),
                 disconnectEventListenerProvider.getIfAvailable(Collections::emptyList),

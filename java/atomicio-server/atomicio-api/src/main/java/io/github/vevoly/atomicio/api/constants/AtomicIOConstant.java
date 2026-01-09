@@ -24,7 +24,7 @@ public class AtomicIOConstant {
     public static final String PIPELINE_NAME_DECODER = "decoder";
     public static final String PIPELINE_NAME_FRAME_DECODER = "frameDecoder";
     public static final String PIPELINE_NAME_IDLE_STATE_HANDLER = "idleStateHandler";
-    public static final String PIPELINE_NAME_CHANNEL_HANDLER = "channelHandler";
+    public static final String PIPELINE_NAME_NETTY_EVENT_TRANSLATION_HANDLER = "nettyEventTranslationHandler";
 
     // -- Netty Pipeline 默认值 --
 

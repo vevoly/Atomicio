@@ -8,11 +8,11 @@ import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.api.constants.AtomicIOSessionAttributes;
+import io.github.vevoly.atomicio.api.constants.ConnectionRejectType;
 import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.api.listeners.*;
 import io.github.vevoly.atomicio.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
-import io.github.vevoly.atomicio.core.handler.IpConnectionLimitHandler;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.core.ssl.SslContextFactory;
@@ -29,10 +29,10 @@ import io.netty.util.concurrent.GlobalEventExecutor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.util.annotation.Nullable;
 
-import javax.net.ssl.SSLException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * AtomicIOEngine 的默认实现。
@@ -59,10 +59,10 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
      */
     private final AtomicIOClusterProvider clusterProvider;
 
-    /**
-     * IP 连接数限制处理器
-     */
-    private IpConnectionLimitHandler ipConnectionLimitHandler;
+    // 处理器
+    private IpConnectionLimitHandler ipConnectionLimitHandler; // Ip 连接数限制处理器
+    private SslExceptionHandler sslExceptionHandler; // SSL 异常处理器
+    private NettyEventTranslationHandler nettyEventTranslationHandler; // Netty 事件翻译处理器
 
     // Netty核心组件
     private SslContext sslContext;
@@ -74,7 +74,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     private final DisruptorManager disruptorManager = new DisruptorManager();
 
     // 存储监听器集合
-    private final List<SslHandshakeFailedListener> sslHandshakeFailedListeners = new CopyOnWriteArrayList<>();
+    private final List<ConnectionRejectListener> connectionRejectListeners = new CopyOnWriteArrayList<>();
     private final List<EngineReadyListener> readyListeners = new CopyOnWriteArrayList<>();
     private final List<ConnectEventListener> connectEventListeners = new CopyOnWriteArrayList<>();
     private final List<DisconnectEventListener> disconnectEventListeners = new CopyOnWriteArrayList<>();
@@ -142,13 +142,18 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     void doStart() throws InterruptedException {
         // 初始化 IP 连接数限制处理器
         if (config.getIpSecurity().getMaxConnect() > 0) {
-            this.ipConnectionLimitHandler = new IpConnectionLimitHandler(config.getIpSecurity().getMaxConnect());
+            log.info("初始化 IP 连接数限制处理器 ...");
+            this.ipConnectionLimitHandler = new IpConnectionLimitHandler(DefaultAtomicIOEngine.this);
         }
         // 初始化 SSL
         if (config.getSsl().isEnabled()) {
-            log.info("初始化 SSL/TLS 上下文 ...");
+            log.info("初始化 SSL/TLS 上下文和 SSL/TLS 异常处理器 ...");
             this.sslContext = SslContextFactory.createSslContext(config.getSsl());
+            this.sslExceptionHandler = new SslExceptionHandler(this);
         }
+        // 初始化 Netty 事件翻译处理器
+        log.info("初始化 Netty 事件翻译处理器 ...");
+        this.nettyEventTranslationHandler = new NettyEventTranslationHandler(this.disruptorManager, this);
         // 初始化 Netty 线程组
         bossGroup = new NioEventLoopGroup(config.getBossThreads());
         workerGroup = new NioEventLoopGroup(config.getWorkerThreads());
@@ -181,23 +186,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                         // 添加 SSL 处理器
                         if (sslContext != null) {
                             pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_SSL_HANDLER, sslContext.newHandler(socketChannel.alloc()));
-                            pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_SSL_EXCEPTION_HANDLER, new ChannelInboundHandlerAdapter() {
-                                @Override
-                                public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-                                    Throwable rootCause = (cause.getCause() != null) ? cause.getCause() : cause;
-                                    // 捕获 SSL 握手期间的异常
-                                    if (rootCause instanceof SSLException) {
-                                        log.warn("SSL 🤝 失败 from remote address [{}]: {}",
-                                                ctx.channel().remoteAddress(), rootCause.getMessage());
-                                        fireSslHandshakeFailedEvent(ctx.channel(), rootCause);
-                                        // 直接关闭连接，不把这个事件传递给后面的业务处理器
-                                        ctx.close();
-                                    } else {
-                                        // 如果不是 SSL 异常，则传递给下一个处理器
-                                        ctx.fireExceptionCaught(cause);
-                                    }
-                                }
-                            });
+                            pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_SSL_EXCEPTION_HANDLER, sslExceptionHandler);
                         }
                         // 添加编解码器
                         codecProvider.buildPipeline(pipeline, config.getCodec().getMaxFrameLength());
@@ -205,12 +194,12 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                         pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_IDLE_STATE_HANDLER,
                                 new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));
                         // 核心处理器，事件翻译
-                        pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_CHANNEL_HANDLER, new EngineChannelHandler(disruptorManager, DefaultAtomicIOEngine.this));
+                        pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_NETTY_EVENT_TRANSLATION_HANDLER, nettyEventTranslationHandler);
                     }
                 });
         serverChannelFuture = bootstrap.bind(config.getPort()).sync(); // 绑定端口
-        log.info("Atomicio Engine bound successfully to port {}. codec: {}", config.getPort(), codecProvider.toString());
-        // 在所有启动工作都完成后，宣告引擎就绪
+        log.info("Atomicio IO Framework bound successfully to {} codec: {}", config.getPort(), codecProvider);
+        // 在所有启动工作都完成后，发布引擎就绪
         disruptorManager.publishEvent(AtomicIOEventType.READY, null, null, null);
     }
 
@@ -252,8 +241,8 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     }
 
     @Override
-    public void onSslHandshakeFailed(SslHandshakeFailedListener listener) {
-        this.sslHandshakeFailedListeners.add(listener);
+    public void onSslHandshakeFailed(ConnectionRejectListener listener) {
+        this.connectionRejectListeners.add(listener);
     }
     @Override
     public void onReady(EngineReadyListener listener) {
@@ -300,7 +289,6 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         String oldUserIdForThisSession = sessionIdToUserIdMap.put(newSession.getId(), userId);
         if (oldUserIdForThisSession != null && !oldUserIdForThisSession.equals(userId)) {
             // 这个 Session 之前绑定了另一个用户，现在要换绑
-            // 这是一个罕见的场景，但需要正确处理
             log.warn("Session {} is being re-bound from old user '{}' to new user '{}'.",
                     newSession.getId(), oldUserIdForThisSession, userId);
             unbindUserInternal(oldUserIdForThisSession, newSession); // 用旧用户ID和新Session来清理
@@ -500,14 +488,13 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             if (excludeUserIds != null && excludeUserIds.length > 0) {
                 // 如果有排除的用户，需要逐个发送，并跳过排除者
                 Set<String> excludeSet = Set.of(excludeUserIds);
-
-                // todo 优化点：维护一个 groupId -> Set<userId>的映射，joinGroup 和 leaveGroup 时更新。
-                //  allUserIdsInGroup.removeAll(excludeSet) 得到最终需要发送的 userId 列表
                 group.forEach(channel -> {
-                    AtomicIOSession session = new NettySession(channel, DefaultAtomicIOEngine.this);
-                    String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
-                    if (userId != null && !excludeSet.contains(userId)) {
-                        session.send(message);
+                    AtomicIOSession session = channel.attr(NettyEventTranslationHandler.SESSION_KEY).get();
+                    if (session != null) {
+                        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
+                        if (userId != null && !excludeSet.contains(userId)) {
+                            session.send(message);
+                        }
                     }
                 });
                 log.debug("Sent message {} to group {} excluding {} users.", message.getCommandId(), groupId, excludeUserIds.length);
@@ -577,70 +564,31 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     }
 
     /**
-     * 触发 SSL_HANDSHAKE_FAILED 事件。
-     * 这个方法是包级私有的，只应该被引擎内部的 Handler 调用。
+     * 触发 连接拒绝 事件。
      */
-    void fireSslHandshakeFailedEvent(Channel channel, Throwable cause) {
-        if (sslHandshakeFailedListeners.isEmpty()) {
-            return;
-        }
-        for (SslHandshakeFailedListener listener : sslHandshakeFailedListeners) {
-            try {
-                listener.onSslHandshakeFailed(channel, cause);
-            } catch (Exception e) {
-                log.error("Error executing SslHandshakeFailedListener", e);
-            }
-        }
+    void fireConnectionRejectEvent(Channel channel, ConnectionRejectType rejectType, Throwable cause) {
+        fireEvent(connectionRejectListeners, l -> l.onConnectionReject(channel, rejectType, cause));
     }
 
     /**
      * 触发 READY 事件
      */
     void fireEngineReadyEvent() {
-        if (readyListeners.isEmpty()) {
-            return;
-        }
-        for (EngineReadyListener listener : readyListeners) {
-            try {
-                listener.onEngineReady(this);
-            } catch (Exception e) {
-                log.error("Error executing EngineReadyListener", e);
-            }
-        }
+        fireEvent(readyListeners, l -> l.onEngineReady(this));
     }
 
     /**
      * 触发 CONNECT 事件
      */
     void fireConnectEvent(AtomicIOSession session) {
-        if (connectEventListeners.isEmpty()) {
-            return;
-        }
-        for (ConnectEventListener listener : connectEventListeners) {
-            try {
-                listener.onConnected(session);
-            } catch (Exception e) {
-                log.error("Error executing connect listener for session {}", session.getId(), e);
-                fireErrorEvent(session, e);
-            }
-        }
+        fireEvent(connectEventListeners, l -> l.onConnected(session));
     }
 
     /**
      * 触发 DISCONNECT 事件
      */
     void fireDisconnectEvent(AtomicIOSession session) {
-        if (disconnectEventListeners.isEmpty()) {
-            return;
-        }
-        for (DisconnectEventListener listener : disconnectEventListeners) {
-            try {
-                listener.onDisconnected(session);
-            } catch (Exception e) {
-                log.error("Error executing disconnect listener for session {}", session.getId(), e);
-                fireErrorEvent(session, e);
-            }
-        }
+        fireEvent(disconnectEventListeners, l -> l.onDisconnected(session));
     }
 
     /**
@@ -649,17 +597,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
      * @param message   收到的消息
      */
     void fireMessageEvent(AtomicIOSession session, AtomicIOMessage message) {
-        if (this.messageListeners.isEmpty()) {
-            return;
-        }
-        for (MessageEventListener listener : this.messageListeners) {
-            try {
-                listener.onMessage(session, message);
-            } catch (Exception e) {
-                log.error("Error executing message listener for session {}", session.getId(), e);
-                fireErrorEvent(session, e);
-            }
-        }
+        fireEvent(messageListeners, l -> l.onMessage(session, message));
     }
 
     /**
@@ -668,43 +606,28 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
      * @param cause     异常
      */
     void fireErrorEvent(AtomicIOSession session, Throwable cause) {
-        if (this.errorListeners.isEmpty()) {
-            return;
-        }
-        for (ErrorEventListener listener : this.errorListeners)
-            try {
-                listener.onError(session, cause);
-            } catch (Exception e) {
-                log.error("CRITICAL: Error executing the error listener itself!", e);
-            }
+        fireEvent(errorListeners, l -> l.onError(session, cause));
     }
 
+    /**
+     * 触发 IDLE 事件
+     * @param session
+     * @param state
+     */
     void fireIdleEvent(AtomicIOSession session, IdleState state) {
-        if (this.idleEventListeners.isEmpty()) {
-            return;
-        }
-        for (IdleEventListener listener : this.idleEventListeners)
-            try {
-                listener.onIdle(session, state);
-            } catch (Exception e) {
-                log.error("Error executing idle listener for session {}", session.getId(), e);
-            }
+        fireEvent(idleEventListeners, l -> l.onIdle(session, state));
     }
 
+    /**
+     * 触发 Session 替换事件
+     * @param oldSession
+     * @param newSession
+     */
     void fireSessionReplacedEvent(AtomicIOSession oldSession, AtomicIOSession newSession) {
         if (sessionReplacedListeners.isEmpty()) {
             log.warn("No SessionReplacedListeners registered. Closing old session {} by default.", oldSession.getId());
-            if (oldSession.isActive()) {
-                oldSession.close();
-            }
-            return;
-        }
-        for (SessionReplacedListener listener : sessionReplacedListeners) {
-            try {
-                listener.onSessionReplaced(oldSession, newSession);
-            } catch (Exception e) {
-                log.error("Error executing SessionReplacedListener", e);
-            }
+        } else {
+            fireEvent(sessionReplacedListeners, l -> l.onSessionReplaced(oldSession, newSession));
         }
         if (oldSession.isActive()) {
             log.debug("Closing old session {} after firing sessionReplaced event.", oldSession.getId());
@@ -712,7 +635,9 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         }
     }
 
-
+    AtomicIOProperties getConfig() {
+        return this.config;
+    }
     /**
      * 引擎内部的清理方法：当 Session 断开时，自动解除用户绑定和群组关系。
      * 这个方法不应该暴露给外部，只由 EngineChannelHandler 调用。
@@ -759,6 +684,24 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     }
 
     /**
+     * 公用事件触发器
+     * @param listeners 监听器列表
+     * @param action    要执行的具体逻辑
+     */
+    private <L> void fireEvent(List<L> listeners, Consumer<L> action) {
+        if (listeners == null || listeners.isEmpty()) {
+            return;
+        }
+        for (L listener : listeners) {
+            try {
+                action.accept(listener);
+            } catch (Exception e) {
+                log.error("Error executing listener: {}", listener.getClass().getSimpleName(), e);
+            }
+        }
+    }
+
+    /**
      * 根据 userId 查找 session(s)
      * @param userId
      * @return
@@ -793,5 +736,4 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         }
         return clusterMessage;
     }
-
 }
