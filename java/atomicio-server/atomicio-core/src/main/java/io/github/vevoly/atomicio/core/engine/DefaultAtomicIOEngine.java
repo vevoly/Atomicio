@@ -12,6 +12,7 @@ import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.api.listeners.*;
 import io.github.vevoly.atomicio.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
+import io.github.vevoly.atomicio.core.handler.IpConnectionLimitHandler;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.core.ssl.SslContextFactory;
@@ -43,16 +44,34 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
+    /**
+     * 配置文件
+     */
     private final AtomicIOProperties config;
+
+    /**
+     * 解码提供器
+     */
     private final AtomicIOCodecProvider codecProvider;
+
+    /**
+     * 集群通信提供器
+     */
     private final AtomicIOClusterProvider clusterProvider;
+
+    /**
+     * IP 连接数限制处理器
+     */
+    private IpConnectionLimitHandler ipConnectionLimitHandler;
 
     // Netty核心组件
     private SslContext sslContext;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private ChannelFuture serverChannelFuture;
-    private final DisruptorManager disruptorManager = new DisruptorManager(); // Disruptor 管理器
+
+    // Disruptor 管理器
+    private final DisruptorManager disruptorManager = new DisruptorManager();
 
     // 存储监听器集合
     private final List<SslHandshakeFailedListener> sslHandshakeFailedListeners = new CopyOnWriteArrayList<>();
@@ -121,6 +140,10 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
      * @throws InterruptedException 如果启动被中断
      */
     void doStart() throws InterruptedException {
+        // 初始化 IP 连接数限制处理器
+        if (config.getIpSecurity().getMaxConnect() > 0) {
+            this.ipConnectionLimitHandler = new IpConnectionLimitHandler(config.getIpSecurity().getMaxConnect());
+        }
         // 初始化 SSL
         if (config.getSsl().isEnabled()) {
             log.info("初始化 SSL/TLS 上下文 ...");
@@ -151,11 +174,11 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                     protected void initChannel(SocketChannel socketChannel) throws Exception {
                         // 定义 ChannelPipeline
                         ChannelPipeline pipeline = socketChannel.pipeline();
-
-                        // 窃听点 A: 加密前的明文
-//                        pipeline.addLast("A_Outbound_Logger", new LoggingHandler("PLAINTEXT_OUT", LogLevel.INFO));
-
-                        // 动态添加 SSL 处理器
+                        // 添加 IP 连接数限制器
+                        if (ipConnectionLimitHandler != null) {
+                            pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_IP_CONNECTION_LIMIT_HANDLER, ipConnectionLimitHandler);
+                        }
+                        // 添加 SSL 处理器
                         if (sslContext != null) {
                             pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_SSL_HANDLER, sslContext.newHandler(socketChannel.alloc()));
                             pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_SSL_EXCEPTION_HANDLER, new ChannelInboundHandlerAdapter() {
@@ -176,10 +199,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                                 }
                             });
                         }
-                        // 窃听点 B: 加密后的密文
-//                        pipeline.addLast("B_Encrypted_Logger", new LoggingHandler("ENCRYPTED_IO", LogLevel.INFO));
-
-                        // 动态添加编解码器
+                        // 添加编解码器
                         codecProvider.buildPipeline(pipeline, config.getCodec().getMaxFrameLength());
                         // 心跳检测
                         pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_IDLE_STATE_HANDLER,

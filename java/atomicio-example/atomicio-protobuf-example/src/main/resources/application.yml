@@ -3,6 +3,8 @@ atomicio:
   enabled: true
   port: 8308
   workerThreads: 4
+  ip-security:    # ip 安全配置
+    max-connect: 2
   codec:          # 解码器类型
     type: protobuf    # 可选值: text, protobuf, mqtt ...
     max-frame-length: 100

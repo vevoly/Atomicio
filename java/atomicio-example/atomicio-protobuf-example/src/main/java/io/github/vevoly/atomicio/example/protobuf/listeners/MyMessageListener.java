@@ -45,7 +45,7 @@ public class MyMessageListener implements MessageEventListener {
                      handleP2PMessage(session, p2pMessage);
                      break;
                 default:
-                    log.warn("Received unknown commandId: {}", commandId);
+                    log.warn("收到未知命令: {}", commandId);
             }
         } catch (InvalidProtocolBufferException e) {
             log.error("Failed to parse protobuf payload for commandId: {}", commandId, e);

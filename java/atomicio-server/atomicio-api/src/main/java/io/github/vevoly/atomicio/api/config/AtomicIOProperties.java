@@ -6,7 +6,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * AtomicIO 属性配置类
+ * AtomicIO 配置文件类
  *
  * @since 0.0.6
  * @author vevoly
@@ -18,7 +18,7 @@ public class AtomicIOProperties {
     /**
      * 是否开启 AtomicIO 引擎
      */
-    private boolean enabled = AtomicIOConstant.DEFAULT_ENABLED;
+    private boolean enabled = false;
 
     /**
      * 服务端口
@@ -34,6 +34,20 @@ public class AtomicIOProperties {
      * 工人线程数，0 Netty 默认
      */
     private int workerThreads = AtomicIOConstant.DEFAULT_WORKER_THREADS;
+
+    /**
+     * IP 安全配置
+     */
+    private IpSecurity ipSecurity = new IpSecurity();
+
+    @Data
+    public static class IpSecurity {
+
+        /**
+         * 每个 IP 最大连接数限制
+         */
+        private int maxConnect = AtomicIOConstant.DEFAULT_MAX_CONNECT_LIMIT_PER_IP;
+    }
 
     /**
      * 解码器配置
