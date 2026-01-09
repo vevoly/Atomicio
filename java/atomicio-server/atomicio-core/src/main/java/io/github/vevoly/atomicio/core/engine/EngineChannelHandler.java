@@ -2,6 +2,7 @@ package io.github.vevoly.atomicio.core.engine;
 
 import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
+import io.github.vevoly.atomicio.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.core.event.DisruptorManager;
 import io.github.vevoly.atomicio.core.session.NettySession;
@@ -82,6 +83,8 @@ public class EngineChannelHandler extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         AtomicIOSession session = new NettySession(ctx.channel(), engine);
         disruptorManager.publishEvent(AtomicIOEventType.ERROR, session, null, cause);
+        log.warn("服务器抛出异常：User: {}, SessionId: {}, remote: {}, Throwable: {}",
+                session.getAttribute(AtomicIOSessionAttributes.USER_ID), session.getId(), session.getRemoteAddress(), cause);
         ctx.close();
     }
 

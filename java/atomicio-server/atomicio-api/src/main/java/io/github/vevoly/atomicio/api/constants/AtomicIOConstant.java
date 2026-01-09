@@ -33,7 +33,9 @@ public class AtomicIOConstant {
     public static final int DEFAULT_PORT = 8308;
     public static final int DEFAULT_BOSS_THREADS = 1;
     public static final int DEFAULT_WORKER_THREADS = 0;
+    public static final int DEFAULT_MAX_FRAME_LENGTH = 65536; // 64KB
     public static final boolean DEFAULT_CLUSTER_ENABLED = false;
     public static final String DEFAULT_CLUSTER_MODE = AtomicIOClusterType.REDIS.name();
+
 
 }

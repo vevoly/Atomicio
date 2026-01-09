@@ -84,7 +84,7 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
                             pipeline.addLast(sslContext.newHandler(ch.alloc(), config.getHost(), config.getPort()));
                         }
                         // 1. 协议层, 使用 CodecProvider 构建协议栈
-                        codecProvider.buildPipeline(pipeline);
+                        codecProvider.buildPipeline(pipeline, config.getMaxFrameLength());
                         // 2. 心跳机制层
                         if (config.isHeartbeatEnabled() && config.getWriterIdleSeconds() > 0) {
                             // 从 CodecProvider 中获取心跳

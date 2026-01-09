@@ -42,7 +42,18 @@ public class AtomicIOProperties {
 
     @Data
     public static class Codec {
+
+        /**
+         * 默认解码器为 TEXT 简单文本解码器
+         * 可选解码器请查看 AtomicIOCodecType 枚举类
+         */
         private String type = AtomicIOCodecType.TEXT.name();
+
+        /**
+         * 消息最大长度
+         * 防御 Ddos 攻击 （应用层防御）
+         */
+        private int maxFrameLength = AtomicIOConstant.DEFAULT_MAX_FRAME_LENGTH;
     }
 
     /**

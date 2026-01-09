@@ -13,6 +13,8 @@ import io.github.vevoly.atomicio.example.protobuf.proto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
+
 /**
  * protobuf 消息监听器
  *
@@ -30,6 +32,9 @@ public class MyMessageListener implements MessageEventListener {
 
         try {
             switch (commandId) {
+                case AtomicIOCommand.HEARTBEAT:
+                    log.info("收到客户端 {} 心跳.", Optional.ofNullable(session.getAttribute(AtomicIOSessionAttributes.USER_ID)));
+                    break;
                 case ProtobufExampleCmd.LOGIN:
                     // 将 payload 字节解码成我们自己的业务消息
                     LoginRequest loginRequest = LoginRequest.parseFrom(payload);

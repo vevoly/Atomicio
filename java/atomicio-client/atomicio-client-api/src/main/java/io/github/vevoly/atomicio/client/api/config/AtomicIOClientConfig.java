@@ -1,5 +1,6 @@
 package io.github.vevoly.atomicio.client.api.config;
 
+import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.constants.AtomicIOClientConstant;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -37,6 +38,12 @@ public class AtomicIOClientConfig {
      */
     private int connectTimeoutMillis = AtomicIOClientConstant.DEFAULT_CONNECT_TIMEOUT_MILLIS;
 
+    /**
+     * 消息最大长度
+     * 一定要与服务器端保持一致，否则会出现问题
+     */
+    private int maxFrameLength = AtomicIOClientConstant.DEFAULT_MAX_FRAME_LENGTH;
+
     // --- 心跳配置 ---
     /**
      * 是否启用客户端主动发送心跳。
@@ -64,6 +71,8 @@ public class AtomicIOClientConfig {
      * 最大重连延迟（秒）。重连延迟会以指数形式增长，直到达到此上限。
      */
     private int maxReconnectDelaySeconds = AtomicIOClientConstant.DEFAULT_MAX_RECONNECT_DELAY_SECONDS;
+
+
 
     /**
      * SSL/TLS 配置

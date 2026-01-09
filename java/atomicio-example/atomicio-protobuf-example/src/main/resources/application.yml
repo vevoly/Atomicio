@@ -5,6 +5,7 @@ atomicio:
   workerThreads: 4
   codec:          # 解码器类型
     type: protobuf    # 可选值: text, protobuf, mqtt ...
+    max-frame-length: 100
   cluster:        # 集群配置
     enabled: false # 是否开启集群
     type: redis   # 集群广播类型 可选值: redis, kafka, rocketmq ...

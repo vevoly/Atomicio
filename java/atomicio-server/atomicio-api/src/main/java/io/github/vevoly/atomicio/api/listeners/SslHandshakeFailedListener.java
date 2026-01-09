@@ -5,6 +5,7 @@ import io.netty.channel.Channel;
 /**
  * 当一个入站连接的 SSL/TLS 握手失败时触发的监听器
  * 用户可以在此进行安全策略操作，如：记录日志、更新黑名单等
+ * 传输层防御
  *
  * @since 0.5.4
  * @author vevoly

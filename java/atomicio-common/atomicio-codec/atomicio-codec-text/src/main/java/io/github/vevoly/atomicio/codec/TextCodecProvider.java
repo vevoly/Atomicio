@@ -6,6 +6,7 @@ import io.github.vevoly.atomicio.codec.text.TextMessageEncoder;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.LineBasedFrameDecoder;
+import lombok.AllArgsConstructor;
 
 /**
  * 文本协议的 CodecProvider 实现。
@@ -14,8 +15,6 @@ import io.netty.handler.codec.LineBasedFrameDecoder;
  * @author vevoly
  */
 public class TextCodecProvider implements AtomicIOCodecProvider {
-
-    private static final int MAX_FRAME_LENGTH = 1024;
 
     @Override
     public ChannelHandler getEncoder() {
@@ -30,14 +29,14 @@ public class TextCodecProvider implements AtomicIOCodecProvider {
     }
 
     @Override
-    public ChannelHandler getFrameDecoder() {
+    public ChannelHandler getFrameDecoder(int maxFrameLength) {
         // 文本协议需要 LineBasedFrameDecoder 来按行分帧
-        return new LineBasedFrameDecoder(MAX_FRAME_LENGTH);
+        return new LineBasedFrameDecoder(maxFrameLength);
     }
 
     @Override
-    public void buildPipeline(ChannelPipeline pipeline) {
-        pipeline.addLast(getFrameDecoder());
+    public void buildPipeline(ChannelPipeline pipeline, int maxFrameLength) {
+        pipeline.addLast(getFrameDecoder(maxFrameLength));
         pipeline.addLast(getDecoder());
         pipeline.addLast(getEncoder());
     }

@@ -49,11 +49,11 @@ public interface AtomicIOCodecProvider {
      * <p>
      * 如果协议本身是自定界的（例如 HTTP），或者解码器自己处理分帧，可以返回 null。
      *
+     * @param maxFrameLength 消息的最大长度，注意：客户端要与服务器端对齐，否则会出现问题。
+     *
      * @return a new ChannelHandler instance for frame decoding, or null if not needed.
      */
-    default ChannelHandler getFrameDecoder() {
-        return null;
-    }
+    ChannelHandler getFrameDecoder(int maxFrameLength);
 
     /**
      * 提供一个默认的心跳消息。
@@ -64,10 +64,12 @@ public interface AtomicIOCodecProvider {
     }
 
     /**
+     * 构建 pipeline
      * 将此 Codec 所需的所有 ChannelHandlers 安装到 Pipeline 中。
      *
      * @param pipeline The ChannelPipeline to build upon.
+     * @param maxFrameLength The maximum frame length for frame decoding.
      */
-    void buildPipeline(ChannelPipeline pipeline);
+    void buildPipeline(ChannelPipeline pipeline, int maxFrameLength);
 
 }

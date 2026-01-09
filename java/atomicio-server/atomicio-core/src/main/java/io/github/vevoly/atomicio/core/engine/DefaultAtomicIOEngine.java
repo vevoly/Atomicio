@@ -22,8 +22,6 @@ import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -182,7 +180,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
 //                        pipeline.addLast("B_Encrypted_Logger", new LoggingHandler("ENCRYPTED_IO", LogLevel.INFO));
 
                         // 动态添加编解码器
-                        codecProvider.buildPipeline(pipeline);
+                        codecProvider.buildPipeline(pipeline, config.getCodec().getMaxFrameLength());
                         // 心跳检测
                         pipeline.addLast(AtomicIOConstant.PIPELINE_NAME_IDLE_STATE_HANDLER,
                                 new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));

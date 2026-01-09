@@ -32,6 +32,7 @@ public class ProtobufClientExample {
         // 1. 配置客户端
         AtomicIOClientConfig config = new AtomicIOClientConfig(); // 使用默认配置
         config.getSsl().setTrustCertFromResource("server.crt"); // 信任服务端证书
+        config.setMaxFrameLength(100);
         // 2. 选择解码器
         AtomicIOCodecProvider codecProvider = new ProtobufCodecProvider();
         // 3.创建客户端实例
