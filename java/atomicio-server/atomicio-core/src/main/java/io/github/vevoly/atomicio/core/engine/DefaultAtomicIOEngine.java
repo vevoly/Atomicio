@@ -52,6 +52,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     @Getter
     private final DisruptorManager disruptorManager; // Disruptor 管理器
     private final NettyServerManager nettyServerManager; // Netty 管理器
+    private final AtomicIOClusterManager clusterManager; // 集群管理器
 
     // 线程安全的状态机
     private final AtomicReference<AtomicIOLifeState> state = new AtomicReference<>(AtomicIOLifeState.NEW);
@@ -70,6 +71,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         this.sessionManager = new AtomicIOSessionManager(this);
         this.groupManager = new AtomicIOGroupManager(this);
         this.nettyServerManager = new NettyServerManager(this);
+        this.clusterManager = new AtomicIOClusterManager(this.clusterProvider, this.disruptorManager);
     }
 
     // -- 生命周期管理 --
@@ -108,24 +110,19 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
         try {
             log.info("Starting internal components...");
+
+            // 1. 启动 disruptor
             disruptorManager.start(this);
-            if (clusterProvider != null) {
-                clusterProvider.start();
-                clusterProvider.subscribe(clusterMessage -> {
-                    disruptorManager.publish(disruptorEntry -> {
-                        disruptorEntry.setClusterMessage(clusterMessage);
-                    });
-                });
-            }
-            // 启动 Netty 服务器
+            // 2. 启动集群服务
+            clusterManager.start();
+            // 3. 启动 Netty 服务器
             nettyServerManager.start().get(); // 阻塞等待 Netty 服务器启动完成
-            // 发布引擎就绪事件
-            eventManager.fireEngineReadyEvent(this);
-            // 设置运行状态
+            // 4. 设置运行状态
             state.set(AtomicIOLifeState.RUNNING);
+            // 5. 发布引擎就绪事件
+            eventManager.fireEngineReadyEvent(this);
         } catch (Exception e) {
             log.error("Atomicio Engine startup failed. Initiating shutdown...", e);
-            state.set(AtomicIOLifeState.SHUTDOWN);
             doStop(); // 清理资源
             throw new RuntimeException("Engine start failed", e);
         }
@@ -207,7 +204,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         boolean sentLocally = sessionManager.sendToUserLocally(userId, message);
         if (!sentLocally && clusterProvider != null) {
             AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_USER, userId);
-            clusterProvider.publish(clusterMessage);
+            clusterManager.publish(clusterMessage);
         }
     }
 
@@ -249,7 +246,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         // 集群模式下，通知其他节点
         if (clusterProvider != null) {
             AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_GROUP, groupId, excludeUserIds);
-            clusterProvider.publish(clusterMessage);
+            clusterManager.publish(clusterMessage);
         }
     }
 
@@ -258,7 +255,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         sessionManager.broadcastLocally(message);
         if (clusterProvider != null) {
             AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.BROADCAST, null);
-            clusterProvider.publish(clusterMessage);
+            clusterManager.publish(clusterMessage);
         }
     }
 
