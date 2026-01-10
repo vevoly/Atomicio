@@ -78,6 +78,9 @@ public class AtomicIOProperties {
     @Data
     public static class Session {
         private boolean multiLogin = false; // 默认为 false (单点登录)
+        private int readIdleSeconds = AtomicIOConstant.DEFAULT_READ_IDLE_SECONDS;    // 读空闲时间
+        private int writeIdleSeconds = AtomicIOConstant.DEFAULT_WRITE_IDLE_SECONDS;  // 写空闲时间
+        private int allIdleSeconds = AtomicIOConstant.DEFAULT_ALL_IDLE_SECONDS;      // 读写空闲时间
     }
 
     /**

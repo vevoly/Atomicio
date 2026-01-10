@@ -10,7 +10,7 @@ import io.github.vevoly.atomicio.api.listeners.*;
 import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
 import io.github.vevoly.atomicio.codec.TextCodecProvider;
 import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;
-import io.github.vevoly.atomicio.core.engine.AtomicIOEngineLifecycleManager;
+import io.github.vevoly.atomicio.core.manager.AtomicIOEngineLifecycleManager;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.core.listener.WelcomeBannerPrinter;

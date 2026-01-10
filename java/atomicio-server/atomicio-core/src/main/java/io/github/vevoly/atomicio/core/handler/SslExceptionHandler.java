@@ -1,6 +1,7 @@
-package io.github.vevoly.atomicio.core.engine;
+package io.github.vevoly.atomicio.core.handler;
 
 import io.github.vevoly.atomicio.api.constants.ConnectionRejectType;
+import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -28,7 +29,7 @@ public class SslExceptionHandler extends ChannelInboundHandlerAdapter {
         if (rootCause instanceof SSLException) {
             log.warn("SSL handshake failed from remote address [{}]: {}",
                     ctx.channel().remoteAddress(), rootCause.getMessage());
-            engine.fireConnectionRejectEvent(ctx.channel(), ConnectionRejectType.SSL_HANDSHAKE_FAILED, rootCause);
+            engine.getEventManager().fireConnectionRejectEvent(ctx.channel(), ConnectionRejectType.SSL_HANDSHAKE_FAILED, rootCause);
             ctx.close();
         } else {
             ctx.fireExceptionCaught(cause);

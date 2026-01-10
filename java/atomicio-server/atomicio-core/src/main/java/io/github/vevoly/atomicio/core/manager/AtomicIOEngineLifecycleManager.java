@@ -1,6 +1,7 @@
-package io.github.vevoly.atomicio.core.engine;
+package io.github.vevoly.atomicio.core.manager;
 
 import io.github.vevoly.atomicio.api.listeners.*;
+import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.SmartLifecycle;
@@ -89,7 +90,7 @@ public class AtomicIOEngineLifecycleManager implements SmartLifecycle {
      */
     private void registerListeners() {
         log.info("AtomicIO LifecycleManager: Auto-registering listeners...");
-        connectionRejectListeners.forEach(engine::onSslHandshakeFailed);
+        connectionRejectListeners.forEach(engine::onConnectionReject);
         engineReadyListeners.forEach(engine::onReady);
         connectEventListeners.forEach(engine::onConnect);
         disconnectEventListeners.forEach(engine::onDisconnect);

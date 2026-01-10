@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.core.event;
+package io.github.vevoly.atomicio.core.manager;
 
 import io.github.vevoly.atomicio.api.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
@@ -9,13 +9,13 @@ import lombok.Data;
 
 /**
  * 在 Disruptor 队列中传递的事件对象。
- * 它封装了处理一个事件所需的所有上下文信息。
+ * 它封装了处理一个事件所需的所有上下文信息。一个 Entry 就是 Disruptor 队列中的一个蹲坑。
  *
  * @since 0.0.3
  * @author vevoly
  */
 @Data
-public class AtomicIOEvent {
+public class DisruptorEntry {
     private AtomicIOEventType type;
     private AtomicIOSession session;
     private AtomicIOMessage message;

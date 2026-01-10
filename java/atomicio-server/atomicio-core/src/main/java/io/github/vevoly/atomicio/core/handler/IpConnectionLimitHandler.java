@@ -1,7 +1,8 @@
-package io.github.vevoly.atomicio.core.engine;
+package io.github.vevoly.atomicio.core.handler;
 
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.constants.ConnectionRejectType;
+import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -53,7 +54,7 @@ public class IpConnectionLimitHandler extends ChannelInboundHandlerAdapter {
         int currentConnections = ipConnectionCounts.computeIfAbsent(ip, k -> new AtomicInteger(0)).incrementAndGet();
         if (currentConnections > maxConnectionsPerIp) {
             log.warn("IP {} exceeded max connection limit of {}. Closing connection.", ip, maxConnectionsPerIp);
-            engine.fireConnectionRejectEvent(ctx.channel(), ConnectionRejectType.IP_CONNECTION_LIMIT_EXCEEDED, null);
+            engine.getEventManager().fireConnectionRejectEvent(ctx.channel(), ConnectionRejectType.IP_CONNECTION_LIMIT_EXCEEDED, null);
             // 超过限制，拒绝连接
             ctx.close();
         } else {

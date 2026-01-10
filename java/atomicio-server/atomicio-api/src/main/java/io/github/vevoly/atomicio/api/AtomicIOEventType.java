@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.api;
 
 /**
- * 引擎可触发的事件类型
+ * 引擎 IO 事件类型
  * 对应网络事件的完整生命周期：
  * 1. Connect:    生命周期开始
  * 2. Message:    生命中的交互
@@ -14,11 +14,6 @@ package io.github.vevoly.atomicio.api;
  * @author vevoly
  */
 public enum AtomicIOEventType {
-
-    /**
-     * 引擎准备就绪
-     */
-    READY,
 
     /**
      * 当一个新连接建立并准备好时触发。

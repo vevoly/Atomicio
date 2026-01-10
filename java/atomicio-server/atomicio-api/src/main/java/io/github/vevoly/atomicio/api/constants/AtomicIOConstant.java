@@ -15,6 +15,7 @@ public class AtomicIOConstant {
     public static final String CONFIG_PREFIX = "atomicio";
 
     public static final String CLUSTER_CHANNEL_NAME = "atomicio-cluster-channel";
+    public static final String IO_SESSION_KEY_NAME = "atomicio-session";
 
     // -- Netty Pipeline 名称 --
     public static final String PIPELINE_NAME_IP_CONNECTION_LIMIT_HANDLER = "ipConnectionLimitHandler";
@@ -36,4 +37,7 @@ public class AtomicIOConstant {
     public static final int DEFAULT_MAX_FRAME_LENGTH = 65536; // 64KB
     public static final int DEFAULT_MAX_CONNECT_LIMIT_PER_IP = 20;
     public static final String DEFAULT_CLUSTER_MODE = AtomicIOClusterType.REDIS.name();
+    public static final int DEFAULT_READ_IDLE_SECONDS = 30;
+    public static final int DEFAULT_WRITE_IDLE_SECONDS = 0;
+    public static final int DEFAULT_ALL_IDLE_SECONDS = 0;
 }
