@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.core.engine;
 
 import io.github.vevoly.atomicio.api.AtomicIOEngine;
-import io.github.vevoly.atomicio.api.AtomicIOLifeState;
+import io.github.vevoly.atomicio.api.constants.AtomicIOLifeState;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;

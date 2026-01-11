@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.api;
+package io.github.vevoly.atomicio.api.constants;
 
 /**
  * 引擎生命周期状态

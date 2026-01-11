@@ -1,6 +1,9 @@
 package io.github.vevoly.atomicio.codec;
 
+import io.github.vevoly.atomicio.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.api.message.TextMessage;
 import io.github.vevoly.atomicio.codec.text.TextMessageDecoder;
 import io.github.vevoly.atomicio.codec.text.TextMessageEncoder;
 import io.netty.channel.ChannelHandler;
@@ -32,6 +35,11 @@ public class TextCodecProvider implements AtomicIOCodecProvider {
     public ChannelHandler getFrameDecoder(int maxFrameLength) {
         // 文本协议需要 LineBasedFrameDecoder 来按行分帧
         return new LineBasedFrameDecoder(maxFrameLength);
+    }
+
+    @Override
+    public AtomicIOMessage createHeartbeatResponse(AtomicIOMessage requestMessage) {
+        return new TextMessage(AtomicIOCommand.HEARTBEAT, "PONG");
     }
 
     @Override

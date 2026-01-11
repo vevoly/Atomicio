@@ -6,7 +6,6 @@ import java.util.Objects;
 
 /**
  * 封装了将会话绑定到用户时所需的所有上下文信息。
- * 使用静态工厂方法创建，以提供灵活性和可读性。
  *
  * @since 0.5.2
  * @author vevoly

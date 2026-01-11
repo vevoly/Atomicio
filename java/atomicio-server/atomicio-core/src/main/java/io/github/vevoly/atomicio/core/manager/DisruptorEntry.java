@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.core.manager;
 
-import io.github.vevoly.atomicio.api.AtomicIOEventType;
+import io.github.vevoly.atomicio.api.constants.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.api.constants.IdleState;

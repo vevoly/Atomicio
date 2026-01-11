@@ -3,13 +3,8 @@ package io.github.vevoly.atomicio.core.manager;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.util.DaemonThreadFactory;
-import io.github.vevoly.atomicio.api.AtomicIOEventType;
-import io.github.vevoly.atomicio.api.AtomicIOSession;
-import io.github.vevoly.atomicio.api.cluster.AtomicIOClusterMessage;
-import io.github.vevoly.atomicio.api.constants.IdleState;
 import io.github.vevoly.atomicio.core.handler.DisruptorEventHandler;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
-import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.function.Consumer;

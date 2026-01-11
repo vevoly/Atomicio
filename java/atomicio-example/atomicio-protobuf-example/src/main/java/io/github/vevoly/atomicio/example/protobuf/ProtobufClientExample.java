@@ -1,6 +1,7 @@
 package io.github.vevoly.atomicio.example.protobuf;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.github.vevoly.atomicio.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
@@ -8,6 +9,7 @@ import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.core.DefaultAtomicIOClient;
 import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
+import io.github.vevoly.atomicio.codec.protobuf.proto.Heartbeat;
 import io.github.vevoly.atomicio.example.protobuf.cmd.ProtobufExampleCmd;
 import io.github.vevoly.atomicio.example.protobuf.proto.LoginRequest;
 import io.github.vevoly.atomicio.example.protobuf.proto.LoginResponse;
@@ -87,6 +89,10 @@ public class ProtobufClientExample {
         byte[] payload = message.getPayload();
         try {
             switch (commandId) {
+                case AtomicIOCommand.HEARTBEAT:
+                    Heartbeat heartbeat = Heartbeat.parseFrom(payload);
+                    log.info("<<<<<<<<< 收到心跳: {}", heartbeat);
+                    break;
                 case ProtobufExampleCmd.LOGIN_RESPONSE:
                     LoginResponse loginResponse = LoginResponse.parseFrom(payload);
                     if (loginResponse.getSuccess()) {

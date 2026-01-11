@@ -90,7 +90,7 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
                             // 从 CodecProvider 中获取心跳
                             AtomicIOMessage heartbeatMessage = codecProvider.getHeartbeat();
                             if (null == heartbeatMessage) {
-                                throw new IllegalStateException("心跳已开启, 但是 CodecProvider 为找到默认心跳消息.");
+                                throw new IllegalStateException("心跳已开启, 但是 CodecProvider 未找到默认心跳消息.");
                             }
                             // 2.1 Netty 空闲检测，必须是每个 channel new 一个
                             pipeline.addLast(new IdleStateHandler(0, config.getWriterIdleSeconds(),

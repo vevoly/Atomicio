@@ -1,5 +1,6 @@
 package io.github.vevoly.atomicio.codec;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.github.vevoly.atomicio.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
@@ -47,6 +48,21 @@ public class ProtobufCodecProvider implements AtomicIOCodecProvider {
                 .setTimestamp(System.currentTimeMillis())
                 .build();
         return ProtobufMessage.of(AtomicIOCommand.HEARTBEAT, heartbeat);
+    }
+
+    @Override
+    public AtomicIOMessage createHeartbeatResponse(AtomicIOMessage requestMessage) {
+        try {
+            Heartbeat heartbeatRequest = Heartbeat.parseFrom(requestMessage.getPayload());
+            Heartbeat heartbeatResponse = Heartbeat.newBuilder()
+                    .setTimestamp(heartbeatRequest.getTimestamp())
+                    .build();
+            AtomicIOMessage response = ProtobufMessage.of(AtomicIOCommand.HEARTBEAT, heartbeatResponse);
+            return response;
+        } catch (InvalidProtocolBufferException e) {
+            // 解析失败
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.core.handler;
 
-import io.github.vevoly.atomicio.api.AtomicIOEventType;
+import io.github.vevoly.atomicio.api.constants.AtomicIOEventType;
 import io.github.vevoly.atomicio.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.constants.AtomicIOConstant;

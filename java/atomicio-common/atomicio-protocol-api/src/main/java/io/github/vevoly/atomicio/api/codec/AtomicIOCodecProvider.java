@@ -64,6 +64,19 @@ public interface AtomicIOCodecProvider {
     }
 
     /**
+     * 根据收到的心跳请求，创建一个心跳回应消息。
+     * 心跳的 PING/PONG 逻辑可以由协议层自行处理。
+     *
+     * @param requestMessage The received heartbeat request message.
+     * @return An AtomicIOMessage representing the heartbeat response (PONG),
+     *         or null if no response should be sent.
+     */
+    default AtomicIOMessage createHeartbeatResponse(AtomicIOMessage requestMessage) {
+        // 默认实现：原样返回，适用于简单的 Echo PING/PONG
+        return requestMessage;
+    }
+
+    /**
      * 构建 pipeline
      * 将此 Codec 所需的所有 ChannelHandlers 安装到 Pipeline 中。
      *
