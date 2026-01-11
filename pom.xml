@@ -59,7 +59,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 核心依赖版本 -->
-        <revision>0.5.10</revision>
+        <revision>0.5.11</revision>
         <netty.version>4.2.9.Final</netty.version>
         <google-protobuf.version>4.33.2</google-protobuf.version>
         <spring-boot.version>3.2.0</spring-boot.version>
@@ -72,6 +72,7 @@
         <gson.version>2.10.1</gson.version>
         <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
         <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+        <caffeine.version>3.2.3</caffeine.version>
     </properties>
 
     <!-- 依赖版本管理 -->
@@ -131,6 +132,11 @@
                 <groupId>com.esotericsoftware</groupId>
                 <artifactId>kryo</artifactId>
                 <version>${kryo.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>${caffeine.version}</version>
             </dependency>
 
         </dependencies>

@@ -4,6 +4,7 @@ import io.github.vevoly.atomicio.api.AtomicIOSession;
 import io.github.vevoly.atomicio.api.constants.ConnectionRejectType;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.session.NettySession;
+import io.github.vevoly.atomicio.core.utils.IpUtils;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -44,7 +45,7 @@ public class IpConnectionLimitHandler extends ChannelInboundHandlerAdapter {
             return;
         }
 
-        String ip = getIp(ctx);
+        String ip = IpUtils.getIp(ctx);
         if (ip == null) {
             super.channelActive(ctx);
             return;
@@ -71,7 +72,7 @@ public class IpConnectionLimitHandler extends ChannelInboundHandlerAdapter {
             return;
         }
 
-        String ip = getIp(ctx);
+        String ip = IpUtils.getIp(ctx);
         if (ip != null) {
             // 原子地减少连接数
             ipConnectionCounts.computeIfPresent(ip, (k, v) -> {
@@ -82,11 +83,4 @@ public class IpConnectionLimitHandler extends ChannelInboundHandlerAdapter {
         super.channelInactive(ctx);
     }
 
-    private String getIp(ChannelHandlerContext ctx) {
-        try {
-            return ((InetSocketAddress) ctx.channel().remoteAddress()).getAddress().getHostAddress();
-        } catch (Exception e) {
-            return null; // 无法获取 IP，则不进行过滤
-        }
-    }
 }

@@ -28,6 +28,9 @@ public class MySecurityListener implements ConnectionRejectListener {
             case IP_CONNECTION_LIMIT_EXCEEDED:
                 log.warn("IP 连接数超过限制: {}", remoteAddress);
                 break;
+            case CONNECTION_RATE_LIMIT_EXCEEDED:
+                log.warn("IP 连接速率超过限制: {}", remoteAddress);
+                break;
             case SSL_HANDSHAKE_FAILED:
                 if (remoteAddress instanceof InetSocketAddress) {
                     String ip = ((InetSocketAddress) remoteAddress).getAddress().getHostAddress();

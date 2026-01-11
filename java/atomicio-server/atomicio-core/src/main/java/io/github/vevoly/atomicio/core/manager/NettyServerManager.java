@@ -3,10 +3,7 @@ package io.github.vevoly.atomicio.core.manager;
 import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
-import io.github.vevoly.atomicio.core.handler.HeartbeatResponseHandler;
-import io.github.vevoly.atomicio.core.handler.IpConnectionLimitHandler;
-import io.github.vevoly.atomicio.core.handler.NettyEventTranslationHandler;
-import io.github.vevoly.atomicio.core.handler.SslExceptionHandler;
+import io.github.vevoly.atomicio.core.handler.*;
 import io.github.vevoly.atomicio.core.ssl.SslContextFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -42,6 +39,7 @@ public class NettyServerManager {
     // 共享处理器
     private SslContext sslContext; // ssl 上下文
     private IpConnectionLimitHandler ipConnectionLimitHandler; // Ip 连接数限制处理器
+    private IpRateLimitHandler ipRateLimitHandler; // Ip 连接速率限制处理器
     private SslExceptionHandler sslExceptionHandler; // SSL 异常处理器
     private NettyEventTranslationHandler nettyEventTranslationHandler; // Netty 事件翻译处理器
     private HeartbeatResponseHandler heartbeatResponseHandler; // 心跳响应处理器
@@ -104,8 +102,13 @@ public class NettyServerManager {
      */
     private void initializeHandlers() {
         if (config.getIpSecurity().getMaxConnect() > 0) {
-            log.info("初始化 IP 连接数限制处理器 ...");
+            log.info("初始化 IP 连接数限制处理器 ({}) ...", config.getIpSecurity().getMaxConnect());
             this.ipConnectionLimitHandler = new IpConnectionLimitHandler(engine);
+        }
+        if (config.getIpSecurity().getRateLimitCount() > 0 && config.getIpSecurity().getRateLimitInterval() > 0) {
+            log.info("初始化 IP 速率限制处理器 ({} conn/{}s) ...",
+                    config.getIpSecurity().getRateLimitCount(), config.getIpSecurity().getRateLimitInterval());
+            this.ipRateLimitHandler = new IpRateLimitHandler(engine);
         }
         if (config.getSsl().isEnabled()) {
             log.info("初始化 SSL/TLS 上下文和 SSL/TLS 异常处理器 ...");
@@ -127,8 +130,11 @@ public class NettyServerManager {
         protected void initChannel(SocketChannel ch) throws Exception {
             ChannelPipeline pipeline = ch.pipeline();
             // 准入控制层 （IP 过滤）
+            if (ipRateLimitHandler != null) {
+                pipeline.addLast(ipRateLimitHandler); // 速率限制
+            }
             if (ipConnectionLimitHandler != null) {
-                pipeline.addLast(ipConnectionLimitHandler);
+                pipeline.addLast(ipConnectionLimitHandler); // 连接数限制
             }
             // 加密层 (SSL/TLS)
             if (sslContext != null) {

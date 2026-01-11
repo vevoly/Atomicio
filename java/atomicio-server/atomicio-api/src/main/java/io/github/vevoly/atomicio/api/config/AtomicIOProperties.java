@@ -47,6 +47,16 @@ public class AtomicIOProperties {
          * 每个 IP 最大连接数限制
          */
         private int maxConnect = AtomicIOConstant.DEFAULT_MAX_CONNECT_LIMIT_PER_IP;
+
+        /**
+         * 单位时间内速率限制次数
+         */
+        private int rateLimitCount = AtomicIOConstant.DEFAULT_RATE_LIMIT_PER_IP;
+
+        /**
+         * 速率限制的单位时间
+         */
+        private int rateLimitInterval = AtomicIOConstant.DEFAULT_RATE_LIMIT_PERIOD_SECONDS;
     }
 
     /**

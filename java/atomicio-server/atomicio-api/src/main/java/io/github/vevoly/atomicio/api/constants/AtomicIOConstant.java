@@ -35,7 +35,9 @@ public class AtomicIOConstant {
     public static final int DEFAULT_BOSS_THREADS = 1;
     public static final int DEFAULT_WORKER_THREADS = 0;
     public static final int DEFAULT_MAX_FRAME_LENGTH = 65536; // 64KB
-    public static final int DEFAULT_MAX_CONNECT_LIMIT_PER_IP = 20;
+    public static final int DEFAULT_MAX_CONNECT_LIMIT_PER_IP = 10;
+    public static final int DEFAULT_RATE_LIMIT_PER_IP = 100;
+    public static final int DEFAULT_RATE_LIMIT_PERIOD_SECONDS = 60;
     public static final String DEFAULT_CLUSTER_MODE = AtomicIOClusterType.REDIS.name();
     public static final int DEFAULT_READ_IDLE_SECONDS = 30;
     public static final int DEFAULT_WRITE_IDLE_SECONDS = 0;
