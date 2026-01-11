@@ -7,6 +7,10 @@ atomicio:
     max-connect: 2          # 同一 ip 最大连接数
     rate-limit-count: 10    # 同一 ip 在 rate-limit-interval 秒内最大连接数
     rate-limit-interval: 60 # 同一 ip 速率限制的单位秒数
+  overload-protect:    # 服务器过载保护配置
+    enabled: true # 是否开启服务器过载保护
+    total-connect: 2 # 单台服务器最大连接数
+    queue-min-percent: 90 # 单台服务器IO事件队列最容量告警阈值 (百分比)
   codec:          # 解码器类型
     type: protobuf    # 可选值: text, protobuf, mqtt ...
     max-frame-length: 100

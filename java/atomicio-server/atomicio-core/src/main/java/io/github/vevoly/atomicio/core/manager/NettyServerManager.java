@@ -43,6 +43,7 @@ public class NettyServerManager {
     private SslExceptionHandler sslExceptionHandler; // SSL 异常处理器
     private NettyEventTranslationHandler nettyEventTranslationHandler; // Netty 事件翻译处理器
     private HeartbeatResponseHandler heartbeatResponseHandler; // 心跳响应处理器
+    private OverloadProtectionHandler overloadProtectionHandler; // 服务器负载保护处理器
 
     private final ChannelInitializer<SocketChannel> childHandlerInitializer;
 
@@ -101,6 +102,10 @@ public class NettyServerManager {
      * 初始化处理器
      */
     private void initializeHandlers() {
+        if (config.getOverloadProtect().isEnabled()) {
+            log.info("初始化服务器过载保护处理器 ...");
+            this.overloadProtectionHandler = new OverloadProtectionHandler(engine);
+        }
         if (config.getIpSecurity().getMaxConnect() > 0) {
             log.info("初始化 IP 连接数限制处理器 ({}) ...", config.getIpSecurity().getMaxConnect());
             this.ipConnectionLimitHandler = new IpConnectionLimitHandler(engine);
@@ -120,6 +125,7 @@ public class NettyServerManager {
         log.info("初始化 ❤️心跳回忆处理器 ...");
         this.heartbeatResponseHandler = new HeartbeatResponseHandler(engine);
 
+
     }
 
     /**
@@ -129,6 +135,10 @@ public class NettyServerManager {
         @Override
         protected void initChannel(SocketChannel ch) throws Exception {
             ChannelPipeline pipeline = ch.pipeline();
+            // 过载保护
+            if (overloadProtectionHandler != null) {
+                pipeline.addLast(overloadProtectionHandler);
+            }
             // 准入控制层 （IP 过滤）
             if (ipRateLimitHandler != null) {
                 pipeline.addLast(ipRateLimitHandler); // 速率限制

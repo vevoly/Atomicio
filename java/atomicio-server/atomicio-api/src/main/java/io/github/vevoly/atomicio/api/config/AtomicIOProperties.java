@@ -22,16 +22,19 @@ public class AtomicIOProperties {
 
     /**
      * 服务端口
+     * 默认值：8308
      */
     private int port = AtomicIOConstant.DEFAULT_PORT;
 
     /**
      * Boss 线程数
+     * 默认值：1
      */
     private int bossThreads = AtomicIOConstant.DEFAULT_BOSS_THREADS;
 
     /**
      * 工人线程数，0 Netty 默认
+     * 默认值：0
      */
     private int workerThreads = AtomicIOConstant.DEFAULT_WORKER_THREADS;
 
@@ -45,18 +48,45 @@ public class AtomicIOProperties {
 
         /**
          * 每个 IP 最大连接数限制
+         * 0 或负数 表示不限制
          */
         private int maxConnect = AtomicIOConstant.DEFAULT_MAX_CONNECT_LIMIT_PER_IP;
 
         /**
          * 单位时间内速率限制次数
+         * 0 或负数 表示不限制
          */
         private int rateLimitCount = AtomicIOConstant.DEFAULT_RATE_LIMIT_PER_IP;
 
         /**
          * 速率限制的单位时间
+         * 单位：秒
          */
         private int rateLimitInterval = AtomicIOConstant.DEFAULT_RATE_LIMIT_PERIOD_SECONDS;
+    }
+
+    /**
+     * 服务器过载保护配置
+     */
+    private OverloadProtect overloadProtect = new OverloadProtect();
+
+    @Data
+    public static class OverloadProtect {
+
+        /**
+         * 是否开启服务器过载保护
+         */
+        private boolean enabled = true;
+
+        /**
+         * 单台服务器最大连接数
+         */
+        private int totalConnect = AtomicIOConstant.DEFAULT_OVERLOAD_TOTAL_CONNECT;
+
+        /**
+         * 单台服务器IO事件队列最容量告警阈值 (百分比)
+         */
+        private int queueMinPercent = AtomicIOConstant.DEFAULT_OVERLOAD_QUEUE_MIN_PERCENT;
     }
 
     /**
@@ -87,10 +117,29 @@ public class AtomicIOProperties {
 
     @Data
     public static class Session {
-        private boolean multiLogin = false; // 默认为 false (单点登录)
-        private int readIdleSeconds = AtomicIOConstant.DEFAULT_READ_IDLE_SECONDS;    // 读空闲时间
-        private int writeIdleSeconds = AtomicIOConstant.DEFAULT_WRITE_IDLE_SECONDS;  // 写空闲时间
-        private int allIdleSeconds = AtomicIOConstant.DEFAULT_ALL_IDLE_SECONDS;      // 读写空闲时间
+
+        /**
+         * 是否允许多点登录
+         * 默认为 false (单点登录)
+         */
+        private boolean multiLogin = false;
+
+        /**
+         * 读空闲时间
+         * 服务器关心
+         */
+        private int readIdleSeconds = AtomicIOConstant.DEFAULT_READ_IDLE_SECONDS;
+
+        /**
+         * 写空闲时间
+         * 服务器不关心，默认即可
+         */
+        private int writeIdleSeconds = AtomicIOConstant.DEFAULT_WRITE_IDLE_SECONDS;
+
+        /**
+         * 读写空闲时间
+         */
+        private int allIdleSeconds = AtomicIOConstant.DEFAULT_ALL_IDLE_SECONDS;
     }
 
     /**

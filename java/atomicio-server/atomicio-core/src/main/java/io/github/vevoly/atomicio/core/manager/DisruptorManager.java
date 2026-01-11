@@ -21,11 +21,35 @@ public class DisruptorManager {
     private Disruptor<DisruptorEntry> disruptor;
     private RingBuffer<DisruptorEntry> ringBuffer;
 
+    /**
+     * 开启 IO 队列
+     * @param engine
+     */
     public void start(DefaultAtomicIOEngine engine) {
-        // 创建 Disruptor 实例
+        // todo 对 Disruptor 进行精细配置
+        // 从配置中读取，如果没有，则默认给 131072
+//        int bufferSize = engine.getConfig().getIoQueueSize() > 0 ?
+//                findNextPositivePowerOfTwo(engine.getConfig().getIoQueueSize()) : 131072;
+
+// 消费者数量建议设置为 CPU 核心数
+//        int workerCount = engine.getConfig().getIoWorkerCount() > 0 ?
+//                engine.getConfig().getIoWorkerCount() : Runtime.getRuntime().availableProcessors();
+//        // 1. 获取 CPU 核心数作为参考
+//        int cpuCores = Runtime.getRuntime().availableProcessors();
+//        // 如果是纯计算，设为 cpuCores；如果有 IO 阻塞，可以设为 cpuCores * 2
+//        int workerCount = Math.max(cpuCores, 4);
+//        // 2. 创建多个消费者实例
+//        DisruptorEventHandler[] workers = new DisruptorEventHandler[workerCount];
+//        for (int i = 0; i < workerCount; i++) {
+//            workers[i] = new DisruptorEventHandler(engine);
+//        }
+//        // 3. 使用 WorkerPool 模式，多个线程共同消费同一个 RingBuffer
+//        // 这样每个 Event 只会被其中一个线程处理（多线程竞争消费）
+//        disruptor.handleEventsWithWorkerPool(workers);
+
         disruptor = new Disruptor<>(
                 DisruptorEntry::new,         // Event 工厂
-                1024 * 16,                   // RingBuffer 大小
+                65536,                       // RingBuffer 大小
                 DaemonThreadFactory.INSTANCE // 线程工厂
         );
         // 连接消费者
@@ -33,6 +57,9 @@ public class DisruptorManager {
         this.ringBuffer = disruptor.start();
     }
 
+    /**
+     * 关闭队列
+     */
     public void shutdown() {
         if (disruptor != null) {
             disruptor.shutdown();
@@ -59,5 +86,21 @@ public class DisruptorManager {
         } finally {
             ringBuffer.publish(sequence);
         }
+    }
+
+    /**
+     * 获取队列大小
+     * @return
+     */
+    public long getBufferSize() {
+        return ringBuffer != null ? ringBuffer.getBufferSize() : -1;
+    }
+
+    /**
+     * 获取队列剩余容量
+     * @return
+     */
+    public long getRemainingCapacity() {
+        return ringBuffer != null ? ringBuffer.remainingCapacity() : -1;
     }
 }

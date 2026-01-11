@@ -36,6 +36,17 @@ public class AtomicIOSessionManager {
         this.config = engine.getConfig();
     }
 
+    /**
+     * 获取当前管理的总会话数
+     */
+    public int getTotalConnectCount() {
+        if (config.getSession().isMultiLogin()) {
+            return (int) userIdToSessionsMap.values().stream().mapToLong(List::size).sum();
+        } else {
+            return userIdToSessionMap.size();
+        }
+    }
+
     public void bindUser(AtomicIOBindRequest request, AtomicIOSession newSession) {
         String userId = request.getUserId();
         Objects.requireNonNull(userId, "User ID cannot be null");

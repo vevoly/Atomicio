@@ -38,6 +38,8 @@ public class AtomicIOConstant {
     public static final int DEFAULT_MAX_CONNECT_LIMIT_PER_IP = 10;
     public static final int DEFAULT_RATE_LIMIT_PER_IP = 100;
     public static final int DEFAULT_RATE_LIMIT_PERIOD_SECONDS = 60;
+    public static final int DEFAULT_OVERLOAD_TOTAL_CONNECT = 100000;
+    public static final int DEFAULT_OVERLOAD_QUEUE_MIN_PERCENT = 20;
     public static final String DEFAULT_CLUSTER_MODE = AtomicIOClusterType.REDIS.name();
     public static final int DEFAULT_READ_IDLE_SECONDS = 30;
     public static final int DEFAULT_WRITE_IDLE_SECONDS = 0;
