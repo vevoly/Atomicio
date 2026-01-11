@@ -1,5 +1,5 @@
 # Atomicio 阿杜米西奥 
-Atomicio: A high-performance, reactive IO engine for IM, IoT, and gaming, built on Netty.
+Atomicio: A high-performance, reactive IO framework for IM, IoT, and Gaming, built on Netty.
 
 # Coming Soon !!!
 
