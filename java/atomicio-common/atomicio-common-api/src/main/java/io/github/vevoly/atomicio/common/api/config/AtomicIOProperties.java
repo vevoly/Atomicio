@@ -1,7 +1,6 @@
-package io.github.vevoly.atomicio.server.api.config;
+package io.github.vevoly.atomicio.common.api.config;
 
 import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecType;
-import io.github.vevoly.atomicio.server.api.constants.AtomicIOConstant;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -12,7 +11,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author vevoly
  */
 @Data
-@ConfigurationProperties(prefix = AtomicIOConstant.CONFIG_PREFIX)
+@ConfigurationProperties(prefix = AtomicIOConfigDefaultValue.CONFIG_PREFIX)
 public class AtomicIOProperties {
 
     /**
@@ -24,19 +23,19 @@ public class AtomicIOProperties {
      * 服务端口
      * 默认值：8308
      */
-    private int port = AtomicIOConstant.DEFAULT_PORT;
+    private int port = AtomicIOConfigDefaultValue.DEFAULT_PORT;
 
     /**
      * Boss 线程数
      * 默认值：1
      */
-    private int bossThreads = AtomicIOConstant.DEFAULT_BOSS_THREADS;
+    private int bossThreads = AtomicIOConfigDefaultValue.DEFAULT_BOSS_THREADS;
 
     /**
      * 工人线程数，0 Netty 默认
      * 默认值：0
      */
-    private int workerThreads = AtomicIOConstant.DEFAULT_WORKER_THREADS;
+    private int workerThreads = AtomicIOConfigDefaultValue.DEFAULT_WORKER_THREADS;
 
     /**
      * IP 安全配置
@@ -50,19 +49,19 @@ public class AtomicIOProperties {
          * 每个 IP 最大连接数限制
          * 0 或负数 表示不限制
          */
-        private int maxConnect = AtomicIOConstant.DEFAULT_MAX_CONNECT_LIMIT_PER_IP;
+        private int maxConnect = AtomicIOConfigDefaultValue.DEFAULT_MAX_CONNECT_LIMIT_PER_IP;
 
         /**
          * 单位时间内速率限制次数
          * 0 或负数 表示不限制
          */
-        private int rateLimitCount = AtomicIOConstant.DEFAULT_RATE_LIMIT_PER_IP;
+        private int rateLimitCount = AtomicIOConfigDefaultValue.DEFAULT_RATE_LIMIT_PER_IP;
 
         /**
          * 速率限制的单位时间
          * 单位：秒
          */
-        private int rateLimitInterval = AtomicIOConstant.DEFAULT_RATE_LIMIT_PERIOD_SECONDS;
+        private int rateLimitInterval = AtomicIOConfigDefaultValue.DEFAULT_RATE_LIMIT_PERIOD_SECONDS;
     }
 
     /**
@@ -81,12 +80,12 @@ public class AtomicIOProperties {
         /**
          * 单台服务器最大连接数
          */
-        private int totalConnect = AtomicIOConstant.DEFAULT_OVERLOAD_TOTAL_CONNECT;
+        private int totalConnect = AtomicIOConfigDefaultValue.DEFAULT_OVERLOAD_TOTAL_CONNECT;
 
         /**
          * 单台服务器IO事件队列最容量告警阈值 (百分比)
          */
-        private int queueMinPercent = AtomicIOConstant.DEFAULT_OVERLOAD_QUEUE_MIN_PERCENT;
+        private int queueMinPercent = AtomicIOConfigDefaultValue.DEFAULT_OVERLOAD_QUEUE_MIN_PERCENT;
     }
 
     /**
@@ -107,7 +106,7 @@ public class AtomicIOProperties {
          * 消息最大长度
          * 防御 Ddos 攻击 （应用层防御）
          */
-        private int maxFrameLength = AtomicIOConstant.DEFAULT_MAX_FRAME_LENGTH;
+        private int maxFrameLength = AtomicIOConfigDefaultValue.DEFAULT_MAX_FRAME_LENGTH;
     }
 
     /**
@@ -128,18 +127,18 @@ public class AtomicIOProperties {
          * 读空闲时间
          * 服务器关心
          */
-        private int readIdleSeconds = AtomicIOConstant.DEFAULT_READ_IDLE_SECONDS;
+        private int readIdleSeconds = AtomicIOConfigDefaultValue.DEFAULT_READ_IDLE_SECONDS;
 
         /**
          * 写空闲时间
          * 服务器不关心，默认即可
          */
-        private int writeIdleSeconds = AtomicIOConstant.DEFAULT_WRITE_IDLE_SECONDS;
+        private int writeIdleSeconds = AtomicIOConfigDefaultValue.DEFAULT_WRITE_IDLE_SECONDS;
 
         /**
          * 读写空闲时间
          */
-        private int allIdleSeconds = AtomicIOConstant.DEFAULT_ALL_IDLE_SECONDS;
+        private int allIdleSeconds = AtomicIOConfigDefaultValue.DEFAULT_ALL_IDLE_SECONDS;
     }
 
     /**
@@ -158,7 +157,7 @@ public class AtomicIOProperties {
         /**
          * 集群模式类型
          */
-        private String type = AtomicIOConstant.DEFAULT_CLUSTER_MODE;
+        private String type = AtomicIOConfigDefaultValue.DEFAULT_CLUSTER_MODE;
 
         /**
          * Redis 配置
@@ -208,6 +207,58 @@ public class AtomicIOProperties {
         private String certChainPath;      // SSL 证书链文件路径
         private String privateKeyPath;     // private key 文件路径
         private String privateKeyPassword; // private key 的密码
+    }
+
+    /**
+     * ID 生成配置
+     */
+    private IdGen idGen = new IdGen();
+
+    @Data
+    public static class IdGen {
+
+        /**
+         * ID 生成器类型
+         * 默认：框架集成雪花算法
+         * 设置为 ‘custom’ 以使用用户自定义的工厂类
+         */
+        private String type = AtomicIOConfigDefaultValue.DEFAULT_ID_GEN_TYPE;
+
+        /**
+         * 如果类型（type）为 'custom'，请指定 IdGeneratorFactory 实现类的全限定类名。
+         * 该工厂类必须包含一个公共的无参构造函数。
+         */
+        private String customFactoryClass;
+
+        /**
+         * 针对 'snowflake'（雪花算法）类型的特定配置。
+         */
+        private Snowflake snowflake = new Snowflake();
+    }
+
+    @Data
+    public static class Snowflake {
+        /**
+         * 雪花算法的起始时间戳（毫秒级）。
+         * 这是计算 ID 时间戳部分的起点。
+         * 建议将其设置为最近的日期，以延长生成器的可用年限。
+         * 默认值为 1704067200000L (2024-01-01T00:00:00Z)。
+         */
+        private long epoch = AtomicIOConfigDefaultValue.DEFAULT_ID_GEN_SNOWFLAKE_EPOCH;
+
+        /**
+         * 雪花算法的工作机器 ID。
+         * 取值范围必须在 0 到 31 之间。
+         * 在集群部署中，每个应用实例在所属数据中心内必须拥有唯一的工作机器 ID。
+         * 建议通过环境变量或启动脚本动态分配此值。
+         */
+        private long workerId = AtomicIOConfigDefaultValue.DEFAULT_ID_GEN_SNOWFLAKE_WORKER_ID;
+
+        /**
+         * 雪花算法的数据中心 ID。
+         * 取值范围必须在 0 到 31 之间。
+         */
+        private long datacenterId = AtomicIOConfigDefaultValue.DEFAULT_ID_GEN_SNOWFLAKE_DATACENTER_ID;
     }
 }
 

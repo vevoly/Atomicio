@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.core.listener;
 
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
-import io.github.vevoly.atomicio.server.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.server.api.listeners.EngineReadyListener;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

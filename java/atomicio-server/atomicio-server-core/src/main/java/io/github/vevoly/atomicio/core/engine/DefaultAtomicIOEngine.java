@@ -8,7 +8,7 @@ import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
-import io.github.vevoly.atomicio.server.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.server.api.listeners.*;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.core.manager.*;

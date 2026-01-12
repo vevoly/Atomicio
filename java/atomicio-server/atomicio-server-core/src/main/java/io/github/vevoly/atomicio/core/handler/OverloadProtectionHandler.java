@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.core.handler;
 
-import io.github.vevoly.atomicio.server.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.server.api.constants.ConnectionRejectType;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.manager.DisruptorManager;

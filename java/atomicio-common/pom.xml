@@ -19,6 +19,7 @@
         <module>atomicio-codec</module>
         <module>atomicio-protocol-api</module>
         <module>atomicio-common-api</module>
+        <module>atomicio-id</module>
     </modules>
 
     <dependencyManagement>
@@ -26,6 +27,11 @@
             <dependency>
                 <groupId>io.github.vevoly</groupId>
                 <artifactId>atomicio-protocol-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-common-api</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>

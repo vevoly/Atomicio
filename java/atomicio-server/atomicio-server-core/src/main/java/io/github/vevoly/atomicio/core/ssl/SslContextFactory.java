@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.core.ssl;
 
-import io.github.vevoly.atomicio.server.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import lombok.extern.slf4j.Slf4j;

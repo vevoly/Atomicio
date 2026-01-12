@@ -1,6 +1,7 @@
 package io.github.vevoly.atomicio.example.protobuf.listeners;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.github.vevoly.atomicio.common.api.id.AtomicIOIdGenerator;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.AtomicIOSession;
@@ -11,6 +12,7 @@ import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
 import io.github.vevoly.atomicio.example.protobuf.cmd.ProtobufExampleCmd;
 import io.github.vevoly.atomicio.example.protobuf.proto.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -24,6 +26,9 @@ import java.util.Optional;
 @Slf4j
 @Component
 public class MyMessageListener implements MessageEventListener {
+
+    @Autowired
+    private AtomicIOIdGenerator idGenerator;
 
     @Override
     public void onMessage(AtomicIOSession session, AtomicIOMessage message) {
@@ -108,7 +113,7 @@ public class MyMessageListener implements MessageEventListener {
             return;
         }
         log.info("User '{}' sends message (clientMsgId:{}) to user '{}'", fromUserId, clientMessageId, toUserId);
-        long serverMessageId = System.nanoTime(); // 用纳秒时间戳模拟唯一ID
+        long serverMessageId = idGenerator.nextId();
         // 4. 构建需要转发给接收者的“通知”消息
         P2PMessageNotify notifyMessageBody = P2PMessageNotify.newBuilder()
                 .setFromUserId(fromUserId)

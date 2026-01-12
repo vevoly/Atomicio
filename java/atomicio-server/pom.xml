@@ -21,26 +21,44 @@
         <module>atomicio-server-spring-boot-starter</module>
     </modules>
 
-<!--    <dependencies>-->
-<!--        <dependency>-->
-<!--            <groupId>io.github.vevoly</groupId>-->
-<!--            <artifactId>atomicio-server-api</artifactId>-->
-<!--            <version>${revision}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>io.github.vevoly</groupId>-->
-<!--            <artifactId>atomicio-server-core</artifactId>-->
-<!--            <version>${revision}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>io.github.vevoly</groupId>-->
-<!--            <artifactId>atomicio-codec-text</artifactId>-->
-<!--            <version>${revision}</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>io.github.vevoly</groupId>-->
-<!--            <artifactId>atomicio-codec-protobuf</artifactId>-->
-<!--            <version>${revision}</version>-->
-<!--        </dependency>-->
-<!--    </dependencies>-->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-common-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-server-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-server-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-codec-text</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-codec-protobuf</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-id-snowflake</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-id-uuid</artifactId>
+                <version>${revision}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
 </project>

@@ -51,6 +51,14 @@
             <artifactId>spring-context</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-id-snowflake</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-id-uuid</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

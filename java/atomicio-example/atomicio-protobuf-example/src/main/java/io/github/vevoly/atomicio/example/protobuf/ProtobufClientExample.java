@@ -1,6 +1,7 @@
 package io.github.vevoly.atomicio.example.protobuf;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.github.vevoly.atomicio.example.protobuf.proto.*;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
@@ -11,10 +12,6 @@ import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.Heartbeat;
 import io.github.vevoly.atomicio.example.protobuf.cmd.ProtobufExampleCmd;
-import io.github.vevoly.atomicio.example.protobuf.proto.LoginRequest;
-import io.github.vevoly.atomicio.example.protobuf.proto.LoginResponse;
-import io.github.vevoly.atomicio.example.protobuf.proto.P2PMessageNotify;
-import io.github.vevoly.atomicio.example.protobuf.proto.P2PMessageRequest;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Scanner;
@@ -99,11 +96,14 @@ public class ProtobufClientExample {
 
                 case ProtobufExampleCmd.P2P_MESSAGE_NOTIFY:
                     P2PMessageNotify notify = P2PMessageNotify.parseFrom(payload);
-                    log.info("<<<<<<<<< 新消息 from [{}]: {}", notify.getFromUserId(), notify.getContent());
+                    log.info("<<<<<<<<< 新消息 from [{}]: {} - {}", notify.getFromUserId(), notify.getContent(), notify.getServerMessageId());
                     break;
 
                 case ProtobufExampleCmd.P2P_MESSAGE_ACK:
                     // 在这里可以处理消息发送回执
+                    P2PMessageAck ack = P2PMessageAck.parseFrom(payload);
+                    log.info("<<<<<<<<< 消息发送回执: success:{}, clientMessageId:{}, serverMessageId:{}, timestamp:{} ",
+                            ack.getSuccess(), ack.getClientMessageId(), ack.getServerMessageId(), ack.getTimestamp());
                     break;
 
                 default:

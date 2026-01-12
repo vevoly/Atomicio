@@ -5,19 +5,19 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.github.vevoly</groupId>
-        <artifactId>atomicio-server</artifactId>
+        <artifactId>atomicio-id</artifactId>
         <version>${revision}</version>
     </parent>
 
-    <name>Atomicio-Server-Api</name>
-    <artifactId>atomicio-server-api</artifactId>
-    <url>https://github.com/vevoly/Atomicio</url>
-    <description>Server API module for Atomicio</description>
+    <name>Atomico-ID-Snowflake</name>
+    <artifactId>atomicio-id-snowflake</artifactId>
+    <description>Snowflake id generation module for AtomicIO</description>
 
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-common-api</artifactId>
         </dependency>
+
     </dependencies>
 </project>

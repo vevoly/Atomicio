@@ -1,20 +1,20 @@
 package io.github.vevoly.atomicio.starter.autoconfiguration;
 
-import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
-import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterType;
+import io.github.vevoly.atomicio.common.api.config.AtomicIOConfigDefaultValue;
 import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecType;
-import io.github.vevoly.atomicio.server.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
 import io.github.vevoly.atomicio.codec.TextCodecProvider;
 import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;
 import io.github.vevoly.atomicio.core.manager.AtomicIOEngineLifecycleManager;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
-import io.github.vevoly.atomicio.server.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.core.listener.WelcomeBannerPrinter;
-import io.github.vevoly.atomicio.server.api.listeners.*;
 
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
+import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
+import io.github.vevoly.atomicio.server.api.listeners.*;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -60,7 +60,7 @@ public class AtomicIOEngineAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = AtomicIOConstant.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
+    @ConditionalOnProperty(prefix = AtomicIOConfigDefaultValue.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
     public AtomicIOEngine atomicIOEngine(AtomicIOProperties properties, AtomicIOCodecProvider codecProvider) {
         AtomicIOClusterProvider clusterProvider = createClusterProvider(properties);
         return new DefaultAtomicIOEngine(properties, clusterProvider, codecProvider);
@@ -72,7 +72,7 @@ public class AtomicIOEngineAutoConfiguration {
      * @return
      */
     @Bean
-    @ConditionalOnProperty(prefix = AtomicIOConstant.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
+    @ConditionalOnProperty(prefix = AtomicIOConfigDefaultValue.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
     public SmartLifecycle atomicIOEngineLifecycleManager(
             AtomicIOEngine engine,
             ObjectProvider<List<ConnectionRejectListener>> connectionRejectListenersProvider,
@@ -118,7 +118,7 @@ public class AtomicIOEngineAutoConfiguration {
         }
         switch (AtomicIOClusterType.fromString(clusterProps.getType())) {
             case REDIS:
-                return new RedisClusterProvider(clusterProps.getRedis().getUri());
+                return (AtomicIOClusterProvider) new RedisClusterProvider(clusterProps.getRedis().getUri());
             case ROCKETMQ:
                 log.warn("RocketMQ cluster provider is not implemented yet.");
                 return null;

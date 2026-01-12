@@ -9,16 +9,17 @@
         <version>${revision}</version>
     </parent>
 
-    <name>Atomicio-Codec</name>
-    <artifactId>atomicio-codec</artifactId>
+    <name>Atomicio-ID</name>
+    <artifactId>atomicio-id</artifactId>
     <packaging>pom</packaging>
     <url>https://github.com/vevoly/j-atomic-ledger</url>
-    <description>
-        Codec module for AtomicIO, Includes codec modules of AtomicIO engine .
-    </description>
     <modules>
-        <module>atomicio-codec-text</module>
-        <module>atomicio-codec-protobuf</module>
+        <module>atomicio-id-snowflake</module>
+        <module>atomicio-id-uuid</module>
     </modules>
+    <description>
+        ID generations module for AtomicIO, Includes snowflake ID generation strategy and allows users to customize their own ID generation strategies.
+    </description>
+
 
 </project>

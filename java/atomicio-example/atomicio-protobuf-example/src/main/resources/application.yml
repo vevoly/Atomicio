@@ -25,3 +25,7 @@ atomicio:
     enabled: true
     cert-chain-path: "classpath:server.crt"
     private-key-path: "classpath:server.key"
+  id-gen:         # id 生成器配置
+    type: snowflake  # 可选：snowflake (默认), uuid, custom （自定义）
+    # 自定义 ID 生成器工厂类
+    custom-factory-class: io.github.vevoly.atomicio.example.protobuf.id.MyCustomIdGeneratorFactory

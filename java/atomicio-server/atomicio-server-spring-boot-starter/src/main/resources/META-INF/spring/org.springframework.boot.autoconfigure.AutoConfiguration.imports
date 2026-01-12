@@ -1,1 +1,2 @@
 io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOEngineAutoConfiguration
+io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOIdGeneratorAutoConfiguration
