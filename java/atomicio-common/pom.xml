@@ -18,6 +18,7 @@
     <modules>
         <module>atomicio-codec</module>
         <module>atomicio-protocol-api</module>
+        <module>atomicio-common-api</module>
     </modules>
 
     <dependencyManagement>

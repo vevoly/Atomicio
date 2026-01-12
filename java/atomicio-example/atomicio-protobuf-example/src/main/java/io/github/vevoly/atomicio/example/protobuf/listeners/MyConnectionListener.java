@@ -1,8 +1,8 @@
 package io.github.vevoly.atomicio.example.protobuf.listeners;
 
-import io.github.vevoly.atomicio.api.AtomicIOSession;
-import io.github.vevoly.atomicio.api.listeners.ConnectEventListener;
-import io.github.vevoly.atomicio.api.listeners.DisconnectEventListener;
+import io.github.vevoly.atomicio.server.api.AtomicIOSession;
+import io.github.vevoly.atomicio.server.api.listeners.ConnectEventListener;
+import io.github.vevoly.atomicio.server.api.listeners.DisconnectEventListener;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 

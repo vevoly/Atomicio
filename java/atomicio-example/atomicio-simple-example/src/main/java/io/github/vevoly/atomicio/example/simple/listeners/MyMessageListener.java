@@ -1,14 +1,13 @@
 package io.github.vevoly.atomicio.example.simple.listeners;
 
-import io.github.vevoly.atomicio.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.api.AtomicIOSession;
-import io.github.vevoly.atomicio.api.constants.AtomicIOSessionAttributes;
-import io.github.vevoly.atomicio.api.listeners.MessageEventListener;
-import io.github.vevoly.atomicio.api.message.TextMessage;
-import io.github.vevoly.atomicio.api.session.AtomicIOBindRequest;
+import io.github.vevoly.atomicio.server.api.AtomicIOSession;
+import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
+import io.github.vevoly.atomicio.server.api.listeners.MessageEventListener;
+import io.github.vevoly.atomicio.protocol.api.message.TextMessage;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.example.simple.cmd.BusinessCommand;
 import io.github.vevoly.atomicio.example.simple.service.AuthService;
-import io.github.vevoly.atomicio.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 

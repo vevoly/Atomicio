@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.client.core;
 
-import io.github.vevoly.atomicio.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.api.listeners.*;

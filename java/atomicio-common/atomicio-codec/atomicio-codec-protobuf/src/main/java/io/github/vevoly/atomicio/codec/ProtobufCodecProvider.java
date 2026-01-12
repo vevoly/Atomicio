@@ -1,9 +1,9 @@
 package io.github.vevoly.atomicio.codec;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.github.vevoly.atomicio.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.codec.decoder.ProtobufVarint32FrameDecoder;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufAdapterHandler;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
@@ -14,8 +14,6 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
 import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 
 /**
  * Protobuf 协议的 CodecProvider 实现。

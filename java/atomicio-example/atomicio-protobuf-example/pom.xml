@@ -16,7 +16,7 @@
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-spring-boot-starter</artifactId>
+            <artifactId>atomicio-server-spring-boot-starter</artifactId>
             <version>${revision}</version>
         </dependency>
         <dependency>

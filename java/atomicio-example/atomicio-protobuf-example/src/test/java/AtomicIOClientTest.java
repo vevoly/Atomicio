@@ -1,9 +1,8 @@
-import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.core.DefaultAtomicIOClient;
 import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
-import io.github.vevoly.atomicio.example.protobuf.proto.LoginRequest;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j

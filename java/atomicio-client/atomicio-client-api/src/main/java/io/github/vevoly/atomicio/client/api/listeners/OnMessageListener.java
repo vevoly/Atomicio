@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.client.api.listeners;
 
-import io.github.vevoly.atomicio.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 
 /**
  * 客户端消息监听器

@@ -16,20 +16,20 @@
     <description>Server module for Atomicio</description>
 
     <modules>
-        <module>atomicio-api</module>
-        <module>atomicio-core</module>
-        <module>atomicio-spring-boot-starter</module>
+        <module>atomicio-server-api</module>
+        <module>atomicio-server-core</module>
+        <module>atomicio-server-spring-boot-starter</module>
     </modules>
 
 <!--    <dependencies>-->
 <!--        <dependency>-->
 <!--            <groupId>io.github.vevoly</groupId>-->
-<!--            <artifactId>atomicio-api</artifactId>-->
+<!--            <artifactId>atomicio-server-api</artifactId>-->
 <!--            <version>${revision}</version>-->
 <!--        </dependency>-->
 <!--        <dependency>-->
 <!--            <groupId>io.github.vevoly</groupId>-->
-<!--            <artifactId>atomicio-core</artifactId>-->
+<!--            <artifactId>atomicio-server-core</artifactId>-->
 <!--            <version>${revision}</version>-->
 <!--        </dependency>-->
 <!--        <dependency>-->

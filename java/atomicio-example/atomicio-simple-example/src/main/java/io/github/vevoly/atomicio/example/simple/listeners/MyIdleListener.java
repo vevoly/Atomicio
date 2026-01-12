@@ -1,9 +1,9 @@
 package io.github.vevoly.atomicio.example.simple.listeners;
 
-import io.github.vevoly.atomicio.api.AtomicIOSession;
-import io.github.vevoly.atomicio.api.constants.AtomicIOSessionAttributes;
-import io.github.vevoly.atomicio.api.constants.IdleState;
-import io.github.vevoly.atomicio.api.listeners.IdleEventListener;
+import io.github.vevoly.atomicio.server.api.AtomicIOSession;
+import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
+import io.github.vevoly.atomicio.server.api.constants.IdleState;
+import io.github.vevoly.atomicio.server.api.listeners.IdleEventListener;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 

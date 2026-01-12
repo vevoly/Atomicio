@@ -1,9 +1,9 @@
 package io.github.vevoly.atomicio.example.protobuf;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.github.vevoly.atomicio.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.core.DefaultAtomicIOClient;
@@ -17,14 +17,9 @@ import io.github.vevoly.atomicio.example.protobuf.proto.P2PMessageNotify;
 import io.github.vevoly.atomicio.example.protobuf.proto.P2PMessageRequest;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.Scanner;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 @Slf4j
 public class ProtobufClientExample {

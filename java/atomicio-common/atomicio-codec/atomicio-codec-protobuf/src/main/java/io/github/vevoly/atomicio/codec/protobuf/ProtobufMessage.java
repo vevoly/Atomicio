@@ -5,7 +5,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import io.github.vevoly.atomicio.codec.protobuf.proto.GenericMessage;
-import io.github.vevoly.atomicio.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 
 /**
  * 将 Protobuf 的 GenericMessage 适配到 AtomicIOMessage 接口。

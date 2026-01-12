@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.example.simple.listeners;
 
-import io.github.vevoly.atomicio.api.AtomicIOEngine;
-import io.github.vevoly.atomicio.api.listeners.EngineReadyListener;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
+import io.github.vevoly.atomicio.server.api.listeners.EngineReadyListener;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 

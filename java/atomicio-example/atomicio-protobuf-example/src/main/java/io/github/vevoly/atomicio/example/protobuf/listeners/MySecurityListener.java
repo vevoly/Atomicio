@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.example.protobuf.listeners;
 
-import io.github.vevoly.atomicio.api.constants.ConnectionRejectType;
-import io.github.vevoly.atomicio.api.listeners.ConnectionRejectListener;
+import io.github.vevoly.atomicio.server.api.constants.ConnectionRejectType;
+import io.github.vevoly.atomicio.server.api.listeners.ConnectionRejectListener;
 import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

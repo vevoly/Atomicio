@@ -1,15 +1,14 @@
 package io.github.vevoly.atomicio.codec;
 
-import io.github.vevoly.atomicio.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.api.codec.AtomicIOCodecProvider;
-import io.github.vevoly.atomicio.api.message.TextMessage;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.protocol.api.message.TextMessage;
 import io.github.vevoly.atomicio.codec.text.TextMessageDecoder;
 import io.github.vevoly.atomicio.codec.text.TextMessageEncoder;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.LineBasedFrameDecoder;
-import lombok.AllArgsConstructor;
 
 /**
  * 文本协议的 CodecProvider 实现。
