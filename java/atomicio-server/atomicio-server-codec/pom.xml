@@ -5,27 +5,27 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.github.vevoly</groupId>
-        <artifactId>atomicio-client</artifactId>
+        <artifactId>atomicio-server</artifactId>
         <version>${revision}</version>
     </parent>
 
-    <name>Atomicio-Client-Core</name>
-    <artifactId>atomicio-client-core</artifactId>
-    <url>https://github.com/vevoly/Atomicio</url>
-    <description>Client SDK Core module for Atomicio</description>
+    <name>Atomcio-Server-Codec</name>
+    <artifactId>atomicio-server-codec</artifactId>
+    <description>Server codec module for AtomicIO Server</description>
 
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-client-api</artifactId>
+            <artifactId>atomicio-codec-protobuf</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-codec-text</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-server-core</artifactId>
         </dependency>
     </dependencies>
+
 </project>

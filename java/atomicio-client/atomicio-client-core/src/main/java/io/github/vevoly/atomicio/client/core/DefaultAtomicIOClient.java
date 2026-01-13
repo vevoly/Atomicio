@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.client.core;
 
+import io.github.vevoly.atomicio.client.api.codec.AtomicIOClientCodecProvider;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.api.listeners.*;
@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class DefaultAtomicIOClient implements AtomicIOClient {
     private final AtomicIOClientConfig config;
-    private final AtomicIOCodecProvider codecProvider;
+    private final AtomicIOClientCodecProvider codecProvider;
 
     private SslContext sslContext;
     private EventLoopGroup group;
@@ -45,7 +45,7 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
     private final List<OnErrorListener> errorListeners = new CopyOnWriteArrayList<>();
     private final List<OnReconnectingListener> reconnectingListeners = new CopyOnWriteArrayList<>();
 
-    public DefaultAtomicIOClient(AtomicIOClientConfig config, AtomicIOCodecProvider codecProvider) {
+    public DefaultAtomicIOClient(AtomicIOClientConfig config, AtomicIOClientCodecProvider codecProvider) {
         this.config = config;
         this.codecProvider = codecProvider;
         init();
@@ -84,7 +84,7 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
                             pipeline.addLast(sslContext.newHandler(ch.alloc(), config.getHost(), config.getPort()));
                         }
                         // 1. 协议层, 使用 CodecProvider 构建协议栈
-                        codecProvider.buildPipeline(pipeline, config.getMaxFrameLength());
+                        codecProvider.buildPipeline(pipeline, config);
                         // 2. 心跳机制层
                         if (config.isHeartbeatEnabled() && config.getWriterIdleSeconds() > 0) {
                             // 从 CodecProvider 中获取心跳

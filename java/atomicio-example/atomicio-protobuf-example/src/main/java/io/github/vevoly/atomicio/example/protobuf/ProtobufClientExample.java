@@ -1,14 +1,14 @@
 package io.github.vevoly.atomicio.example.protobuf;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.github.vevoly.atomicio.client.api.codec.AtomicIOClientCodecProvider;
+import io.github.vevoly.atomicio.client.codec.protobuf.ProtobufClientCodecProvider;
 import io.github.vevoly.atomicio.example.protobuf.proto.*;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.core.DefaultAtomicIOClient;
-import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.Heartbeat;
 import io.github.vevoly.atomicio.example.protobuf.cmd.ProtobufExampleCmd;
@@ -28,7 +28,7 @@ public class ProtobufClientExample {
         config.getSsl().setTrustCertFromResource("server.crt"); // 信任服务端证书
         config.setMaxFrameLength(100);
         // 2. 选择解码器
-        AtomicIOCodecProvider codecProvider = new ProtobufCodecProvider();
+        AtomicIOClientCodecProvider codecProvider = new ProtobufClientCodecProvider();
         // 3.创建客户端实例
         AtomicIOClient client = new DefaultAtomicIOClient(config, codecProvider);
         // 4. 注册事件监听器

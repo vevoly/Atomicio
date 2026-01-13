@@ -1,6 +1,5 @@
 package io.github.vevoly.atomicio.codec.text;
 
-import io.github.vevoly.atomicio.protocol.api.message.TextMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;

@@ -21,14 +21,8 @@
         </dependency>
         <dependency>
             <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-codec-text</artifactId>
+            <artifactId>atomicio-server-codec</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-codec-protobuf</artifactId>
-            <optional>true</optional>
-        </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>

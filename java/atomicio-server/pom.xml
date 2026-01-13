@@ -18,6 +18,7 @@
     <modules>
         <module>atomicio-server-api</module>
         <module>atomicio-server-core</module>
+        <module>atomicio-server-codec</module>
         <module>atomicio-server-spring-boot-starter</module>
     </modules>
 

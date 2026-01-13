@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.core.manager;
 
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.handler.*;
@@ -29,7 +29,7 @@ public class NettyServerManager {
 
     private final DefaultAtomicIOEngine engine;
     private final AtomicIOProperties config;
-    private final AtomicIOCodecProvider codecProvider;
+    private final AtomicIOServerCodecProvider codecProvider;
 
     // Netty核心组件
     private EventLoopGroup bossGroup;
@@ -152,7 +152,7 @@ public class NettyServerManager {
                 pipeline.addLast(sslExceptionHandler);
             }
             // 协议编解码层
-            codecProvider.buildPipeline(pipeline, config.getCodec().getMaxFrameLength());
+            codecProvider.buildPipeline(pipeline, engine);
             // 协议编解码层
             // 心跳回应
             pipeline.addLast(heartbeatResponseHandler);

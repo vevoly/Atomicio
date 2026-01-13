@@ -1,14 +1,16 @@
-package io.github.vevoly.atomicio.codec;
+package io.github.vevoly.atomicio.server.codec.protobuf;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.codec.decoder.ProtobufVarint32FrameDecoder;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufAdapterHandler;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.GenericMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.Heartbeat;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
+import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
@@ -21,7 +23,7 @@ import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
  * @since 0.3.0
  * @author vevoly
  */
-public class ProtobufCodecProvider implements AtomicIOCodecProvider {
+public class ProtobufServerCodecProvider implements AtomicIOServerCodecProvider {
 
     @Override
     public ChannelHandler getEncoder() {
@@ -64,7 +66,9 @@ public class ProtobufCodecProvider implements AtomicIOCodecProvider {
     }
 
     @Override
-    public void buildPipeline(ChannelPipeline pipeline, int maxFrameLength) {
+    public void buildPipeline(ChannelPipeline pipeline, AtomicIOEngine engine) {
+
+        DefaultAtomicIOEngine atomicIOEngine = (DefaultAtomicIOEngine) engine;
         // Outbound
         pipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
         pipeline.addLast(getEncoder());
@@ -72,7 +76,7 @@ public class ProtobufCodecProvider implements AtomicIOCodecProvider {
 
         // Inbound
 //        pipeline.addLast("A_Logger", new LoggingHandler(LogLevel.INFO)); // 窃听点 A: 原始数据流（仅用于调试）
-        pipeline.addLast(getFrameDecoder(maxFrameLength));
+        pipeline.addLast(getFrameDecoder(atomicIOEngine.getConfig().getCodec().getMaxFrameLength()));
 //        pipeline.addLast("B_Logger", new LoggingHandler(LogLevel.INFO)); // 窃听点 B: 检查分帧结果
         pipeline.addLast(getDecoder());
 

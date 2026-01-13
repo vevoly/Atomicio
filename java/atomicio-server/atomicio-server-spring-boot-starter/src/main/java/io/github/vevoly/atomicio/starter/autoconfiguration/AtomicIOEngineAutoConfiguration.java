@@ -2,10 +2,7 @@ package io.github.vevoly.atomicio.starter.autoconfiguration;
 
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterType;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOConfigDefaultValue;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecType;
-import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
-import io.github.vevoly.atomicio.codec.TextCodecProvider;
+import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;
 import io.github.vevoly.atomicio.core.manager.AtomicIOEngineLifecycleManager;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
@@ -42,26 +39,8 @@ public class AtomicIOEngineAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AtomicIOCodecProvider codecProvider(AtomicIOProperties properties) {
-        String type = properties.getCodec().getType();
-        if (AtomicIOCodecType.TEXT.name().equalsIgnoreCase(type)) {
-            return new TextCodecProvider();
-        } else if (AtomicIOCodecType.PROTOBUF.name().equalsIgnoreCase(type)) {
-            try {
-                Class.forName("io.github.vevoly.atomicio.codec.ProtobufCodecProvider");
-                return new ProtobufCodecProvider();
-            } catch (ClassNotFoundException e) {
-                throw new IllegalStateException("Protobuf codec is configured, but 'atomicio-codec-protobuf' module is not on the classpath.", e);
-            }
-        } else {
-            throw new IllegalStateException("Not support type of codec:" + type);
-        }
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = AtomicIOConfigDefaultValue.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
-    public AtomicIOEngine atomicIOEngine(AtomicIOProperties properties, AtomicIOCodecProvider codecProvider) {
+    public AtomicIOEngine atomicIOEngine(AtomicIOProperties properties, AtomicIOServerCodecProvider codecProvider) {
         AtomicIOClusterProvider clusterProvider = createClusterProvider(properties);
         return new DefaultAtomicIOEngine(properties, clusterProvider, codecProvider);
     }

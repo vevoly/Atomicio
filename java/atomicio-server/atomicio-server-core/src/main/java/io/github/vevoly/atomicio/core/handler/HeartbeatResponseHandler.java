@@ -3,7 +3,7 @@ package io.github.vevoly.atomicio.core.handler;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.AtomicIOSession;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -49,7 +49,7 @@ public class HeartbeatResponseHandler extends SimpleChannelInboundHandler<Atomic
         }
         log.info("Received 💗 from session {}, responding.", session.getId());
         // 从引擎获取当前的 CodecProvider
-        AtomicIOCodecProvider codecProvider = engine.getCodecProvider();
+        AtomicIOServerCodecProvider codecProvider = engine.getCodecProvider();
         // 委托给 CodecProvider 创建回应
         AtomicIOMessage response = codecProvider.createHeartbeatResponse(requestMessage);
         if (response != null) {

@@ -7,7 +7,7 @@ import io.github.vevoly.atomicio.server.api.AtomicIOSession;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.server.api.listeners.*;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
@@ -38,7 +38,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     @Getter
     private final AtomicIOProperties config; // 配置文件
     @Getter
-    private final AtomicIOCodecProvider codecProvider; // 解码提供器
+    private final AtomicIOServerCodecProvider codecProvider; // 解码提供器
     @Getter
     private final AtomicIOClusterProvider clusterProvider; // 集群通信提供器
 
@@ -60,7 +60,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     public DefaultAtomicIOEngine(
             AtomicIOProperties config,
             @Nullable AtomicIOClusterProvider clusterProvider,
-            AtomicIOCodecProvider codecProvider
+            AtomicIOServerCodecProvider codecProvider
     ) {
         this.config = config;
         this.codecProvider = codecProvider;

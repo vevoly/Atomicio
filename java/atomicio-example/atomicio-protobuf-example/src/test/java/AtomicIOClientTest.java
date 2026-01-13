@@ -1,15 +1,14 @@
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.client.codec.protobuf.ProtobufClientCodecProvider;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.core.DefaultAtomicIOClient;
-import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class AtomicIOClientTest {
     public static void main(String[] args) {
         AtomicIOClientConfig config = new AtomicIOClientConfig();
-        AtomicIOCodecProvider codecProvider = new ProtobufCodecProvider();
+        ProtobufClientCodecProvider codecProvider = new ProtobufClientCodecProvider();
         AtomicIOClient atomicIOClient = new DefaultAtomicIOClient(config, codecProvider);
 
         atomicIOClient.connect();
@@ -17,7 +16,7 @@ public class AtomicIOClientTest {
     void testClientConnect() {
 
         AtomicIOClientConfig config = new AtomicIOClientConfig();
-        AtomicIOCodecProvider codecProvider = new ProtobufCodecProvider();
+        ProtobufClientCodecProvider codecProvider = new ProtobufClientCodecProvider();
         AtomicIOClient atomicIOClient = new DefaultAtomicIOClient(config, codecProvider);
 
         atomicIOClient.connect();

@@ -1,22 +1,23 @@
-package io.github.vevoly.atomicio.codec;
+package io.github.vevoly.atomicio.client.codec.text;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
-import io.github.vevoly.atomicio.protocol.api.message.TextMessage;
+import io.github.vevoly.atomicio.client.api.codec.AtomicIOClientCodecProvider;
+import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
+import io.github.vevoly.atomicio.codec.text.TextMessage;
 import io.github.vevoly.atomicio.codec.text.TextMessageDecoder;
 import io.github.vevoly.atomicio.codec.text.TextMessageEncoder;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 
 /**
- * 文本协议的 CodecProvider 实现。
+ * 文本协议的 CodecProvider 客户端实现。
  *
- * @since 0.2.0
+ * @since 0.6.2
  * @author vevoly
  */
-public class TextCodecProvider implements AtomicIOCodecProvider {
+public class TextClientCodecProvider implements AtomicIOClientCodecProvider {
 
     @Override
     public ChannelHandler getEncoder() {
@@ -42,8 +43,8 @@ public class TextCodecProvider implements AtomicIOCodecProvider {
     }
 
     @Override
-    public void buildPipeline(ChannelPipeline pipeline, int maxFrameLength) {
-        pipeline.addLast(getFrameDecoder(maxFrameLength));
+    public void buildPipeline(ChannelPipeline pipeline, AtomicIOClientConfig config) {
+        pipeline.addLast(getFrameDecoder(config.getMaxFrameLength()));
         pipeline.addLast(getDecoder());
         pipeline.addLast(getEncoder());
     }

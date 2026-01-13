@@ -1,6 +1,7 @@
-package io.github.vevoly.atomicio.protocol.api.codec;
+package io.github.vevoly.atomicio.server.api.codec;
 
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 
@@ -14,7 +15,7 @@ import io.netty.channel.ChannelPipeline;
  * @since 0.2.0
  * @author vevoly
  */
-public interface AtomicIOCodecProvider {
+public interface AtomicIOServerCodecProvider {
 
     /**
      * 获取一个 Netty 的编码器 (Encoder) 实例。
@@ -81,8 +82,8 @@ public interface AtomicIOCodecProvider {
      * 将此 Codec 所需的所有 ChannelHandlers 安装到 Pipeline 中。
      *
      * @param pipeline The ChannelPipeline to build upon.
-     * @param maxFrameLength The maximum frame length for frame decoding.
+     * @param engine   The AtomicIOEngine instance associated with this Codec.
      */
-    void buildPipeline(ChannelPipeline pipeline, int maxFrameLength);
+    void buildPipeline(ChannelPipeline pipeline, AtomicIOEngine engine);
 
 }

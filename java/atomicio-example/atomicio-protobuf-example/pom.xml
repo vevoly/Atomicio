@@ -21,6 +21,11 @@
         </dependency>
         <dependency>
             <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-client-codec</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-codec-protobuf</artifactId>
             <version>${revision}</version>
         </dependency>

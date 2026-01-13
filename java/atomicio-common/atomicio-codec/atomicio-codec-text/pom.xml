@@ -11,7 +11,7 @@
 
     <name>Atomico-Codec-Text</name>
     <artifactId>atomicio-codec-text</artifactId>
-    <description>Text codec module for AtomicIO</description>
+    <description>Text codec module for AtomicIO Codec</description>
 
     <dependencies>
         <dependency>

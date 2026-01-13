@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.protocol.api.message;
+package io.github.vevoly.atomicio.codec.text;
 
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import lombok.AllArgsConstructor;

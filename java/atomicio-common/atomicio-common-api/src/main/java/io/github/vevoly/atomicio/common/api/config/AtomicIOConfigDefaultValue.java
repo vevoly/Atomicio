@@ -8,6 +8,7 @@ public class AtomicIOConfigDefaultValue {
 
     public static final String CONFIG_PREFIX = "atomicio";
     public static final String CONFIG_PREFIX_ID_GEN = CONFIG_PREFIX + ".id-gen";
+    public static final String CONFIG_PREFIX_CODEC = CONFIG_PREFIX + ".codec";
 
     // -- 配置文件默认值 --
     public static final int DEFAULT_PORT = 8308;
