@@ -37,7 +37,6 @@
 
     <modules>
         <module>java</module>
-        <module>java/atomicio-server/atomicio-server-codec</module>
     </modules>
 
     <!-- 指定发布仓库 -->

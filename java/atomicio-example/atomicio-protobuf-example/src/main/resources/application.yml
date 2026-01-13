@@ -1,31 +1,33 @@
 
 atomicio:
-  enabled: true
-  port: 8308
-  workerThreads: 4
-  ip-security:    # ip 安全配置
+  enabled: true             # 是否启用 atomicio
+  port: 8308                # 服务端端口
+  workerThreads: 4          # 工作线程数
+  ip-security:              # ip 安全配置
     max-connect: 2          # 同一 ip 最大连接数
     rate-limit-count: 10    # 同一 ip 在 rate-limit-interval 秒内最大连接数
     rate-limit-interval: 60 # 同一 ip 速率限制的单位秒数
-  overload-protect:    # 服务器过载保护配置
-    enabled: true # 是否开启服务器过载保护
-    total-connect: 2 # 单台服务器最大连接数
-    queue-min-percent: 90 # 单台服务器IO事件队列最容量告警阈值 (百分比)
-  codec:          # 解码器类型
-    type: protobuf    # 可选值: text, protobuf, mqtt ...
-    max-frame-length: 100
-  cluster:        # 集群配置
-    enabled: true # 是否开启集群
-    type: redis   # 集群广播类型 可选值: redis, kafka, rocketmq ...
-    redis:        # redis 连接信息
+  overload-protect:         # 服务器过载保护配置
+    enabled: true           # 是否开启服务器过载保护
+    total-connect: 2        # 单台服务器最大连接数
+    queue-min-percent: 90   # 单台服务器IO事件队列最容量告警阈值 (百分比)
+  codec:                    # 解码器类型
+    type: protobuf          # 可选值: text, protobuf, mqtt ...
+    max-frame-length: 100   # 最大帧长度 (限制消息长度 单位：字节）
+  cluster:                  # 集群配置
+    enabled: true           # 是否开启集群
+    type: redis             # 集群广播类型 可选值: redis, kafka, rocketmq ...
+    redis:                  # redis 连接信息
       uri: redis://localhost:6379
       username:
       password:
-  ssl:             # SSL 配置
-    enabled: true
-    cert-chain-path: "classpath:server.crt"
-    private-key-path: "classpath:server.key"
-  id-gen:         # id 生成器配置
-    type: snowflake  # 可选：snowflake (默认), uuid, custom （自定义）
-    # 自定义 ID 生成器工厂类
+  ssl:                                        # SSL 配置
+    enabled: true                             # 是否启用 SSL
+    cert-chain-path: "classpath:server.crt"   # SSL 证书链路径
+    private-key-path: "classpath:server.key"  # SSL 私钥路径
+  id-gen:                                     # id 生成器配置
+    type: snowflake                           # 可选：snowflake (默认), uuid, custom （自定义）
+    worker-id: 0                              # workerId 0-31
+    datacenter-id: 0                          # datacenterId 0-31
+                                              # 自定义 ID 生成器工厂类
     custom-factory-class: io.github.vevoly.atomicio.example.protobuf.id.MyCustomIdGeneratorFactory
