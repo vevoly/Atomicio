@@ -59,7 +59,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 核心依赖版本 -->
-        <revision>0.6.1</revision>
+        <revision>0.6.2</revision>
         <netty.version>4.2.9.Final</netty.version>
         <google-protobuf.version>4.33.2</google-protobuf.version>
         <spring-boot.version>3.2.0</spring-boot.version>
@@ -78,15 +78,14 @@
     <!-- 依赖版本管理 -->
     <dependencyManagement>
         <dependencies>
-
             <dependency>
                 <groupId>io.github.vevoly</groupId>
-                <artifactId>atomicio-server-api</artifactId>
+                <artifactId>atomicio-common-api</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.vevoly</groupId>
-                <artifactId>atomicio-protocol-api</artifactId>
+                <artifactId>atomicio-server-api</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>
@@ -114,6 +113,21 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>
                 <version>${netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-handler</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-codec-protobuf</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${google-protobuf.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>

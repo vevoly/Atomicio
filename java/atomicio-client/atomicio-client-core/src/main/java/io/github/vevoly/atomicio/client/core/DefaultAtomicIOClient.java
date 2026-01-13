@@ -1,10 +1,11 @@
 package io.github.vevoly.atomicio.client.core;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.common.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.api.listeners.*;
+import io.github.vevoly.atomicio.common.api.constants.AtomicIOCodecType;
+import io.github.vevoly.atomicio.server.api.AtomicIOCodecProvider;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -31,8 +32,6 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class DefaultAtomicIOClient implements AtomicIOClient {
     private final AtomicIOClientConfig config;
-    private final AtomicIOCodecProvider codecProvider;
-
     private SslContext sslContext;
     private EventLoopGroup group;
     private Bootstrap bootstrap;
@@ -45,9 +44,8 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
     private final List<OnErrorListener> errorListeners = new CopyOnWriteArrayList<>();
     private final List<OnReconnectingListener> reconnectingListeners = new CopyOnWriteArrayList<>();
 
-    public DefaultAtomicIOClient(AtomicIOClientConfig config, AtomicIOCodecProvider codecProvider) {
+    public DefaultAtomicIOClient(AtomicIOClientConfig config) {
         this.config = config;
-        this.codecProvider = codecProvider;
         init();
     }
 
@@ -225,4 +223,5 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
     EventLoopGroup getEventLoopGroup() {
         return group;
     }
+
 }

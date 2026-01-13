@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.core.manager;
 
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.server.api.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.handler.*;

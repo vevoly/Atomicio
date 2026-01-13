@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.server.api;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.common.api.AtomicIOMessage;
 import io.netty.channel.ChannelFuture;
 
 /**

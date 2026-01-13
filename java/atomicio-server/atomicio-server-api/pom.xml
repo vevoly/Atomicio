@@ -19,5 +19,9 @@
             <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-common-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport</artifactId>
+        </dependency>
     </dependencies>
 </project>

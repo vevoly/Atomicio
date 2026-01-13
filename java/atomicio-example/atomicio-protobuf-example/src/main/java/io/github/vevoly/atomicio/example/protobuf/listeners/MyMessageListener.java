@@ -1,11 +1,11 @@
 package io.github.vevoly.atomicio.example.protobuf.listeners;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.github.vevoly.atomicio.common.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.common.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.common.api.id.AtomicIOIdGenerator;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.common.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.AtomicIOSession;
-import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.server.api.listeners.MessageEventListener;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;

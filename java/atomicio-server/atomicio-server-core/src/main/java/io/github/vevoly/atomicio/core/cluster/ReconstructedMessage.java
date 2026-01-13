@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.core.cluster;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.common.api.AtomicIOMessage;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

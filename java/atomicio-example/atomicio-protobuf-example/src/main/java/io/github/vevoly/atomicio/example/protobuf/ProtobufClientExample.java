@@ -1,17 +1,17 @@
 package io.github.vevoly.atomicio.example.protobuf;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.github.vevoly.atomicio.example.protobuf.proto.*;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
+import io.github.vevoly.atomicio.common.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.example.protobuf.proto.*;
+import io.github.vevoly.atomicio.common.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.client.core.DefaultAtomicIOClient;
 import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.Heartbeat;
 import io.github.vevoly.atomicio.example.protobuf.cmd.ProtobufExampleCmd;
+import io.github.vevoly.atomicio.server.api.AtomicIOCodecProvider;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Scanner;

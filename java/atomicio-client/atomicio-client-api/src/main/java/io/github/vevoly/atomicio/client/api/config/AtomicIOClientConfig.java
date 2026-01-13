@@ -2,6 +2,7 @@ package io.github.vevoly.atomicio.client.api.config;
 
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.constants.AtomicIOClientConstant;
+import io.github.vevoly.atomicio.common.api.constants.AtomicIOCodecType;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -32,6 +33,11 @@ public class AtomicIOClientConfig {
      * 服务器端口。
      */
     private int port = AtomicIOClientConstant.DEFAULT_PORT;
+
+    /**
+     * 客户端解码器
+     */
+    private String codecType = AtomicIOCodecType.TEXT.name();;
 
     /**
      * 连接超时时间（毫秒）。

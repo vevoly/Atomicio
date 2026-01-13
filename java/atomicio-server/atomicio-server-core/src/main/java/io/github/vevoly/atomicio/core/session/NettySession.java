@@ -2,7 +2,7 @@ package io.github.vevoly.atomicio.core.session;
 
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.server.api.AtomicIOSession;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.common.api.AtomicIOMessage;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.util.AttributeKey;

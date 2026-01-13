@@ -1,4 +1,4 @@
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.server.api.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.core.DefaultAtomicIOClient;

@@ -28,6 +28,14 @@
             <artifactId>atomicio-codec-protobuf</artifactId>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-id-snowflake</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-id-uuid</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -50,14 +58,6 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-id-snowflake</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-id-uuid</artifactId>
         </dependency>
     </dependencies>
 

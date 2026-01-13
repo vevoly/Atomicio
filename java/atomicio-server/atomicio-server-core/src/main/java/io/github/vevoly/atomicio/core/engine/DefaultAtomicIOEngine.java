@@ -2,12 +2,12 @@ package io.github.vevoly.atomicio.core.engine;
 
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.server.api.constants.AtomicIOLifeState;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.common.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.AtomicIOSession;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.server.api.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.server.api.listeners.*;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;

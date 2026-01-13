@@ -17,7 +17,8 @@
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-protocol-api</artifactId>
+            <artifactId>atomicio-common-api</artifactId>
+            <version>${revision}</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -1,9 +1,9 @@
 package io.github.vevoly.atomicio.core.manager;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.common.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.AtomicIOSession;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
-import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
+import io.github.vevoly.atomicio.common.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import lombok.extern.slf4j.Slf4j;

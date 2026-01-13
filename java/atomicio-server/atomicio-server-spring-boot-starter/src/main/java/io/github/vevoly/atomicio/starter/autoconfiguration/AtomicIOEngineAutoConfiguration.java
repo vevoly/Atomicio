@@ -2,8 +2,8 @@ package io.github.vevoly.atomicio.starter.autoconfiguration;
 
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterType;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOConfigDefaultValue;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecType;
+import io.github.vevoly.atomicio.server.api.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.common.api.constants.AtomicIOCodecType;
 import io.github.vevoly.atomicio.codec.ProtobufCodecProvider;
 import io.github.vevoly.atomicio.codec.TextCodecProvider;
 import io.github.vevoly.atomicio.core.cluster.RedisClusterProvider;

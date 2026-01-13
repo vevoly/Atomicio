@@ -1,9 +1,9 @@
 package io.github.vevoly.atomicio.core.handler;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.common.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.common.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.AtomicIOSession;
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecProvider;
+import io.github.vevoly.atomicio.server.api.AtomicIOCodecProvider;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;

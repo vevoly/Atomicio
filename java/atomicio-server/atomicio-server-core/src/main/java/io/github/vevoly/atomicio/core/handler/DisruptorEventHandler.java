@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.core.handler;
 
 import com.lmax.disruptor.EventHandler;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.common.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.core.cluster.ReconstructedMessage;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;

@@ -17,12 +17,11 @@
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-client-api</artifactId>
-            <version>${revision}</version>
+            <artifactId>atomicio-server-api</artifactId>
         </dependency>
         <dependency>
             <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-protocol-api</artifactId>
+            <artifactId>atomicio-client-api</artifactId>
             <version>${revision}</version>
         </dependency>
         <dependency>

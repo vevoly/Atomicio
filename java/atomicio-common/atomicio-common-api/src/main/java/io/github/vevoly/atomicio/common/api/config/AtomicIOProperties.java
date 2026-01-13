@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.common.api.config;
 
-import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOCodecType;
+import io.github.vevoly.atomicio.common.api.constants.AtomicIOCodecType;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
