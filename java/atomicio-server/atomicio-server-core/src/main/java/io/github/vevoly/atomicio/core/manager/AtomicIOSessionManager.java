@@ -150,8 +150,9 @@ public class AtomicIOSessionManager {
             // 单点模式
             AtomicIOSession session = userIdToSessionMap.get(userId);
             if (session != null && session.isActive()) {
+                // 发送的是 RawBytesMessage
                 session.send(message);
-                log.debug("Sent message to user {} (session {})", userId, session.getId());
+                log.info("Sent message to user {} (session {})", userId, session.getId());
                 return true;
             }
         }

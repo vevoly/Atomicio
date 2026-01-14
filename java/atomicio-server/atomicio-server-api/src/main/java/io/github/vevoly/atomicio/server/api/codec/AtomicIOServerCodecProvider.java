@@ -1,9 +1,12 @@
 package io.github.vevoly.atomicio.server.api.codec;
 
+import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
+
+import java.util.List;
 
 /**
  * 编解码器提供者的顶层接口。
@@ -16,45 +19,6 @@ import io.netty.channel.ChannelPipeline;
  * @author vevoly
  */
 public interface AtomicIOServerCodecProvider {
-
-    /**
-     * 获取一个 Netty 的编码器 (Encoder) 实例。
-     * <p>
-     * 这个 Handler 负责将出站的 {@link AtomicIOMessage} 对象
-     * 转换为 {@link io.netty.buffer.ByteBuf}。
-     * 它通常是 {@link io.netty.handler.codec.MessageToByteEncoder} 的子类。
-     *
-     * @return a new ChannelHandler instance for encoding.
-     */
-    ChannelHandler getEncoder();
-
-    /**
-     * 获取一个 Netty 的解码器 (Decoder) 实例。
-     * <p>
-     * 这个 Handler 负责将入站的 {@link io.netty.buffer.ByteBuf}
-     * 转换为具体的 {@link AtomicIOMessage} 对象。
-     * 它通常是 {@link io.netty.handler.codec.ByteToMessageDecoder} 或
-     * {@link io.netty.handler.codec.MessageToMessageDecoder} 的子类。
-     *
-     * @return a new ChannelHandler instance for decoding.
-     */
-    ChannelHandler getDecoder();
-
-    // **可选但推荐的高级功能**
-    /**
-     * 获取一个可选的帧解码器 (Frame Decoder)。
-     * <p>
-     * 帧解码器负责处理 TCP 的粘包和半包问题，确保后续的解码器能收到一个完整的消息包。
-     * 常见的实现有 {@link io.netty.handler.codec.LengthFieldBasedFrameDecoder}
-     * 或 {@link io.netty.handler.codec.LineBasedFrameDecoder}。
-     * <p>
-     * 如果协议本身是自定界的（例如 HTTP），或者解码器自己处理分帧，可以返回 null。
-     *
-     * @param maxFrameLength 消息的最大长度，注意：客户端要与服务器端对齐，否则会出现问题。
-     *
-     * @return a new ChannelHandler instance for frame decoding, or null if not needed.
-     */
-    ChannelHandler getFrameDecoder(int maxFrameLength);
 
     /**
      * 提供一个默认的心跳消息。
@@ -78,12 +42,25 @@ public interface AtomicIOServerCodecProvider {
     }
 
     /**
-     * 构建 pipeline
-     * 将此 Codec 所需的所有 ChannelHandlers 安装到 Pipeline 中。
-     *
-     * @param pipeline The ChannelPipeline to build upon.
-     * @param engine   The AtomicIOEngine instance associated with this Codec.
+     * 获取所有【入站】的协议相关 Handler。
      */
-    void buildPipeline(ChannelPipeline pipeline, AtomicIOEngine engine);
+    List<ChannelHandler> getInboundHandlers(AtomicIOProperties config);
+
+    /**
+     * 获取所有【出站】的协议相关 Handler。
+     */
+    List<ChannelHandler> getOutboundHandlers(AtomicIOProperties config);
+
+    /**
+     * 将 AtomicIOMessage 对象编码为最终的、可在网络上传输的二进制字节数组。
+     * 这个方法封装了特定协议的所有出站编码逻辑，包括添加长度头等。
+     * 用于集群消息转发时的“预编码”。
+     *
+     * @param message 要编码的消息
+     * @param config  配置文件
+     * @return 编码后的字节数组
+     * @throws Exception if encoding fails.
+     */
+    byte[] encodeToBytes(AtomicIOMessage message, AtomicIOProperties config) throws Exception;
 
 }

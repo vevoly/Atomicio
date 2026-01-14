@@ -13,8 +13,11 @@ import io.github.vevoly.atomicio.server.api.listeners.*;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.core.manager.*;
 import io.github.vevoly.atomicio.core.session.NettySession;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.embedded.EmbeddedChannel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import reactor.util.annotation.Nullable;
@@ -298,24 +301,26 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
      * @param excludeUserIds 排除的用户
      * @return
      */
-    private AtomicIOClusterMessage buildClusterMessage(
+    private AtomicIOClusterMessage buildClusterMessage (
             AtomicIOMessage message,
             AtomicIOClusterMessageType messageType,
             String target,
             String... excludeUserIds
     ) {
+        // 1. 预编码
+        byte[] finalPayload = new byte[0];
+        try {
+            finalPayload = codecProvider.encodeToBytes(message, config);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
         clusterMessage.setMessageType(messageType);
         clusterMessage.setCommandId(message.getCommandId());
-        byte[] payloadBytes = message.getPayload();
-        if (payloadBytes != null && payloadBytes.length > 0) {
-            String base64Payload = Base64.getEncoder().encodeToString(payloadBytes);
-            clusterMessage.setPayload(base64Payload.getBytes(StandardCharsets.UTF_8));
-        } else {
-            clusterMessage.setPayload(new byte[0]);
-        }
-        clusterMessage.setPayload(message.getPayload());
-        if (null != target) {
+        // 2. payload 存储的是“预编码”后的最终字节
+        clusterMessage.setPayload(finalPayload);
+        if (target != null) {
             clusterMessage.setTarget(target);
         }
         if (excludeUserIds != null && excludeUserIds.length > 0) {
@@ -323,4 +328,5 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         }
         return clusterMessage;
     }
+
 }

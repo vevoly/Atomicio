@@ -21,7 +21,7 @@ public class AtomicIOConfigDefaultValue {
     public static final int DEFAULT_OVERLOAD_TOTAL_CONNECT = 100000;
     public static final int DEFAULT_OVERLOAD_QUEUE_MIN_PERCENT = 20;
     public static final String DEFAULT_CLUSTER_MODE = "redis";
-    public static final int DEFAULT_READ_IDLE_SECONDS = 30;
+    public static final int DEFAULT_READ_IDLE_SECONDS = 60;
     public static final int DEFAULT_WRITE_IDLE_SECONDS = 0;
     public static final int DEFAULT_ALL_IDLE_SECONDS = 0;
     public static final String DEFAULT_ID_GEN_TYPE = AtomicIOIdGeneratorType.SNOWFLAKE.name();

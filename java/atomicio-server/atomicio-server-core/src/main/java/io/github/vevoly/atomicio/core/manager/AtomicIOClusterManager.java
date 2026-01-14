@@ -33,6 +33,7 @@ public class AtomicIOClusterManager {
         kryo.register(AtomicIOClusterMessage.class);
         kryo.register(java.util.HashSet.class);
         kryo.register(AtomicIOClusterMessageType.class);
+        kryo.register(byte[].class);
     }
 
     /**

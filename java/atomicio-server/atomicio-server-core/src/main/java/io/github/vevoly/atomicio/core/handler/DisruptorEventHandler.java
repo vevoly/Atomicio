@@ -1,14 +1,14 @@
 package io.github.vevoly.atomicio.core.handler;
 
 import com.lmax.disruptor.EventHandler;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
-import io.github.vevoly.atomicio.core.cluster.ReconstructedMessage;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.manager.AtomicIOEventManager;
 import io.github.vevoly.atomicio.core.manager.AtomicIOGroupManager;
 import io.github.vevoly.atomicio.core.manager.AtomicIOSessionManager;
 import io.github.vevoly.atomicio.core.manager.DisruptorEntry;
+import io.github.vevoly.atomicio.core.message.RawBytesMessage;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -51,17 +51,18 @@ public class DisruptorEventHandler implements EventHandler<DisruptorEntry> {
      * @param message   集群消息
      */
     private void handleClusterMessage(AtomicIOClusterMessage message) {
-        AtomicIOMessage atomicIOMessage = new ReconstructedMessage(message.getCommandId(), message.getPayload());
+        // 创建一个特殊的、直接持有最终字节的消息
+        AtomicIOMessage forwardedMessage = new RawBytesMessage(message.getPayload());
         switch (message.getMessageType()) {
             case SEND_TO_USER:
-                sessionManager.sendToUserLocally(message.getTarget(), atomicIOMessage);
+                sessionManager.sendToUserLocally(message.getTarget(), forwardedMessage);
                 break;
             case SEND_TO_GROUP:
-                groupManager.sendToGroupLocally(message.getTarget(), atomicIOMessage,
+                groupManager.sendToGroupLocally(message.getTarget(), forwardedMessage,
                         message.getExcludeUserIds() != null ? message.getExcludeUserIds().toArray(new String[0]) : null);
                 break;
             case BROADCAST:
-                sessionManager.broadcastLocally(atomicIOMessage);
+                sessionManager.broadcastLocally(forwardedMessage);
                 break;
             default:
                 log.warn("Unhandled cluster message type: {}", message.getMessageType());

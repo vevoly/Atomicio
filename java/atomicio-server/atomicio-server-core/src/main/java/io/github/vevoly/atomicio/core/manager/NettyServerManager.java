@@ -1,15 +1,17 @@
 package io.github.vevoly.atomicio.core.manager;
 
-import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.handler.*;
 import io.github.vevoly.atomicio.core.ssl.SslContextFactory;
+import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +46,7 @@ public class NettyServerManager {
     private NettyEventTranslationHandler nettyEventTranslationHandler; // Netty 事件翻译处理器
     private HeartbeatResponseHandler heartbeatResponseHandler; // 心跳响应处理器
     private OverloadProtectionHandler overloadProtectionHandler; // 服务器负载保护处理器
+    private RawBytesMessageHandler rawBytesMessageHandler; // 原生字节消息处理器，绿色通道
 
     private final ChannelInitializer<SocketChannel> childHandlerInitializer;
 
@@ -120,6 +123,8 @@ public class NettyServerManager {
             this.sslContext = SslContextFactory.createSslContext(config.getSsl());
             this.sslExceptionHandler = new SslExceptionHandler(engine);
         }
+        log.info("初始化集群消息直通处理器 ...");
+        this.rawBytesMessageHandler = new RawBytesMessageHandler();
         log.info("初始化 Netty 事件翻译处理器 ...");
         this.nettyEventTranslationHandler = new NettyEventTranslationHandler(engine.getDisruptorManager(), engine);
         log.info("初始化 ❤️心跳回忆处理器 ...");
@@ -129,12 +134,14 @@ public class NettyServerManager {
     }
 
     /**
-     * 私有的内部类来负责 Pipeline 构建
+     * 私有的内部类来负责 ChannelPipeline 构建
+     * 这是整个 Atomicio 服务器网络处理的核心
      */
     private class ServerChannelInitializer extends ChannelInitializer<SocketChannel> {
         @Override
         protected void initChannel(SocketChannel ch) throws Exception {
             ChannelPipeline pipeline = ch.pipeline();
+
             // 过载保护
             if (overloadProtectionHandler != null) {
                 pipeline.addLast(overloadProtectionHandler);
@@ -151,19 +158,24 @@ public class NettyServerManager {
                 pipeline.addLast(sslContext.newHandler(ch.alloc()));
                 pipeline.addLast(sslExceptionHandler);
             }
-            // 协议编解码层
-            codecProvider.buildPipeline(pipeline, engine);
-            // 协议编解码层
-            // 心跳回应
-            pipeline.addLast(heartbeatResponseHandler);
-            // 空闲检测
+
+            // 绿色通道处理器，必须在常规编码器之前被执行
+            pipeline.addLast(rawBytesMessageHandler);
+            // CodecProvider 提供的所有出站协议 Handler
+            codecProvider.getOutboundHandlers(config).forEach(pipeline::addLast);
+            // CodecProvider 提供的所有入站协议 Handler
+            codecProvider.getInboundHandlers(config).forEach(pipeline::addLast);
+
+            // 空闲状态检测
             int readerIdleSeconds = config.getSession().getReadIdleSeconds();
             if (readerIdleSeconds > 0) {
-                pipeline.addLast(new IdleStateHandler(readerIdleSeconds, config.getSession().getWriteIdleSeconds(),
-                        config.getSession().getAllIdleSeconds(), TimeUnit.SECONDS));
+                pipeline.addLast(new IdleStateHandler(readerIdleSeconds, 0, 0, TimeUnit.SECONDS));
             }
+            // 心跳自动回应
+            pipeline.addLast(heartbeatResponseHandler);
             // 事件翻译层
             pipeline.addLast(nettyEventTranslationHandler);
         }
     }
+
 }

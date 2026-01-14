@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.core.cluster;
+package io.github.vevoly.atomicio.core.message;
 
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import lombok.AllArgsConstructor;
