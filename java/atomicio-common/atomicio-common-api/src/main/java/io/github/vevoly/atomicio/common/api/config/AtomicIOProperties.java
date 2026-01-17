@@ -155,6 +155,11 @@ public class AtomicIOProperties {
         private boolean enabled = false; // 默认 false 关闭集群
 
         /**
+         * 默认节点 ID
+         */
+        private String nodeId = AtomicIOConfigDefaultValue.DEFAULT_NODE_ID;
+
+        /**
          * 集群模式类型
          */
         private String type = AtomicIOConfigDefaultValue.DEFAULT_CLUSTER_MODE;

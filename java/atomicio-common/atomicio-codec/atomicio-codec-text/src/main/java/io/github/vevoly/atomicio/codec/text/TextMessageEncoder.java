@@ -19,10 +19,11 @@ import java.nio.charset.StandardCharsets;
 public class TextMessageEncoder extends MessageToByteEncoder<TextMessage> {
 
     @Override
-    protected void encode(ChannelHandlerContext channelHandlerContext, TextMessage textMessage, ByteBuf out) throws Exception {
-        out.writeBytes(String.valueOf(textMessage.getCommandId()).getBytes(StandardCharsets.UTF_8));
-        out.writeBytes(":".getBytes(StandardCharsets.UTF_8));
-        out.writeBytes(textMessage.getContent().getBytes(CharsetUtil.UTF_8));
-        out.writeBytes("\n".getBytes(StandardCharsets.UTF_8));
+    protected void encode(ChannelHandlerContext channelHandlerContext, TextMessage msg, ByteBuf out) throws Exception {
+        String encoded = String.format("%d:%s:%s\n",
+                msg.getCommandId(),
+                msg.getDeviceId(),
+                msg.getContent());
+        out.writeBytes(encoded.getBytes(StandardCharsets.UTF_8));
     }
 }

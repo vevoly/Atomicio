@@ -1,6 +1,7 @@
-package io.github.vevoly.atomicio.server.api;
+package io.github.vevoly.atomicio.server.api.session;
 
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.netty.channel.ChannelFuture;
 
 /**
@@ -23,7 +24,7 @@ public interface AtomicIOSession {
      * @param message 消息对象
      * @return Future 将在消息被写入传输后通知。
      */
-    ChannelFuture send(AtomicIOMessage message);
+    ChannelFuture send(Object message);
 
     /**
      * 关闭当前会话。

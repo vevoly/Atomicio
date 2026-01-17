@@ -5,7 +5,7 @@ import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.manager.AtomicIOEventManager;
 import io.github.vevoly.atomicio.core.manager.AtomicIOGroupManager;
 import io.github.vevoly.atomicio.core.manager.AtomicIOSessionManager;
-import io.github.vevoly.atomicio.core.manager.DisruptorEntry;
+import io.github.vevoly.atomicio.server.api.manager.DisruptorEntry;
 import io.github.vevoly.atomicio.core.message.RawBytesMessage;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;

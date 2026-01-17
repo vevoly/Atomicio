@@ -3,6 +3,7 @@ package io.github.vevoly.atomicio.server.api;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.listeners.*;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import org.springframework.lang.Nullable;
 
 import java.util.List;

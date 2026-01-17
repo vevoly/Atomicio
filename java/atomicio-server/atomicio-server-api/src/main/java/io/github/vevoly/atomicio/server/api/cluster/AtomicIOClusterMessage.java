@@ -37,6 +37,18 @@ public class AtomicIOClusterMessage implements Serializable {
     private Set<String> excludeUserIds;
 
     /**
+     * 目标设备 ID
+     * 专门用于踢出指定设备，若为空则表示踢出该用户所有设备
+     */
+    private String deviceId;
+
+    /**
+     * 节点 ID (可选)
+     * 标明这条消息是谁发出的
+     */
+    private String fromNodeId;
+
+    /**
      * 指令号
      * 与协议无关
      */

@@ -20,6 +20,7 @@
         <module>atomicio-server-core</module>
         <module>atomicio-server-codec</module>
         <module>atomicio-server-spring-boot-starter</module>
+        <module>atomicio-server-extension</module>
     </modules>
 
     <dependencyManagement>
@@ -37,6 +38,11 @@
             <dependency>
                 <groupId>io.github.vevoly</groupId>
                 <artifactId>atomicio-server-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-server-extension-redis</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>

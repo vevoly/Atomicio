@@ -1,29 +1,32 @@
 package io.github.vevoly.atomicio.core.engine;
 
-import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
-import io.github.vevoly.atomicio.server.api.constants.AtomicIOLifeState;
+import io.github.vevoly.atomicio.common.api.config.AtomicIOConfigDefaultValue;
+import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.core.manager.*;
+import io.github.vevoly.atomicio.core.session.NettySession;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.server.api.AtomicIOSession;
+import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
-import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.server.api.constants.AtomicIOLifeState;
 import io.github.vevoly.atomicio.server.api.listeners.*;
+import io.github.vevoly.atomicio.server.api.manager.ClusterManager;
+import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
+import io.github.vevoly.atomicio.server.api.manager.StateManager;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
-import io.github.vevoly.atomicio.core.manager.*;
-import io.github.vevoly.atomicio.core.session.NettySession;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFuture;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
+import io.github.vevoly.atomicio.server.api.state.AtomicIOStateProvider;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.embedded.EmbeddedChannel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import reactor.util.annotation.Nullable;
+import org.springframework.lang.Nullable;
 
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,6 +47,8 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     private final AtomicIOServerCodecProvider codecProvider; // 解码提供器
     @Getter
     private final AtomicIOClusterProvider clusterProvider; // 集群通信提供器
+    @Getter
+    private final AtomicIOStateProvider stateProvider; // 状态提供器
 
     // 管理器
     @Getter
@@ -55,26 +60,38 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     @Getter
     private final DisruptorManager disruptorManager; // Disruptor 管理器
     private final NettyServerManager nettyServerManager; // Netty 管理器
-    private final AtomicIOClusterManager clusterManager; // 集群管理器
+    private final ClusterManager clusterManager; // 集群管理器
+    private final StateManager stateManager; // 状态管理器
 
     // 线程安全的状态机
     private final AtomicReference<AtomicIOLifeState> state = new AtomicReference<>(AtomicIOLifeState.NEW);
 
     public DefaultAtomicIOEngine(
             AtomicIOProperties config,
+            DisruptorManager disruptorManager,
+            AtomicIOEventManager eventManager,
+            AtomicIOSessionManager sessionManager,
+            AtomicIOGroupManager groupManager,
+            AtomicIOServerCodecProvider codecProvider,
+            AtomicIOStateProvider stateProvider,
+            StateManager stateManager,
             @Nullable AtomicIOClusterProvider clusterProvider,
-            AtomicIOServerCodecProvider codecProvider
+            ClusterManager clusterManager
+
     ) {
         this.config = config;
         this.codecProvider = codecProvider;
         this.clusterProvider = clusterProvider;
+        this.stateProvider = stateProvider;
+        this.clusterManager = clusterManager;
+        this.stateManager = stateManager;
 
-        this.disruptorManager = new DisruptorManager();
-        this.eventManager = new AtomicIOEventManager();
-        this.sessionManager = new AtomicIOSessionManager(this);
-        this.groupManager = new AtomicIOGroupManager(this);
+        this.disruptorManager = disruptorManager;
+        this.eventManager = eventManager;
+        this.sessionManager = sessionManager;
+        this.groupManager = groupManager;
         this.nettyServerManager = new NettyServerManager(this);
-        this.clusterManager = new AtomicIOClusterManager(this.clusterProvider, this.disruptorManager);
+
     }
 
     // -- 生命周期管理 --
@@ -117,12 +134,22 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             // 1. 启动 disruptor
             disruptorManager.start(this);
             // 2. 启动集群服务
-            clusterManager.start();
-            // 3. 启动 Netty 服务器
+            if (clusterManager != null) {
+                log.info("启动集群管理器 ...");
+                clusterManager.start();
+            } else {
+                log.info("单机模式，不启动集群管理器 ...");
+            }
+            // 3. 启动状态管理器
+            if (stateManager != null) {
+                log.info("启动状态管理器 ...");
+                stateManager.start();
+            }
+            // 4. 启动 Netty 服务器
             nettyServerManager.start().get(); // 阻塞等待 Netty 服务器启动完成
-            // 4. 设置运行状态
+            // 5. 设置运行状态
             state.set(AtomicIOLifeState.RUNNING);
-            // 5. 发布引擎就绪事件
+            // 6. 发布引擎就绪事件
             eventManager.fireEngineReadyEvent(this);
         } catch (Exception e) {
             log.error("Atomicio Engine startup failed. Initiating shutdown...", e);
@@ -140,19 +167,22 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             log.warn("Atomicio Engine is not running or already shutting down. Current state: {}", state.get());
             return;
         }
-        log.info("Atomicio Engine shutting down...");
+        log.info("Atomicio 引擎 shutting down...");
         // 关闭 Netty 服务器
         nettyServerManager.stop();
-
-        // 关闭 ClusterProvider
-        if (this.clusterProvider != null) {
-            clusterProvider.shutdown();
+        // 关闭集群管理器
+        if (this.clusterManager != null) {
+            this.clusterManager.shutdown();
+        }
+        // 关闭状态管理器
+        if (this.stateManager != null) {
+            this.stateManager.shutdown();
         }
         // 关闭 Disruptor
         disruptorManager.shutdown();
         // 设置关闭状态
         state.set(AtomicIOLifeState.SHUTDOWN);
-        log.info("Atomicio Engine shutdown gracefully.");
+        log.info("Atomicio 引擎 shutdown gracefully.");
     }
 
     /**
@@ -199,7 +229,37 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
     @Override
     public void bindUser(AtomicIOBindRequest request, AtomicIOSession newSession) {
-        sessionManager.bindUser(request, newSession);
+        String userId = request.getUserId();
+        String currentNodeId = (clusterProvider != null) ? clusterProvider.getCurrentNodeId() : AtomicIOConfigDefaultValue.SYS_ID;
+
+        // 1. 设置 Session 基础属性（本地操作）
+        newSession.setAttribute(AtomicIOSessionAttributes.USER_ID, userId);
+        if (request.getDeviceId() != null) {
+            newSession.setAttribute(AtomicIOSessionAttributes.DEVICE_ID, request.getDeviceId());
+        }
+        newSession.setAttribute(AtomicIOSessionAttributes.IS_AUTHENTICATED, true);
+
+        // 2. 核心决策：交给 StateManager 进行全局注册
+        stateManager.register(request, config.getSession().isMultiLogin())
+                .thenAccept(kickMap -> {
+                    // 3. 处理本地冲突：StateManager 故意留给 Engine 处理本地 Session 冲突
+                    if (kickMap != null && !kickMap.isEmpty()) {
+                        kickMap.forEach((deviceId, nodeId) -> {
+                            // 只有当被踢设备在本机时，才调用 sessionManager 执行物理断开
+                            if (currentNodeId.equals(nodeId)) {
+                                sessionManager.removeByDeviceId(deviceId);
+                            }
+                        });
+                    }
+                    // 4. 物理入库：将连接交给 SessionManager 管理
+                    sessionManager.addLocalSession(newSession);
+                    log.info("User {} bound successfully on node {}", userId, currentNodeId);
+                })
+                .exceptionally(e -> {
+                    log.error("Bind failed for user {}", userId, e);
+                    newSession.close();
+                    return null;
+                });
     }
 
     @Override
@@ -213,49 +273,64 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
 
     @Override
     public void joinGroup(String groupId, String userId) {
-        // 用户的所有 session 都加入群组
-        List<AtomicIOSession> sessionsToJoin = sessionManager.findSessionsByUserId(userId);
-        if (sessionsToJoin.isEmpty()) {
-            log.warn("Cannot join group {}: User {} is not online.", groupId, userId);
-            return;
-        }
-        sessionsToJoin.forEach(session -> groupManager.joinGroup(groupId, session));
+        // 1. 调用 StateManager 进行全局状态更新（入库）
+        stateManager.joinGroup(groupId, userId).thenRun(() -> {
+            // 2. 让该用户在本节点的所有物理 Session 加入物理 ChannelGroup
+            List<AtomicIOSession> locals = sessionManager.findLocalSessionsByUserId(userId);
+            locals.forEach(session -> groupManager.joinLocal(groupId, session));
+        });
     }
 
     @Override
     public void joinGroup(String groupId, AtomicIOSession session) {
-        groupManager.joinGroup(groupId, session);
+        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
+        if (userId == null) {
+            return;
+        }
+
+        // 1. 调用逻辑层：更新全局状态
+        stateManager.joinGroup(groupId, userId).thenRun(() -> {
+            // 2. 调用物理层：将连接加入本地 ChannelGroup
+            groupManager.joinLocal(groupId, session);
+            log.debug("Session {} joined group {} locally & globally", session.getId(), groupId);
+        });
     }
 
     @Override
     public void leaveGroup(String groupId, String userId) {
-        List<AtomicIOSession> sessionsToLeave = sessionManager.findSessionsByUserId(userId);
-        if (sessionsToLeave.isEmpty()) {
-            log.debug("User {} is not online, no need to leave group {} actively.", userId);
-            return;
-        }
-        log.info("User {} is leaving group {} with all {} session(s).", userId, groupId, sessionsToLeave.size());
-        sessionsToLeave.forEach(session -> groupManager.leaveGroup(groupId, session));
+        // 调用逻辑层：全局注销状态
+        stateManager.leaveGroup(groupId, userId).thenRun(() -> {
+            // 本地清理：让该用户的所有本地连接退出物理组
+            List<AtomicIOSession> locals = sessionManager.findLocalSessionsByUserId(userId);
+            locals.forEach(session -> groupManager.leaveLocal(groupId, session));
+        });
     }
 
     @Override
     public void leaveGroup(String groupId, AtomicIOSession session) {
-        groupManager.leaveGroup(groupId, session);
+        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
+        stateManager.leaveGroup(groupId, userId).thenRun(() -> {
+            groupManager.leaveLocal(groupId, session);
+        });
     }
 
     @Override
     public void sendToGroup(String groupId, AtomicIOMessage message, String... excludeUserIds) {
-        groupManager.sendToGroupLocally(groupId, message, excludeUserIds);
-        // 集群模式下，通知其他节点
+        // 先进行一次预编码，后续分发都使用这个字节流
+        AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_GROUP, groupId, excludeUserIds);
+        // 本地广播：利用物理 ChannelGroup 高效推送
+        groupManager.broadcastLocally(groupId, message);
+        // 集群分发：通知其他节点
         if (clusterProvider != null) {
-            AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_GROUP, groupId, excludeUserIds);
             clusterManager.publish(clusterMessage);
         }
     }
 
     @Override
     public void broadcast(AtomicIOMessage message) {
+        // 本地全量推送
         sessionManager.broadcastLocally(message);
+        // 集群广播
         if (clusterProvider != null) {
             AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.BROADCAST, null);
             clusterManager.publish(clusterMessage);
@@ -265,32 +340,51 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     @Override
     public List<AtomicIOSession> kickUser(String userId, @Nullable AtomicIOMessage kickOutMessage) {
         Objects.requireNonNull(userId, "User ID cannot be null");
-        log.warn("用户【{}】，被管理员强制下线.", userId);
-        List<AtomicIOSession> kickedSessions = sessionManager.findSessionsByUserId(userId);
-        if (kickedSessions.isEmpty()) {
-            return Collections.emptyList();
-        }
-        for (AtomicIOSession session : kickedSessions) {
-            if (session.isActive()) {
-                if (kickOutMessage != null) {
-                    // 1. 检查 session 是否是我们内部的 NettySession 实现
-                    if (session instanceof NettySession) {
-                        // 2. 如果是，便安全地进行转换，并调用 Netty 专属的方法
-                        ChannelFuture sendFuture = ((NettySession) session).getNettyChannel().writeAndFlush(kickOutMessage);
-                        // 3. 为 Netty 的 ChannelFuture 添加 CLOSE 监听器
-                        sendFuture.addListener(ChannelFutureListener.CLOSE);
-                        log.debug("Sent kick-out message to session {} and scheduled for closing.", session.getId());
-                    } else {
-                        // 安全回退: 如果 session 是其他未知实现，使用标准的 Future
-                        log.warn("Session {} is not a NettySession. kick-out Failed.", session.getId());
-                    }
+        log.warn("管理员发起全局强制下线: userId={}", userId);
+
+        // 1. 获取本地要踢的连接副本
+        List<AtomicIOSession> locals = sessionManager.findLocalSessionsByUserId(userId);
+        // 2. 执行全局注销，StateManager 内部会自动通过 ClusterManager 通知远端节点
+        stateManager.kickUserGlobal(userId).thenRun(() -> {
+            // 3. 本地物理执行
+            for (AtomicIOSession session : locals) {
+                if (!session.isActive()) {
+                    continue;
+                }
+                if (kickOutMessage != null && session instanceof NettySession) {
+                    // Netty：发送后直接关闭 Channel
+                    ((NettySession) session).getNettyChannel()
+                            .writeAndFlush(kickOutMessage)
+                            .addListener(ChannelFutureListener.CLOSE);
                 } else {
-                    // 如果没有通知消息，直接关闭
                     session.close();
                 }
             }
+        });
+
+        return locals;
+    }
+
+    /**
+     * 会话关闭时执行逻辑
+     * @param session
+     */
+    public void onSessionClosed(AtomicIOSession session) {
+        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
+        String deviceId = session.getAttribute(AtomicIOSessionAttributes.DEVICE_ID);
+
+        // 1. 物理移除：从 SessionManager 的本地 Map 中移除（SessionManager 重构后的方法）
+        sessionManager.removeLocalSession(session.getId());
+        // 2. 物理层清理：从所有 ChannelGroup 移除引用 (GroupManager)
+        groupManager.unbindGroupsForSession(session);
+        // 3. 逻辑层清理：更新全局状态 (StateManager -> Provider)
+        if (userId != null && deviceId != null) {
+            stateManager.unregister(userId, deviceId)
+                    .exceptionally(e -> {
+                        log.error("注销用户 {} 的全局状态失败", userId, e);
+                        return null;
+                    });
         }
-        return kickedSessions;
     }
 
     /**

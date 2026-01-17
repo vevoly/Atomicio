@@ -1,6 +1,9 @@
 package io.github.vevoly.atomicio.server.api.session;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.util.Objects;
 
@@ -11,14 +14,17 @@ import java.util.Objects;
  * @author vevoly
  */
 @Getter
+@Builder
+@AllArgsConstructor
 public class AtomicIOBindRequest {
     private final String userId;
     private String deviceId; // 默认为 null
     private String platform; // 默认为 null
 
-    private AtomicIOBindRequest(String userId) {
+    public AtomicIOBindRequest(String userId) {
         this.userId = Objects.requireNonNull(userId, "User ID cannot be null");
     }
+
 
     // --- 静态工厂方法 ---
     /**

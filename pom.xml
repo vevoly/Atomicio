@@ -59,7 +59,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- 核心依赖版本 -->
-        <revision>0.6.3</revision>
+        <revision>0.6.4</revision>
         <netty.version>4.2.9.Final</netty.version>
         <google-protobuf.version>4.33.2</google-protobuf.version>
         <spring-boot.version>3.2.0</spring-boot.version>
@@ -97,6 +97,11 @@
             <dependency>
                 <groupId>io.github.vevoly</groupId>
                 <artifactId>atomicio-server-codec</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-server-extension</artifactId>
                 <version>${revision}</version>
             </dependency>
             <dependency>

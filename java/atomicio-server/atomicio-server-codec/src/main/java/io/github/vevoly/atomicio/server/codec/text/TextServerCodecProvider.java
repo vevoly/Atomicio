@@ -27,12 +27,12 @@ public class TextServerCodecProvider implements AtomicIOServerCodecProvider {
 
     @Override
     public AtomicIOMessage getHeartbeat() {
-        return new TextMessage(AtomicIOCommand.HEARTBEAT, "PING");
+        return new TextMessage(AtomicIOCommand.HEARTBEAT, null, "PING");
     }
 
     @Override
     public AtomicIOMessage createHeartbeatResponse(AtomicIOMessage requestMessage) {
-        return new TextMessage(AtomicIOCommand.HEARTBEAT, "PONG");
+        return new TextMessage(AtomicIOCommand.HEARTBEAT, null, "PONG");
     }
 
     /**

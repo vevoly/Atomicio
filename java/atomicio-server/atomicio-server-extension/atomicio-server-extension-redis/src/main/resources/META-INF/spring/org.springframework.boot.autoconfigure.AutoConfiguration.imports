@@ -1,0 +1,3 @@
+io.github.vevoly.atomicio.server.extension.redis.autoconfiguration.AtomicIORedisBaseConfiguration
+io.github.vevoly.atomicio.server.extension.redis.autoconfiguration.RedisProviderAutoConfiguration
+
