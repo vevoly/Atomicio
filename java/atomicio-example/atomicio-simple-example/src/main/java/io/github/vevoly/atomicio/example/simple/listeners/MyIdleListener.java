@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.example.simple.listeners;
 
-import io.github.vevoly.atomicio.server.api.AtomicIOSession;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.server.api.constants.IdleState;
 import io.github.vevoly.atomicio.server.api.listeners.IdleEventListener;

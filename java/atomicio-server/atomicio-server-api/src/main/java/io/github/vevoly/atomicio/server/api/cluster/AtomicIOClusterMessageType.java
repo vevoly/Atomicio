@@ -10,4 +10,5 @@ public enum AtomicIOClusterMessageType {
     SEND_TO_USER,
     SEND_TO_GROUP,
     BROADCAST,
+    KICK_OUT,
 }

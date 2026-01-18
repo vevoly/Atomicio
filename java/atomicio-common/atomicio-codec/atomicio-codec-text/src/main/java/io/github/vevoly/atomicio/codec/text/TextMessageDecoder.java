@@ -23,28 +23,42 @@ public class TextMessageDecoder extends MessageToMessageDecoder<ByteBuf> {
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out) throws Exception {
-        // 将 LineBasedFrameDecoder 传来的单行 ByteBuf 转换为字符串
         String text = byteBuf.toString(StandardCharsets.UTF_8);
-        if (text.isEmpty()) {
-            return;
-        }
+        if (text.isEmpty()) return;
+
         try {
-            int colonIndex = text.indexOf(':');
-            if (colonIndex == -1) {
-                log.warn("Invalid message format received from {}: {}", ctx.channel().remoteAddress(), text);
+            // Format: cmdId:userId:content:deviceId
+
+            int firstColon = text.indexOf(':');
+            int lastColon = text.lastIndexOf(':');
+
+            if (firstColon == -1 || firstColon == lastColon) {
+                log.warn("Invalid format. Expected cmdId:userId:content:deviceId but got: {}", text);
                 return;
             }
 
-            int commandId = Integer.parseInt(text.substring(0, colonIndex));
-            String content = text.substring(colonIndex + 1);
+            int commandId = Integer.parseInt(text.substring(0, firstColon));
+            String deviceId = text.substring(lastColon + 1);
 
-            TextMessage message = new TextMessage(commandId, content);
-            // 将解码后的消息对象放入 out 列表，它会被传递给 Pipeline 中的下一个 Handler (EngineChannelHandler)
+            // Middle part: userId:content
+            String middle = text.substring(firstColon + 1, lastColon);
+            int middleColon = middle.indexOf(':');
+
+            if (middleColon == -1) {
+                log.warn("Invalid middle format. Expected userId:content but got: {}", middle);
+                return;
+            }
+
+            String userId = middle.substring(0, middleColon);
+            String content = middle.substring(middleColon + 1);
+
+            // We can pass userId into the TextMessage if you add a field,
+            // or just keep it in content. For now, let's keep TextMessage generic:
+            TextMessage message = new TextMessage(commandId, deviceId, userId + ":" + content);
             out.add(message);
 
-        } catch (NumberFormatException e) {
-            log.warn("Invalid commandId format in line: '{}' from {}", text, ctx.channel().remoteAddress(), e);
+        } catch (Exception e) {
+            log.warn("Decode error for: '{}'", text, e);
         }
-
     }
 }

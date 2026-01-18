@@ -17,10 +17,6 @@
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-server-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-server-codec</artifactId>
         </dependency>
         <dependency>

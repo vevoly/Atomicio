@@ -4,7 +4,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.github.vevoly.atomicio.common.api.id.AtomicIOIdGenerator;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.server.api.AtomicIOSession;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.server.api.listeners.MessageEventListener;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;

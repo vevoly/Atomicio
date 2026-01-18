@@ -1,24 +1,21 @@
 package io.github.vevoly.atomicio.core.manager;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.server.api.AtomicIOSession;
-import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
-import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.handler.NettyEventTranslationHandler;
 import io.github.vevoly.atomicio.core.session.NettySession;
+import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * 群组管理器
+ * 物理连接管理
  *
  * @since 0.5.8
  * @author vevoly
@@ -27,128 +24,90 @@ import java.util.concurrent.CopyOnWriteArraySet;
 @Slf4j
 public class AtomicIOGroupManager {
 
-    private final Map<String, ChannelGroup> groups = new ConcurrentHashMap<>(); // Key: 组ID, Value: 组内的所有会话
-
-    private final DefaultAtomicIOEngine engine;
-
-    public AtomicIOGroupManager(DefaultAtomicIOEngine engine) {
-        this.engine = engine;
-    }
-
-    public void joinGroup(String groupId, AtomicIOSession session) {
-        Objects.requireNonNull(groupId, "Group ID cannot be null");
-        Objects.requireNonNull(session, "Session cannot be null");
-
-        // 安全检查
-        if (!session.isActive()) {
-            log.warn("Cannot join group {}: Session {} is not active.", groupId, session.getId());
-            return;
-        }
-        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
-        if (userId == null) {
-            log.warn("Cannot join group {}: Session {} is not bound to a user.", groupId, session.getId());
-            return;
-        }
-        // 获取或创建 ChannelGroup, GlobalEventExecutor.INSTANCE 确保 Group 资源的正确管理
-        ChannelGroup group = groups.computeIfAbsent(groupId, k -> new DefaultChannelGroup(GlobalEventExecutor.INSTANCE));
-        // 将 NettySession 内部的 Channel 加入到 ChannelGroup
-        if (session instanceof NettySession) {
-            group.add(((NettySession) session).getNettyChannel());
-        } else {
-            // 如果未来有其他 Session 实现，这里需要处理
-            log.error("Unsupported session type for group operations: {}", session.getClass().getName());
-            return;
-        }
-        // 将群组信息存储在 Session 属性中，方便后续清理
-        Set<String> userGroups = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
-        if (userGroups == null) {
-            userGroups = ConcurrentHashMap.newKeySet();
-            session.setAttribute(AtomicIOSessionAttributes.GROUPS, userGroups);
-        }
-        // add 方法幂等，重复添加不会有问题
-        boolean added = userGroups.add(groupId);
-        if (added) {
-            log.info("Session {} (user: {}) joined group {}. Current group size: {}",
-                    session.getId(), userId, groupId, group.size());
-        }
-    }
-
-    public void leaveGroup(String groupId, AtomicIOSession session) {
-        Objects.requireNonNull(groupId, "Group ID cannot be null");
-        Objects.requireNonNull(session, "Session cannot be null");
-
-        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
-        ChannelGroup group = groups.get(groupId);
-        if (group != null) {
-            // 从 ChannelGroup 中移除
-            if (session instanceof NettySession) {
-                group.remove(((NettySession) session).getNettyChannel());
-            }
-            // 从 Session 属性中移除
-            Set<String> userGroups = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
-            if (userGroups != null) {
-                boolean removed = userGroups.remove(groupId);
-                if(removed){
-                    log.info("Session {} (user: {}) left group {}. Current group size: {}",
-                            session.getId(), userId, groupId, group.size());
-                }
-            }
-            // 如果群组为空，则清理
-            if (group.isEmpty()) {
-                groups.remove(groupId);
-                log.info("Group {} is empty and has been removed.", groupId);
-            }
-        }
-    }
+    // 物理组：GroupId -> Netty ChannelGroup
+    private final Map<String, ChannelGroup> localGroups = new ConcurrentHashMap<>();
 
     /**
-     * 只在本地向群组发送消息
-     * @param groupId        群组 ID
-     * @param message        消息
-     * @param excludeUserIds 排除的用户 ID 列表
+     * 将 Session 对应的物理 Channel 加入本地组
      */
-    public void sendToGroupLocally(String groupId, AtomicIOMessage message, String... excludeUserIds) {
-        Objects.requireNonNull(groupId, "Group ID cannot be null");
-        Objects.requireNonNull(message, "Message cannot be null");
-
-        ChannelGroup group = groups.get(groupId);
-        if (group != null && !group.isEmpty()) {
-            if (excludeUserIds != null && excludeUserIds.length > 0) {
-                // 如果有排除的用户，需要逐个发送，并跳过排除者
-                Set<String> excludeSet = Set.of(excludeUserIds);
-                group.forEach(channel -> {
-                    AtomicIOSession session = channel.attr(NettyEventTranslationHandler.SESSION_KEY).get();
-                    if (session != null) {
-                        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
-                        if (userId != null && !excludeSet.contains(userId)) {
-                            session.send(message);
-                        }
-                    }
-                });
-                log.debug("Sent message {} to group {} excluding {} users.", message.getCommandId(), groupId, excludeUserIds.length);
-            } else {
-                // 没有排除用户，直接调用 ChannelGroup 的批量发送，性能最高
-                group.writeAndFlush(message);
-                log.debug("Sent message {} to group {} (total {} sessions).", message.getCommandId(), groupId, group.size());
-            }
-        } else {
-            log.warn("Group {} is empty or does not exist. Message {} not sent.", groupId, message.getCommandId());
+    public void joinLocal(String groupId, AtomicIOSession session) {
+        if (session instanceof NettySession) {
+            ChannelGroup group = localGroups.computeIfAbsent(groupId,
+                    k -> new DefaultChannelGroup(GlobalEventExecutor.INSTANCE));
+            group.add(((NettySession) session).getNettyChannel());
+            log.debug("GroupManager: Session {} 加入本地物理组 {}", session.getId(), groupId);
         }
     }
 
     /**
-     * 当一个 session 断开时，让它离开所有已加入的群组。
+     * 物理退出
+     */
+    public void leaveLocal(String groupId, AtomicIOSession session) {
+        ChannelGroup group = localGroups.get(groupId);
+        if (group != null && session instanceof NettySession) {
+            group.remove(((NettySession) session).getNettyChannel());
+            if (group.isEmpty()) localGroups.remove(groupId);
+        }
+    }
+
+    /**
+     * 当一个 session 断开时，物理上从它加入的所有本地群组中移除。
      * @param session 断开的 session
      */
     public void unbindGroupsForSession(AtomicIOSession session) {
-        Set<String> userGroups = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
-        if (userGroups != null && !userGroups.isEmpty()) {
-            log.info("Session {} is leaving all {} groups due to disconnect.", session.getId(), userGroups.size());
-            // 创建副本以避免在遍历时修改
-            for (String groupId : new CopyOnWriteArraySet<>(userGroups)) {
-                leaveGroup(groupId, session);
+        // 从 Session 属性中获取该连接加入的所有群组 ID 集合
+        Set<String> joinedGroupIds = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
+        if (joinedGroupIds != null && !joinedGroupIds.isEmpty()) {
+            log.info("GroupManager: Session {} 正在退出所有本地物理组 ({})", session.getId(), joinedGroupIds.size());
+            // 遍历并移除物理 Channel 引用
+            for (String groupId : joinedGroupIds) {
+                leaveLocal(groupId, session);
             }
+            // 清理 Session 上的属性引用
             session.setAttribute(AtomicIOSessionAttributes.GROUPS, null);
+        }
+    }
+
+    /**
+     * 本地组发消息
+     * @param groupId        目标群组ID
+     * @param message        要发送的对象（可以是 AtomicIOMessage，也可以是 ByteBuf）
+     * @param excludeUserIds 需要排除的用户ID数组
+     */
+    public void sendToGroupLocally(String groupId, Object message, String... excludeUserIds) {
+        ChannelGroup group = localGroups.get(groupId);
+        if (group == null || group.isEmpty()) {
+            return;
+        }
+
+        if (excludeUserIds != null && excludeUserIds.length > 0) {
+            // 策略 A: 有排除名单，需遍历组内 Channel 进行过滤发送
+            Set<String> excludes = Set.of(excludeUserIds);
+            group.forEach(channel -> {
+                // 利用 Netty Channel 的 Attribute 拿到绑定的 Session
+                AtomicIOSession session = channel.attr(NettyEventTranslationHandler.SESSION_KEY).get();
+                if (session != null) {
+                    String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
+                    if (userId != null && !excludes.contains(userId)) {
+                        session.send(message);
+                    }
+                }
+            });
+        } else {
+            // 策略 B: 无排除名单，直接调用 ChannelGroup.writeAndFlush，性能最高（Netty 内部批量分发）
+            group.writeAndFlush(message);
+        }
+        log.debug("GroupManager: 本地群组 {} 消息分发完成", groupId);
+    }
+
+    /**
+     * 本地广播：最高性能的批量发送
+     * 这里的 message 同样使用 Object，支持预编码后的字节流
+     */
+    public void broadcastLocally(String groupId, Object message) {
+        ChannelGroup group = localGroups.get(groupId);
+        if (group != null && !group.isEmpty()) {
+            group.writeAndFlush(message);
         }
     }
 }

@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.server.api.listeners;
 
-import io.github.vevoly.atomicio.server.api.AtomicIOSession;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 
 /**
  * 会话被替换监听器

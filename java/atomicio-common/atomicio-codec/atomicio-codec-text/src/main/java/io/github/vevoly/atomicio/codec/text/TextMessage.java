@@ -20,6 +20,9 @@ public class TextMessage implements AtomicIOMessage {
     private final int commandId;
 
     @Getter
+    private final String deviceId;
+
+    @Getter
     private final String content;
 
 

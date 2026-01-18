@@ -2,13 +2,16 @@ package io.github.vevoly.atomicio.common.api.config;
 
 import io.github.vevoly.atomicio.common.api.id.AtomicIOIdGeneratorType;
 
+import java.util.UUID;
+
 public class AtomicIOConfigDefaultValue {
 
-    public static final String SYS_ID = "Atomicio";
-
+    public static final String SYS_ID = "ATOMICIO";
     public static final String CONFIG_PREFIX = "atomicio";
     public static final String CONFIG_PREFIX_ID_GEN = CONFIG_PREFIX + ".id-gen";
     public static final String CONFIG_PREFIX_CODEC = CONFIG_PREFIX + ".codec";
+    public static final String CONFIG_PREFIX_CLUSTER = CONFIG_PREFIX + ".cluster";
+    public static final String CONFIG_PREFIX_NODE_ID = SYS_ID + "-NODE-";
 
     // -- 配置文件默认值 --
     public static final int DEFAULT_PORT = 8308;
@@ -28,4 +31,5 @@ public class AtomicIOConfigDefaultValue {
     public static final long DEFAULT_ID_GEN_SNOWFLAKE_EPOCH = 1704067200000L;
     public static final int DEFAULT_ID_GEN_SNOWFLAKE_WORKER_ID = 0;
     public static final int DEFAULT_ID_GEN_SNOWFLAKE_DATACENTER_ID = 0;
+    public static final String DEFAULT_NODE_ID = "AUTO";
 }

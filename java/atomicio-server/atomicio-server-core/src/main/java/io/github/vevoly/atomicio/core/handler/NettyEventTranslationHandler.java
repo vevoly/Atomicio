@@ -2,11 +2,12 @@ package io.github.vevoly.atomicio.core.handler;
 
 import io.github.vevoly.atomicio.server.api.constants.AtomicIOEventType;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.server.api.AtomicIOSession;
+import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import io.github.vevoly.atomicio.server.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.server.api.constants.IdleState;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
-import io.github.vevoly.atomicio.core.manager.DisruptorManager;
+import io.github.vevoly.atomicio.core.manager.DefaultDisruptorManager;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -76,7 +77,7 @@ public class NettyEventTranslationHandler extends ChannelInboundHandlerAdapter {
         final AtomicIOSession session = ctx.channel().attr(SESSION_KEY).get();
         if (session != null) {
             // 1. 立即、同步地执行状态清理
-            engine.getSessionManager().unbindUserInternal(session);
+            engine.onSessionClosed(session);
             // 发布异步 DISCONNECT 事件
             disruptorManager.publish(disruptorEntry -> {
                 disruptorEntry.setType(AtomicIOEventType.DISCONNECT);

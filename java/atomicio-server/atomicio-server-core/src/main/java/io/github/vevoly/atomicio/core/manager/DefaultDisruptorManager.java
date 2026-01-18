@@ -3,8 +3,11 @@ package io.github.vevoly.atomicio.core.manager;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.util.DaemonThreadFactory;
-import io.github.vevoly.atomicio.core.handler.DisruptorEventHandler;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
+import io.github.vevoly.atomicio.core.handler.DisruptorEventHandler;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
+import io.github.vevoly.atomicio.server.api.manager.DisruptorEntry;
+import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.function.Consumer;
@@ -16,7 +19,7 @@ import java.util.function.Consumer;
  * @author vevoly
  */
 @Slf4j
-public class DisruptorManager {
+public class DefaultDisruptorManager implements DisruptorManager {
 
     private Disruptor<DisruptorEntry> disruptor;
     private RingBuffer<DisruptorEntry> ringBuffer;
@@ -25,7 +28,8 @@ public class DisruptorManager {
      * 开启 IO 队列
      * @param engine
      */
-    public void start(DefaultAtomicIOEngine engine) {
+    @Override
+    public void start(AtomicIOEngine engine) {
         // todo 对 Disruptor 进行精细配置
         // 从配置中读取，如果没有，则默认给 131072
 //        int bufferSize = engine.getConfig().getIoQueueSize() > 0 ?
@@ -53,13 +57,14 @@ public class DisruptorManager {
                 DaemonThreadFactory.INSTANCE // 线程工厂
         );
         // 连接消费者
-        disruptor.handleEventsWith(new DisruptorEventHandler(engine));
+        disruptor.handleEventsWith(new DisruptorEventHandler((DefaultAtomicIOEngine) engine));
         this.ringBuffer = disruptor.start();
     }
 
     /**
      * 关闭队列
      */
+    @Override
     public void shutdown() {
         if (disruptor != null) {
             disruptor.shutdown();
@@ -72,6 +77,7 @@ public class DisruptorManager {
      *
      * @param entryPreparer 一个 Consumer，它会接收一个 RingBuffer 中的空 Entry，并负责填充数据。
      */
+    @Override
     public void publish(Consumer<DisruptorEntry> entryPreparer) {
         if (ringBuffer == null) {
             log.warn("Disruptor is not started yet, event is dropped.");
@@ -92,6 +98,7 @@ public class DisruptorManager {
      * 获取队列大小
      * @return
      */
+    @Override
     public long getBufferSize() {
         return ringBuffer != null ? ringBuffer.getBufferSize() : -1;
     }
@@ -100,6 +107,7 @@ public class DisruptorManager {
      * 获取队列剩余容量
      * @return
      */
+    @Override
     public long getRemainingCapacity() {
         return ringBuffer != null ? ringBuffer.remainingCapacity() : -1;
     }

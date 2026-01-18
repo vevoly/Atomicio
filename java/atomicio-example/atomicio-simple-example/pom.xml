@@ -19,6 +19,11 @@
             <artifactId>atomicio-server-spring-boot-starter</artifactId>
             <version>${revision}</version>
         </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-server-extension-redis</artifactId>
+            <version>${revision}</version>
+        </dependency>
     </dependencies>
 
 </project>
