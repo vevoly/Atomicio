@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.client.api;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.client.api.listeners.*;
 
 import java.util.concurrent.Future;

@@ -1,10 +1,8 @@
 package io.github.vevoly.atomicio.server.api.codec;
 
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelPipeline;
 
 import java.util.List;
 
@@ -21,25 +19,18 @@ import java.util.List;
 public interface AtomicIOServerCodecProvider {
 
     /**
-     * 提供一个默认的心跳消息。
-     * @return A default heartbeat message, or null if not supported.
-     */
-    default AtomicIOMessage getHeartbeat() {
-        return null;
-    }
-
-    /**
-     * 根据收到的心跳请求，创建一个心跳回应消息。
-     * 心跳的 PING/PONG 逻辑可以由协议层自行处理。
+     * 根据一个收到的请求消息，创建一个与之协议匹配的响应消息。
+     * 这是框架实现协议无关响应的关键。FrameworkCommandDispatcher 将调用此方法
+     * 来生成如 LOGIN_RESPONSE, JOIN_GROUP_RESPONSE 等框架级响应。
      *
-     * @param requestMessage The received heartbeat request message.
-     * @return An AtomicIOMessage representing the heartbeat response (PONG),
-     *         or null if no response should be sent.
+     * @param requestMessage 触发响应的原始请求消息。实现类可以用它来获取 sequenceId 等元数据。
+     * @param commandId      新响应消息的指令ID。
+     * @param payload        新响应消息的载体。其类型取决于具体协议的实现。
+     *                       - 对于文本类协议，通常是 String。
+     *                       - 对于 Protobuf 协议，通常是 com.google.protobuf.Message 对象。
+     * @return 一个实现了 AtomicIOMessage 接口的、可被发送的响应消息实例。
      */
-    default AtomicIOMessage createHeartbeatResponse(AtomicIOMessage requestMessage) {
-        // 默认实现：原样返回，适用于简单的 Echo PING/PONG
-        return requestMessage;
-    }
+    AtomicIOMessage createResponse(AtomicIOMessage requestMessage, int commandId, Object payload);
 
     /**
      * 获取所有【入站】的协议相关 Handler。

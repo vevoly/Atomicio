@@ -1,14 +1,14 @@
 package io.github.vevoly.atomicio.core.handler;
 
 import com.lmax.disruptor.EventHandler;
-import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
-import io.github.vevoly.atomicio.core.manager.AtomicIOEventManager;
-import io.github.vevoly.atomicio.core.manager.AtomicIOGroupManager;
-import io.github.vevoly.atomicio.core.manager.AtomicIOSessionManager;
-import io.github.vevoly.atomicio.server.api.manager.DisruptorEntry;
 import io.github.vevoly.atomicio.core.message.RawBytesMessage;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
+import io.github.vevoly.atomicio.server.api.manager.DisruptorEntry;
+import io.github.vevoly.atomicio.server.api.manager.GroupManager;
+import io.github.vevoly.atomicio.server.api.manager.IOEventManager;
+import io.github.vevoly.atomicio.server.api.manager.SessionManager;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -21,11 +21,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DisruptorEventHandler implements EventHandler<DisruptorEntry> {
 
-    private final AtomicIOEventManager eventManager;
-    private final AtomicIOSessionManager sessionManager;
-    private final AtomicIOGroupManager groupManager;
+    private final IOEventManager eventManager;
+    private final SessionManager sessionManager;
+    private final GroupManager groupManager;
 
-    public DisruptorEventHandler(DefaultAtomicIOEngine engine) {
+    public DisruptorEventHandler(AtomicIOEngine engine) {
         this.eventManager = engine.getEventManager();
         this.sessionManager = engine.getSessionManager();
         this.groupManager = engine.getGroupManager();

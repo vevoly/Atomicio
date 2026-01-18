@@ -15,6 +15,7 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -29,9 +30,11 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class NettyServerManager {
 
-    private final DefaultAtomicIOEngine engine;
-    private final AtomicIOProperties config;
-    private final AtomicIOServerCodecProvider codecProvider;
+    private final DefaultAtomicIOEngine engine; // 核心引擎
+    private final AtomicIOProperties config; // 框架配置
+    private final AtomicIOServerCodecProvider codecProvider; // 编/解码提供器
+    private AtomicIOCommandDispatcher commandDispatcher; // 框架指令调度器
+
 
     // Netty核心组件
     private EventLoopGroup bossGroup;
@@ -44,16 +47,17 @@ public class NettyServerManager {
     private IpRateLimitHandler ipRateLimitHandler; // Ip 连接速率限制处理器
     private SslExceptionHandler sslExceptionHandler; // SSL 异常处理器
     private NettyEventTranslationHandler nettyEventTranslationHandler; // Netty 事件翻译处理器
-    private HeartbeatResponseHandler heartbeatResponseHandler; // 心跳响应处理器
     private OverloadProtectionHandler overloadProtectionHandler; // 服务器负载保护处理器
     private RawBytesMessageHandler rawBytesMessageHandler; // 原生字节消息处理器，绿色通道
 
     private final ChannelInitializer<SocketChannel> childHandlerInitializer;
 
-    public NettyServerManager(DefaultAtomicIOEngine engine) {
+    public NettyServerManager(DefaultAtomicIOEngine engine, AtomicIOCommandDispatcher commandDispatcher) {
         this.engine = engine;
         this.config = engine.getConfig();
         this.codecProvider = engine.getCodecProvider();
+        this.commandDispatcher = commandDispatcher;
+
         // 初始化所有需要共享的 Handler 实例
         initializeHandlers();
         // 创建 ChannelInitializer
@@ -127,9 +131,6 @@ public class NettyServerManager {
         this.rawBytesMessageHandler = new RawBytesMessageHandler();
         log.info("初始化 Netty 事件翻译处理器 ...");
         this.nettyEventTranslationHandler = new NettyEventTranslationHandler(engine.getDisruptorManager(), engine);
-        log.info("初始化 ❤️心跳回忆处理器 ...");
-        this.heartbeatResponseHandler = new HeartbeatResponseHandler(engine);
-
 
     }
 
@@ -159,20 +160,24 @@ public class NettyServerManager {
                 pipeline.addLast(sslExceptionHandler);
             }
 
-            // 绿色通道处理器，必须在常规编码器之前被执行
-            pipeline.addLast(rawBytesMessageHandler);
-            // CodecProvider 提供的所有出站协议 Handler
-            codecProvider.getOutboundHandlers(config).forEach(pipeline::addLast);
-            // CodecProvider 提供的所有入站协议 Handler
-            codecProvider.getInboundHandlers(config).forEach(pipeline::addLast);
+            // 通信协议层
+            {
+                // 绿色通道处理器，必须在常规编码器之前被执行
+                pipeline.addLast(rawBytesMessageHandler);
+                // CodecProvider 提供的所有出站协议 Handler
+                codecProvider.getOutboundHandlers(config).forEach(pipeline::addLast);
+                // CodecProvider 提供的所有入站协议 Handler
+                codecProvider.getInboundHandlers(config).forEach(pipeline::addLast);
+            }
+
+            // 框架指令调度层
+            pipeline.addLast(commandDispatcher);
 
             // 空闲状态检测
             int readerIdleSeconds = config.getSession().getReadIdleSeconds();
             if (readerIdleSeconds > 0) {
                 pipeline.addLast(new IdleStateHandler(readerIdleSeconds, 0, 0, TimeUnit.SECONDS));
             }
-            // 心跳自动回应
-            pipeline.addLast(heartbeatResponseHandler);
             // 事件翻译层
             pipeline.addLast(nettyEventTranslationHandler);
         }

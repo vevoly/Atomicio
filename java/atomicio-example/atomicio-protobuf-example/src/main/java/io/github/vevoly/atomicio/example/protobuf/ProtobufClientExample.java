@@ -5,7 +5,7 @@ import io.github.vevoly.atomicio.client.api.codec.AtomicIOClientCodecProvider;
 import io.github.vevoly.atomicio.client.codec.protobuf.ProtobufClientCodecProvider;
 import io.github.vevoly.atomicio.example.protobuf.proto.*;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.core.DefaultAtomicIOClient;
@@ -82,7 +82,7 @@ public class ProtobufClientExample {
         byte[] payload = message.getPayload();
         try {
             switch (commandId) {
-                case AtomicIOCommand.HEARTBEAT:
+                case AtomicIOCommand.HEARTBEAT_REQUEST:
                     Heartbeat heartbeat = Heartbeat.parseFrom(payload);
                     log.info("<<<<<<<<< 收到心跳: {}", heartbeat);
                     break;

@@ -1,8 +1,10 @@
-# Atomicio 阿杜米西奥 
-Atomicio: A high-performance, reactive IO framework for IM, IoT, and Gaming, built on Netty.
+# Atomicio 阿多米西奥 🇨🇳
+### 作者：Vevoly
+Atomicio: A high-performance, reactive IO framework for IM, IoT, and Gaming, Streaming built on Netty.  
+阿多米西奥：一个高性能的事件驱动IO框架，可用于即时通讯，物联网，游戏，流媒体等服务器的底层框架，基于Netty构建。
 
 # Coming Soon !!!
-
+# 框架正在不断迭代开发中，敬请期待 v1.0.0 版本...
 Atomicio-Api 模块架构图
 ```mermaid
 classDiagram

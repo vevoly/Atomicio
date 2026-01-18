@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.client.api.codec;
 
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 

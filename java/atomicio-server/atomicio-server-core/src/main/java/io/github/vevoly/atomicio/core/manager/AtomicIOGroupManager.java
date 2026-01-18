@@ -3,6 +3,8 @@ package io.github.vevoly.atomicio.core.manager;
 import io.github.vevoly.atomicio.core.handler.NettyEventTranslationHandler;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
+import io.github.vevoly.atomicio.server.api.manager.GroupManager;
+import io.github.vevoly.atomicio.server.api.manager.SessionManager;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
@@ -22,14 +24,21 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  */
 @Slf4j
-public class AtomicIOGroupManager {
+public class AtomicIOGroupManager implements GroupManager {
+
+    private final SessionManager sessionManager;
 
     // 物理组：GroupId -> Netty ChannelGroup
     private final Map<String, ChannelGroup> localGroups = new ConcurrentHashMap<>();
 
+    public AtomicIOGroupManager(SessionManager sessionManager) {
+        this.sessionManager = sessionManager;
+    }
+
     /**
      * 将 Session 对应的物理 Channel 加入本地组
      */
+    @Override
     public void joinLocal(String groupId, AtomicIOSession session) {
         if (session instanceof NettySession) {
             ChannelGroup group = localGroups.computeIfAbsent(groupId,
@@ -42,6 +51,7 @@ public class AtomicIOGroupManager {
     /**
      * 物理退出
      */
+    @Override
     public void leaveLocal(String groupId, AtomicIOSession session) {
         ChannelGroup group = localGroups.get(groupId);
         if (group != null && session instanceof NettySession) {
@@ -54,6 +64,7 @@ public class AtomicIOGroupManager {
      * 当一个 session 断开时，物理上从它加入的所有本地群组中移除。
      * @param session 断开的 session
      */
+    @Override
     public void unbindGroupsForSession(AtomicIOSession session) {
         // 从 Session 属性中获取该连接加入的所有群组 ID 集合
         Set<String> joinedGroupIds = session.getAttribute(AtomicIOSessionAttributes.GROUPS);
@@ -74,6 +85,7 @@ public class AtomicIOGroupManager {
      * @param message        要发送的对象（可以是 AtomicIOMessage，也可以是 ByteBuf）
      * @param excludeUserIds 需要排除的用户ID数组
      */
+    @Override
     public void sendToGroupLocally(String groupId, Object message, String... excludeUserIds) {
         ChannelGroup group = localGroups.get(groupId);
         if (group == null || group.isEmpty()) {
@@ -84,8 +96,7 @@ public class AtomicIOGroupManager {
             // 策略 A: 有排除名单，需遍历组内 Channel 进行过滤发送
             Set<String> excludes = Set.of(excludeUserIds);
             group.forEach(channel -> {
-                // 利用 Netty Channel 的 Attribute 拿到绑定的 Session
-                AtomicIOSession session = channel.attr(NettyEventTranslationHandler.SESSION_KEY).get();
+                AtomicIOSession session = sessionManager.getLocalSessionById(channel.id().asLongText());
                 if (session != null) {
                     String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
                     if (userId != null && !excludes.contains(userId)) {
@@ -104,6 +115,7 @@ public class AtomicIOGroupManager {
      * 本地广播：最高性能的批量发送
      * 这里的 message 同样使用 Object，支持预编码后的字节流
      */
+    @Override
     public void broadcastLocally(String groupId, Object message) {
         ChannelGroup group = localGroups.get(groupId);
         if (group != null && !group.isEmpty()) {

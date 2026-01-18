@@ -1,7 +1,6 @@
 package io.github.vevoly.atomicio.codec.text;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
-import lombok.AllArgsConstructor;
+import io.github.vevoly.atomicio.protocol.api.message.AbstractAtomicIOMessage;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -14,9 +13,9 @@ import java.nio.charset.StandardCharsets;
  * @author vevoly
  */
 @ToString
-@AllArgsConstructor
-public class TextMessage implements AtomicIOMessage {
+public class TextMessage extends AbstractAtomicIOMessage {
 
+    @Getter
     private final int commandId;
 
     @Getter
@@ -25,10 +24,11 @@ public class TextMessage implements AtomicIOMessage {
     @Getter
     private final String content;
 
-
-    @Override
-    public int getCommandId() {
-        return commandId;
+    public TextMessage(long sequenceId, int commandId, String deviceId, String content) {
+        super(sequenceId);
+        this.commandId = commandId;
+        this.deviceId = deviceId;
+        this.content = content;
     }
 
     @Override

@@ -5,7 +5,7 @@ import io.github.vevoly.atomicio.codec.text.TextMessageDecoder;
 import io.github.vevoly.atomicio.codec.text.TextMessageEncoder;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
@@ -26,13 +26,24 @@ public class TextServerCodecProvider implements AtomicIOServerCodecProvider {
     private static final TextMessageDecoder DECODER = new TextMessageDecoder();
 
     @Override
-    public AtomicIOMessage getHeartbeat() {
-        return new TextMessage(AtomicIOCommand.HEARTBEAT, null, "PING");
-    }
+    public AtomicIOMessage createResponse(AtomicIOMessage requestMessage, int commandId, Object payload) {
+        // 1. 安全检查和类型转换
+        if (!(payload instanceof String)) {
+            throw new IllegalArgumentException("TextCodecProvider expects a String payload, but got " +
+                    (payload != null ? payload.getClass().getName() : "null"));
+        }
 
-    @Override
-    public AtomicIOMessage createHeartbeatResponse(AtomicIOMessage requestMessage) {
-        return new TextMessage(AtomicIOCommand.HEARTBEAT, null, "PONG");
+        String content = (String) payload;
+        String deviceId = null;
+
+        // 2. 尝试从请求中继承 deviceId (如果适用)
+        if (requestMessage instanceof TextMessage) {
+            deviceId = ((TextMessage) requestMessage).getDeviceId();
+        }
+
+        // 3. 创建并返回一个新的 TextMessage 实例
+        // 从原始请求中获取 sequenceId
+        return new TextMessage(requestMessage.getSequenceId(), commandId, deviceId, content);
     }
 
     /**

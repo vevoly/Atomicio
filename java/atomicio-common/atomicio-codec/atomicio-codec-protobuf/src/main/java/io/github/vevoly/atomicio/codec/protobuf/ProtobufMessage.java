@@ -5,7 +5,8 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import io.github.vevoly.atomicio.codec.protobuf.proto.GenericMessage;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AbstractAtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 
 /**
  * 将 Protobuf 的 GenericMessage 适配到 AtomicIOMessage 接口。
@@ -13,11 +14,12 @@ import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
  * @since 0.4.2
  * @author vevoly
  */
-public class ProtobufMessage implements AtomicIOMessage {
+public class ProtobufMessage extends AbstractAtomicIOMessage {
 
     private final GenericMessage protoMessage;
 
     public ProtobufMessage(GenericMessage protoMessage) {
+        super(protoMessage.getSequenceId());
         this.protoMessage = protoMessage;
     }
 
@@ -58,13 +60,14 @@ public class ProtobufMessage implements AtomicIOMessage {
      * @param message         用户自己用 .proto 文件定义的、实现了 com.google.protobuf.Message 接口的业务消息对象。
      * @return 一个实现了 AtomicIOMessage 接口的实例，可以直接通过 session.send() 或 engine.sendToUser() 发送。
      */
-    public static AtomicIOMessage of(int commandId, Message message) {
+    public static AtomicIOMessage of(long sequenceId, int commandId, Message message) {
         // 1. 将业务消息序列化为字节
         byte[] payload = message.toByteArray();
         // 2. 创建我们的通用信封 GenericMessage
         GenericMessage genericMessage = null;
         try {
             genericMessage = GenericMessage.newBuilder()
+                    .setSequenceId(sequenceId)
                     .setCommandId(commandId)
                     .setPayload(Any.parseFrom(ByteString.copyFrom(payload)))
                     .build();

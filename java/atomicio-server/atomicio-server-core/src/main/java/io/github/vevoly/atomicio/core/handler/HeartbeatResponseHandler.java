@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.core.handler;
 
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
  * @since 0.5.10
  */
 @Slf4j
+@Deprecated
 @ChannelHandler.Sharable
 public class HeartbeatResponseHandler extends SimpleChannelInboundHandler<AtomicIOMessage> {
 
@@ -27,7 +28,7 @@ public class HeartbeatResponseHandler extends SimpleChannelInboundHandler<Atomic
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, AtomicIOMessage message) throws Exception {
-        if (message.getCommandId() == AtomicIOCommand.HEARTBEAT) {
+        if (message.getCommandId() == AtomicIOCommand.HEARTBEAT_REQUEST) {
             handleHeartbeat(ctx, message);
         } else {
             // 如果不是心跳，就原封不动地传递给下一个 Handler
@@ -43,7 +44,7 @@ public class HeartbeatResponseHandler extends SimpleChannelInboundHandler<Atomic
 
     private void handleHeartbeat(ChannelHandlerContext ctx, AtomicIOMessage requestMessage) {
         // 从 Channel 属性中获取 Session
-        AtomicIOSession session = ctx.channel().attr(NettyEventTranslationHandler.SESSION_KEY).get();
+        final AtomicIOSession session = engine.getSessionManager().getLocalSessionById(ctx.channel().id().asLongText());
         if (session == null) {
             return;
         }
@@ -51,7 +52,8 @@ public class HeartbeatResponseHandler extends SimpleChannelInboundHandler<Atomic
         // 从引擎获取当前的 CodecProvider
         AtomicIOServerCodecProvider codecProvider = engine.getCodecProvider();
         // 委托给 CodecProvider 创建回应
-        AtomicIOMessage response = codecProvider.createHeartbeatResponse(requestMessage);
+        AtomicIOMessage response = engine.getCodecProvider()
+                .createResponse(requestMessage, AtomicIOCommand.HEARTBEAT_RESPONSE, "PONG");
         if (response != null) {
             session.send(response);
         }

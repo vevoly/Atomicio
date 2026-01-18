@@ -21,44 +21,43 @@ import java.util.List;
 @ChannelHandler.Sharable
 public class TextMessageDecoder extends MessageToMessageDecoder<ByteBuf> {
 
+    /**
+     * 文本协议格式
+     * 格式: sequenceId:commandId:deviceId:payload
+     * - sequenceId: long
+     * - commandId: int
+     * - deviceId: String (can be empty)
+     * - payload: String (everything after the 3rd colon)
+     */
+    private static final int METADATA_PARTS = 4;
+
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf byteBuf, List<Object> out) throws Exception {
         String text = byteBuf.toString(StandardCharsets.UTF_8);
-        if (text.isEmpty()) return;
+        if (text.isEmpty()) {
+            return;
+        }
+        String[] parts = text.split(":", METADATA_PARTS);
+        if (parts.length < METADATA_PARTS) {
+            log.warn("Invalid TextMessage format. Expected at least {} parts, but got {}. Raw: '{}'",
+                    METADATA_PARTS, parts.length, text);
+            return;
+        }
 
         try {
-            // Format: cmdId:userId:content:deviceId
+            long sequenceId = Long.parseLong(parts[0]);
+            int commandId = Integer.parseInt(parts[1]);
+            String deviceId = parts[2];
+            String content = parts[3];
 
-            int firstColon = text.indexOf(':');
-            int lastColon = text.lastIndexOf(':');
-
-            if (firstColon == -1 || firstColon == lastColon) {
-                log.warn("Invalid format. Expected cmdId:userId:content:deviceId but got: {}", text);
-                return;
-            }
-
-            int commandId = Integer.parseInt(text.substring(0, firstColon));
-            String deviceId = text.substring(lastColon + 1);
-
-            // Middle part: userId:content
-            String middle = text.substring(firstColon + 1, lastColon);
-            int middleColon = middle.indexOf(':');
-
-            if (middleColon == -1) {
-                log.warn("Invalid middle format. Expected userId:content but got: {}", middle);
-                return;
-            }
-
-            String userId = middle.substring(0, middleColon);
-            String content = middle.substring(middleColon + 1);
-
-            // We can pass userId into the TextMessage if you add a field,
-            // or just keep it in content. For now, let's keep TextMessage generic:
-            TextMessage message = new TextMessage(commandId, deviceId, userId + ":" + content);
+            TextMessage message = new TextMessage(sequenceId, commandId, deviceId, content);
             out.add(message);
 
+        } catch (NumberFormatException e) {
+            log.warn("Failed to parse sequenceId or commandId from TextMessage. Raw: '{}'", text, e);
         } catch (Exception e) {
-            log.warn("Decode error for: '{}'", text, e);
+            log.error("An unexpected error occurred during TextMessage decoding. Raw: '{}'", text, e);
         }
     }
+
 }

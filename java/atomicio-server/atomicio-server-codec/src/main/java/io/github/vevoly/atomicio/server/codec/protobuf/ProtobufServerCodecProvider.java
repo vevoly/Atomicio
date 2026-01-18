@@ -1,6 +1,7 @@
 package io.github.vevoly.atomicio.server.codec.protobuf;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import io.github.vevoly.atomicio.codec.decoder.ProtobufVarint32FrameDecoder;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufAdapterHandler;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
@@ -8,7 +9,7 @@ import io.github.vevoly.atomicio.codec.protobuf.proto.GenericMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.Heartbeat;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
@@ -31,26 +32,17 @@ import java.util.List;
 public class ProtobufServerCodecProvider implements AtomicIOServerCodecProvider {
 
     @Override
-    public AtomicIOMessage getHeartbeat() {
-        Heartbeat heartbeat = Heartbeat.newBuilder()
-                .setTimestamp(System.currentTimeMillis())
-                .build();
-        return ProtobufMessage.of(AtomicIOCommand.HEARTBEAT, heartbeat);
-    }
-
-    @Override
-    public AtomicIOMessage createHeartbeatResponse(AtomicIOMessage requestMessage) {
-        try {
-            Heartbeat heartbeatRequest = Heartbeat.parseFrom(requestMessage.getPayload());
-            Heartbeat heartbeatResponse = Heartbeat.newBuilder()
-                    .setTimestamp(heartbeatRequest.getTimestamp())
-                    .build();
-            AtomicIOMessage response = ProtobufMessage.of(AtomicIOCommand.HEARTBEAT, heartbeatResponse);
-            return response;
-        } catch (InvalidProtocolBufferException e) {
-            // 解析失败
-            throw new RuntimeException(e);
+    public AtomicIOMessage createResponse(AtomicIOMessage requestMessage, int commandId, Object payload) {
+        if (!(payload instanceof Message)) {
+            // 对于 Protobuf，如果 payload 不是 Message 类型，几乎无法继续
+            throw new IllegalArgumentException("ProtobufCodecProvider expects a com.google.protobuf.Message payload.");
         }
+
+        Message protoPayload = (Message) payload;
+
+        // 使用 ProtobufMessage 的工厂方法来创建
+        // 从原始请求中获取 sequenceId
+        return ProtobufMessage.of(requestMessage.getSequenceId(), commandId, protoPayload);
     }
 
     @Override

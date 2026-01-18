@@ -1,12 +1,21 @@
 package io.github.vevoly.atomicio.server.api;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
+import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
+import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.server.api.listeners.*;
+import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
+import io.github.vevoly.atomicio.server.api.manager.GroupManager;
+import io.github.vevoly.atomicio.server.api.manager.IOEventManager;
+import io.github.vevoly.atomicio.server.api.manager.SessionManager;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
+import io.github.vevoly.atomicio.server.api.state.AtomicIOStateProvider;
 import org.springframework.lang.Nullable;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 /**
@@ -27,6 +36,47 @@ public interface AtomicIOEngine {
      * 优雅地关闭引擎。
      */
     void shutdown();
+
+    /**
+     * 获取引擎配置
+     */
+    AtomicIOProperties getConfig();
+
+    /**
+     * 获取解码提供器
+     */
+    AtomicIOServerCodecProvider getCodecProvider();
+
+    /**
+     * 获取集群提供器
+     */
+    AtomicIOClusterProvider getClusterProvider();
+
+    /**
+     * 获取状态提供器
+     */
+    AtomicIOStateProvider getStateProvider();
+
+    /**
+     * 获取事件管理器
+     */
+    IOEventManager getEventManager();
+
+    /**
+     * 获取会话管理器
+     */
+    SessionManager getSessionManager();
+
+    /**
+     * 获取群组管理器
+     */
+    GroupManager getGroupManager();
+
+    /**
+     * 获取 Disruptor 管理器
+     */
+    DisruptorManager getDisruptorManager();
+
 
     /**
      * 注册一个 SSL/TLS 握手失败时的监听器。
@@ -83,7 +133,16 @@ public interface AtomicIOEngine {
      * @param request 绑定请求
      * @param session 用户的会话
      */
-    void bindUser(AtomicIOBindRequest request, AtomicIOSession session);
+    CompletableFuture<Void>  bindUser(AtomicIOBindRequest request, AtomicIOSession session);
+
+    /**
+     * 解绑用户：将 Session 从当前用户状态中剥离（通常用于 Logout）
+     * 该操作会清理 Redis 中的状态，但不会主动关闭物理连接。
+     *
+     * @param session 需要解绑的会话
+     * @return 异步操作结果
+     */
+    CompletableFuture<Void> unbindUser(AtomicIOSession session);
 
     /**
      * 向指定用户发送消息。引擎会自动寻找该用户所在的节点并投递。
@@ -99,7 +158,7 @@ public interface AtomicIOEngine {
      * @param groupId 组的唯一标识符，例如 "room-123", "guild-avengers"
      * @param userId 要加入的用户ID
      */
-    void joinGroup(String groupId, String userId);
+    CompletableFuture<Void> joinGroup(String groupId, String userId);
 
     /**
      * 用户的其中一个会话加入群组
@@ -107,7 +166,7 @@ public interface AtomicIOEngine {
      * @param groupId   群组 id
      * @param session   会话
      */
-    void joinGroup(String groupId, AtomicIOSession session);
+    CompletableFuture<Void> joinGroup(String groupId, AtomicIOSession session);
 
     /**
      * 将一个用户从指定的组中移除。
@@ -115,7 +174,7 @@ public interface AtomicIOEngine {
      * @param groupId 组的唯一标识符
      * @param userId 要移除的用户ID
      */
-    void leaveGroup(String groupId, String userId);
+    CompletableFuture<Void>  leaveGroup(String groupId, String userId);
 
     /**
      * 让一个指定的会话离开一个组。
@@ -123,7 +182,7 @@ public interface AtomicIOEngine {
      * @param groupId 组ID
      * @param session 要离开的会话
      */
-    void leaveGroup(String groupId, AtomicIOSession session);
+    CompletableFuture<Void>  leaveGroup(String groupId, AtomicIOSession session);
 
     /**
      * 向一个组内的所有成员（除了可选的排除者）发送消息。

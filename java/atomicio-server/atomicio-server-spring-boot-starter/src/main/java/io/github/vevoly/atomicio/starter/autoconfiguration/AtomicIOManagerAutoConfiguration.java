@@ -5,6 +5,9 @@ import io.github.vevoly.atomicio.core.manager.AtomicIOGroupManager;
 import io.github.vevoly.atomicio.core.manager.AtomicIOSessionManager;
 import io.github.vevoly.atomicio.core.manager.DefaultDisruptorManager;
 import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
+import io.github.vevoly.atomicio.server.api.manager.GroupManager;
+import io.github.vevoly.atomicio.server.api.manager.IOEventManager;
+import io.github.vevoly.atomicio.server.api.manager.SessionManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -22,20 +25,20 @@ public class AtomicIOManagerAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AtomicIOEventManager eventManager() {
+    public IOEventManager eventManager() {
         return new AtomicIOEventManager();
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public AtomicIOSessionManager sessionManager() {
+    public SessionManager sessionManager() {
         return new AtomicIOSessionManager();
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public AtomicIOGroupManager groupManager() {
-        return new AtomicIOGroupManager();
+    public GroupManager groupManager(SessionManager sessionManager) {
+        return new AtomicIOGroupManager(sessionManager);
     }
 
 }

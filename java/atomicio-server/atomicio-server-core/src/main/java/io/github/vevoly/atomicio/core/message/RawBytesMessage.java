@@ -1,6 +1,6 @@
 package io.github.vevoly.atomicio.core.message;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AbstractAtomicIOMessage;
 
 /**
  * 原始字节消息
@@ -11,11 +11,12 @@ import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
  * @since 0.6.3
  * @author vevoly
  */
-public class RawBytesMessage implements AtomicIOMessage {
+public class RawBytesMessage extends AbstractAtomicIOMessage {
 
     private final byte[] finalPayload;
 
     public RawBytesMessage(byte[] finalPayload) {
+        super(0);
         this.finalPayload = finalPayload;
     }
 

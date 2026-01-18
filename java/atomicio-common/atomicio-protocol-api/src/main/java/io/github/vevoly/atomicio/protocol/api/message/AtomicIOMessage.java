@@ -1,4 +1,4 @@
-package io.github.vevoly.atomicio.protocol.api;
+package io.github.vevoly.atomicio.protocol.api.message;
 
 /**
  * 消息的顶层接口。
@@ -15,6 +15,12 @@ public interface AtomicIOMessage {
      * @return 指令ID
      */
     int getCommandId();
+
+    /**
+     * 获取消息的序列号。
+     *
+     */
+    long getSequenceId();
 
     /**
      * 获取消息体（Payload）。

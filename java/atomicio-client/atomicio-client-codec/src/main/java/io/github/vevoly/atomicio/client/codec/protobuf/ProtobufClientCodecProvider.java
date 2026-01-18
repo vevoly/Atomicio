@@ -8,7 +8,7 @@ import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.GenericMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.Heartbeat;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
@@ -42,7 +42,7 @@ public class ProtobufClientCodecProvider implements AtomicIOClientCodecProvider 
         Heartbeat heartbeat = Heartbeat.newBuilder()
                 .setTimestamp(System.currentTimeMillis())
                 .build();
-        return ProtobufMessage.of(AtomicIOCommand.HEARTBEAT, heartbeat);
+        return ProtobufMessage.of(AtomicIOCommand.HEARTBEAT_REQUEST, heartbeat);
     }
 
     @Override

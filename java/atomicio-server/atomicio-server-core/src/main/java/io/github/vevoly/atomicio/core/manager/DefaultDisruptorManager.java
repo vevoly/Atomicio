@@ -57,7 +57,7 @@ public class DefaultDisruptorManager implements DisruptorManager {
                 DaemonThreadFactory.INSTANCE // 线程工厂
         );
         // 连接消费者
-        disruptor.handleEventsWith(new DisruptorEventHandler((DefaultAtomicIOEngine) engine));
+        disruptor.handleEventsWith(new DisruptorEventHandler(engine));
         this.ringBuffer = disruptor.start();
     }
 

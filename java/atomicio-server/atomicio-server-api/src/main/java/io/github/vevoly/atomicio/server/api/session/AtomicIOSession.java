@@ -1,6 +1,5 @@
 package io.github.vevoly.atomicio.server.api.session;
 
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.netty.channel.ChannelFuture;
 
@@ -20,11 +19,39 @@ public interface AtomicIOSession {
     String getId();
 
     /**
+     * 获取当前会话绑定的用户ID。
+     *
+     * @return 如果会话已绑定 (isBound() == true)，则返回用户ID；否则返回 null。
+     */
+    String getUserId();
+
+    /**
+     * 获取当前会话绑定的设备ID。
+     *
+     * @return 如果会话已绑定 (isBound() == true)，则返回设备ID；否则返回 null。
+     */
+    String getDeviceId();
+
+    /**
+     * 检查当前会话是否已经与一个用户ID成功绑定。
+     * 只有在 `engine.bindUser()` 成功调用后，此方法才应返回 true。
+     *
+     * @return 如果会话已认证并绑定了用户，则返回 true；否则返回 false。
+     */
+    boolean isBound();
+
+    /**
      * 异步地向当前会话发送一条消息。
      * @param message 消息对象
      * @return Future 将在消息被写入传输后通知。
      */
     ChannelFuture send(Object message);
+
+    /**
+     * 发送最后一条消息并安全的关闭连接。
+     * @param message 消息对象
+     */
+    void sendAndClose(Object message);
 
     /**
      * 关闭当前会话。
@@ -53,7 +80,7 @@ public interface AtomicIOSession {
      * 获取会话创建的时间戳。
      * @return a long value representing the time the session was created, measured in milliseconds from the epoch.
      */
-    long getCreationTime();
+    long getCreateTime();
 
     /**
      * 获取最后一次读或写操作的时间戳。
@@ -75,4 +102,11 @@ public interface AtomicIOSession {
      * @return 属性值，如果不存在则返回 null
      */
     <T> T getAttribute(String key);
+
+    /**
+     * 从会话中移除一个属性。
+     * @param key 属性键
+     * @return 被移除的属性值，如果不存在则返回 null
+     */
+    void removeAttribute(String key);
 }

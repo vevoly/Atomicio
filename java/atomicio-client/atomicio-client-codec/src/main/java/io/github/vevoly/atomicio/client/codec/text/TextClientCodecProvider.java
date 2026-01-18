@@ -6,7 +6,7 @@ import io.github.vevoly.atomicio.codec.text.TextMessage;
 import io.github.vevoly.atomicio.codec.text.TextMessageDecoder;
 import io.github.vevoly.atomicio.codec.text.TextMessageEncoder;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.LineBasedFrameDecoder;
@@ -39,7 +39,7 @@ public class TextClientCodecProvider implements AtomicIOClientCodecProvider {
 
     @Override
     public AtomicIOMessage createHeartbeatResponse(AtomicIOMessage requestMessage) {
-        return new TextMessage(AtomicIOCommand.HEARTBEAT, "","PONG");
+        return new TextMessage(AtomicIOCommand.HEARTBEAT_REQUEST, "","PONG");
     }
 
     @Override

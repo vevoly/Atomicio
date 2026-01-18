@@ -1,7 +1,7 @@
 package io.github.vevoly.atomicio.server.api.listeners;
 
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 
 /**
  * 消息事件监听器

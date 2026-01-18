@@ -1,6 +1,7 @@
 package io.github.vevoly.atomicio.core.manager;
 
 import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
+import io.github.vevoly.atomicio.server.api.manager.SessionManager;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import lombok.extern.slf4j.Slf4j;
 
@@ -16,7 +17,7 @@ import java.util.stream.Collectors;
  * @author vevoly
  */
 @Slf4j
-public class AtomicIOSessionManager {
+public class AtomicIOSessionManager implements SessionManager {
 
     // 核心物理连接：SessionId -> Session 对象
     private final Map<String, AtomicIOSession> allSessions = new ConcurrentHashMap<>();
@@ -29,6 +30,7 @@ public class AtomicIOSessionManager {
     /**
      * 纯粹的本地添加，不涉及任何登录策略决策
      */
+    @Override
     public void addLocalSession(AtomicIOSession session) {
         String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
         String deviceId = session.getAttribute(AtomicIOSessionAttributes.DEVICE_ID);
@@ -47,6 +49,7 @@ public class AtomicIOSessionManager {
      * 物理踢人：根据 DeviceId 移除并关闭本地连接
      * 由 Engine 在收到 StateManager 的 register 结果后调用
      */
+    @Override
     public void removeByDeviceId(String deviceId) {
         String sessionId = deviceToSessionId.remove(deviceId);
         if (sessionId != null) {
@@ -57,6 +60,7 @@ public class AtomicIOSessionManager {
     /**
      * 仅获取本节点的物理连接
      */
+    @Override
     public List<AtomicIOSession> getLocalSessionsByUserId(String userId) {
         Set<String> sessionIds = userToSessionIds.get(userId);
         if (sessionIds == null) return Collections.emptyList();
@@ -68,29 +72,27 @@ public class AtomicIOSessionManager {
     }
 
     /**
+     * 根据会话 ID 获取 Session
+     * @param sessionId
+     * @return
+     */
+    @Override
+    public AtomicIOSession getLocalSessionById(String sessionId) {
+        return allSessions.get(sessionId);
+    }
+
+    /**
      * 纯粹的物理断开
      */
+    @Override
     public void removeLocalSession(String sessionId) {
         AtomicIOSession session = allSessions.remove(sessionId);
         if (session == null) {
             return;
         }
 
-        // 清理 UserId 索引
-        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
-        if (userId != null) {
-            Set<String> ids = userToSessionIds.get(userId);
-            if (ids != null) {
-                ids.remove(sessionId);
-                if (ids.isEmpty()) userToSessionIds.remove(userId);
-            }
-        }
-
-        // 清理 DeviceId 索引
-        String deviceId = session.getAttribute(AtomicIOSessionAttributes.DEVICE_ID);
-        if (deviceId != null) {
-            deviceToSessionId.remove(deviceId);
-        }
+        // 清理索引
+        cleanIndexes(session);
 
         // 执行物理关闭
         if (session.isActive()) {
@@ -100,8 +102,21 @@ public class AtomicIOSessionManager {
     }
 
     /**
+     * 仅清理索引，不执行 session.close()
+     */
+    @Override
+    public void removeLocalSessionOnly(String sessionId) {
+        AtomicIOSession session = allSessions.remove(sessionId);
+        if (session != null) {
+            // 仅清理索引，不执行 session.close()
+            cleanIndexes(session);
+        }
+    }
+
+    /**
      * 本地推送逻辑：纯粹的物理遍历发送
      */
+    @Override
     public boolean sendToUserLocally(String userId, Object message) {
         List<AtomicIOSession> locals = getLocalSessionsByUserId(userId);
         if (locals.isEmpty()) return false;
@@ -115,22 +130,9 @@ public class AtomicIOSessionManager {
     }
 
     /**
-     * 仅获取当前节点内存中的 Session 引用
-     */
-    public List<AtomicIOSession> findLocalSessionsByUserId(String userId) {
-        Set<String> sessionIds = userToSessionIds.get(userId);
-        if (sessionIds == null || sessionIds.isEmpty()) {
-            return Collections.emptyList();
-        }
-        return sessionIds.stream()
-                .map(allSessions::get)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-    }
-
-    /**
      * 全局本地广播：不涉及集群逻辑，仅负责本物理机发送
      */
+    @Override
     public void broadcastLocally(Object message) {
         allSessions.values().forEach(session -> {
             if (session.isActive()) {
@@ -143,7 +145,29 @@ public class AtomicIOSessionManager {
      * 获取当前节点的连接数
      * @return
      */
+    @Override
     public int getTotalConnectCount() {
         return allSessions.size(); // 直接返回本地物理 Map 的大小
+    }
+
+    /**
+     * 清理索引
+     * @param session
+     */
+    private void cleanIndexes(AtomicIOSession session) {
+        // 清理 UserId 索引
+        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
+        if (userId != null) {
+            Set<String> ids = userToSessionIds.get(userId);
+            if (ids != null) {
+                ids.remove(session.getId());
+                if (ids.isEmpty()) userToSessionIds.remove(userId);
+            }
+        }
+        // 清理 DeviceId 索引
+        String deviceId = session.getAttribute(AtomicIOSessionAttributes.DEVICE_ID);
+        if (deviceId != null) {
+            deviceToSessionId.remove(deviceId);
+        }
     }
 }

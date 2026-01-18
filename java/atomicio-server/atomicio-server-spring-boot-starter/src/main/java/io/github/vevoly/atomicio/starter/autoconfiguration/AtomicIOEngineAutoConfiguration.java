@@ -3,31 +3,23 @@ package io.github.vevoly.atomicio.starter.autoconfiguration;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOConfigDefaultValue;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
+import io.github.vevoly.atomicio.core.handler.AtomicIOCommandDispatcher;
 import io.github.vevoly.atomicio.core.listener.WelcomeBannerPrinter;
-import io.github.vevoly.atomicio.core.manager.*;
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
+import io.github.vevoly.atomicio.server.api.auth.Authenticator;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
-import io.github.vevoly.atomicio.server.api.listeners.*;
-import io.github.vevoly.atomicio.server.api.manager.ClusterManager;
-import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
-import io.github.vevoly.atomicio.server.api.manager.StateManager;
+import io.github.vevoly.atomicio.server.api.manager.*;
 import io.github.vevoly.atomicio.server.api.state.AtomicIOStateProvider;
-import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.lang.Nullable;
-
-import java.util.Collections;
-import java.util.List;
+import org.springframework.context.annotation.Lazy;
 
 /**
  * 自动装配
@@ -50,14 +42,15 @@ public class AtomicIOEngineAutoConfiguration {
     public AtomicIOEngine atomicIOEngine(
             AtomicIOProperties config,
             DisruptorManager disruptorManager,
-            AtomicIOEventManager eventManager,
-            AtomicIOSessionManager sessionManager,
-            AtomicIOGroupManager groupManager,
+            IOEventManager eventManager,
+            SessionManager sessionManager,
+            GroupManager groupManager,
             AtomicIOServerCodecProvider codecProvider,
             AtomicIOStateProvider stateProvider,
             StateManager stateManager,
             ObjectProvider<AtomicIOClusterProvider> clusterProvider,
-            ObjectProvider<AtomicIOClusterManager> clusterManager
+            ObjectProvider<ClusterManager> clusterManager,
+            @Lazy AtomicIOCommandDispatcher commandDispatcher
     ) {
         log.info("Createing DefaultAtomicIOEngine");
         return new DefaultAtomicIOEngine(
@@ -70,11 +63,27 @@ public class AtomicIOEngineAutoConfiguration {
                 stateProvider,
                 stateManager,
                 clusterProvider.getIfAvailable(),
-                clusterManager.getIfAvailable()
+                clusterManager.getIfAvailable(),
+                commandDispatcher
         );
     }
 
-
+    /**
+     * 创建框架核心指令分发器 Handler。
+     * <p>
+     * 这个 Handler 依赖于 AtomicIOEngine 和一个由用户提供的 Authenticator Bean。
+     *
+     * @param engine        自动注入的引擎实例。
+     * @param authenticator 由用户应用程序提供的认证器实例。如果用户没有提供，容器将启动失败，
+     *                      这是一个“快速失败”的设计，强制用户完成必要的安全配置。
+     * @return a {@link AtomicIOCommandDispatcher} instance.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public AtomicIOCommandDispatcher atomicIOCommandDispatcher(AtomicIOEngine engine, Authenticator authenticator) {
+        log.info("Creating FrameworkCommandDispatcher, powered by user-provided [{}].", authenticator.getClass().getSimpleName());
+        return new AtomicIOCommandDispatcher(engine, authenticator);
+    }
 
     /**
      * 内部 Bean 定义：创建默认的欢迎横幅打印机。

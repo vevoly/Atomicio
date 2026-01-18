@@ -4,7 +4,7 @@ import io.github.vevoly.atomicio.server.api.constants.AtomicIOEventType;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.server.api.constants.IdleState;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import lombok.Data;
 
 /**

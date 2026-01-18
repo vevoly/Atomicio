@@ -3,7 +3,7 @@ package io.github.vevoly.atomicio.example.protobuf.listeners;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.github.vevoly.atomicio.common.api.id.AtomicIOIdGenerator;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.server.api.listeners.MessageEventListener;
@@ -37,7 +37,7 @@ public class MyMessageListener implements MessageEventListener {
 
         try {
             switch (commandId) {
-                case AtomicIOCommand.HEARTBEAT:
+                case AtomicIOCommand.HEARTBEAT_REQUEST:
                     log.info("收到客户端 {} 心跳.", Optional.ofNullable(session.getAttribute(AtomicIOSessionAttributes.USER_ID)));
                     break;
                 case ProtobufExampleCmd.LOGIN:
