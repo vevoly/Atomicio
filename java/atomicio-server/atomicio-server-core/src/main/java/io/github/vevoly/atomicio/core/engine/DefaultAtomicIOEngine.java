@@ -23,9 +23,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Future;
@@ -302,7 +300,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     public void sendToUser(String userId, AtomicIOMessage message) {
         boolean sentLocally = sessionManager.sendToUserLocally(userId, message);
         if (!sentLocally && clusterProvider != null) {
-            AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_USER, userId);
+            AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_USER, userId, null);
             clusterManager.publish(clusterMessage);
         }
     }
@@ -351,11 +349,11 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     }
 
     @Override
-    public void sendToGroup(String groupId, AtomicIOMessage message, String... excludeUserIds) {
+    public void sendToGroup(String groupId, AtomicIOMessage message, Set<String> excludeUserIds) {
         // 先进行一次预编码，后续分发都使用这个字节流
         AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_GROUP, groupId, excludeUserIds);
         // 本地广播：利用物理 ChannelGroup 高效推送
-        groupManager.broadcastLocally(groupId, message);
+        groupManager.sendToGroupLocally(groupId, message, excludeUserIds);
         // 集群分发：通知其他节点
         if (clusterProvider != null) {
             clusterManager.publish(clusterMessage);
@@ -368,7 +366,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         sessionManager.broadcastLocally(message);
         // 集群广播
         if (clusterProvider != null) {
-            AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.BROADCAST, null);
+            AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.BROADCAST, null, null);
             clusterManager.publish(clusterMessage);
         }
     }
@@ -435,7 +433,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             AtomicIOMessage message,
             AtomicIOClusterMessageType messageType,
             String target,
-            String... excludeUserIds
+            Set<String> excludeUserIds
     ) {
         // 1. 预编码
         byte[] finalPayload = new byte[0];
@@ -453,8 +451,9 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         if (target != null) {
             clusterMessage.setTarget(target);
         }
-        if (excludeUserIds != null && excludeUserIds.length > 0) {
-            clusterMessage.setExcludeUserIds(Set.of(excludeUserIds));
+        if (excludeUserIds != null && excludeUserIds.size() > 0) {
+            HashSet<String> excludeUserIdSet = new HashSet<>(Set.copyOf(excludeUserIds));
+            clusterMessage.setExcludeUserIds(excludeUserIdSet);
         }
         return clusterMessage;
     }

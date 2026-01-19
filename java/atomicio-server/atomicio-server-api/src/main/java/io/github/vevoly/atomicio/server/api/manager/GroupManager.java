@@ -2,6 +2,8 @@ package io.github.vevoly.atomicio.server.api.manager;
 
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 
+import java.util.Set;
+
 /**
  * 群组管理器接口
  * 负责物理连接，管理本节点的 Channel 组逻辑
@@ -37,7 +39,7 @@ public interface GroupManager {
      * @param message 消息对象
      * @param excludeUserIds 需要排除的用户ID列表
      */
-    void sendToGroupLocally(String groupId, Object message, String... excludeUserIds);
+    void sendToGroupLocally(String groupId, Object message, Set<String> excludeUserIds);
 
     /**
      * 高性能本地组广播（无过滤）

@@ -15,6 +15,7 @@ import io.github.vevoly.atomicio.server.api.state.AtomicIOStateProvider;
 import org.springframework.lang.Nullable;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -191,7 +192,7 @@ public interface AtomicIOEngine {
      * @param message 消息对象
      * @param excludeUserIds 可选的、需要排除的用户ID列表（例如，不把移动消息发给自己）
      */
-    void sendToGroup(String groupId, AtomicIOMessage message, String... excludeUserIds);
+    void sendToGroup(String groupId, AtomicIOMessage message, Set<String> excludeUserIds);
 
     /**
      * 向所有在线用户广播消息。

@@ -74,7 +74,7 @@ public class MyMessageListener implements MessageEventListener {
             session.getEngine().bindUser(AtomicIOBindRequest.of(userId), session);
             log.info("User {} authenticated and bound to session {}", userId, session.getId());
             // 回复客户端
-            AtomicIOMessage response = ProtobufMessage.of(ProtobufExampleCmd.LOGIN_RESPONSE,
+            AtomicIOMessage response = ProtobufMessage.of(0, ProtobufExampleCmd.LOGIN_RESPONSE,
                     LoginResponse.newBuilder().setSuccess(true).setServerTime(System.currentTimeMillis()).build());
             session.send(response);
         } else {
@@ -109,7 +109,7 @@ public class MyMessageListener implements MessageEventListener {
                     .setCode(400)
                     .setMessage("Missing recipient or client message id")
                     .build();
-            session.send(ProtobufMessage.of(ProtobufExampleCmd.P2P_MESSAGE_ACK, invalidAck));
+            session.send(ProtobufMessage.of(0, ProtobufExampleCmd.P2P_MESSAGE_ACK, invalidAck));
             return;
         }
         log.info("User '{}' sends message (clientMsgId:{}) to user '{}'", fromUserId, clientMessageId, toUserId);
@@ -121,7 +121,7 @@ public class MyMessageListener implements MessageEventListener {
                 .setServerMessageId(serverMessageId)
                 .setServerTime(System.currentTimeMillis())
                 .build();
-        AtomicIOMessage messageToForward = ProtobufMessage.of(ProtobufExampleCmd.P2P_MESSAGE_NOTIFY, notifyMessageBody);
+        AtomicIOMessage messageToForward = ProtobufMessage.of(0, ProtobufExampleCmd.P2P_MESSAGE_NOTIFY, notifyMessageBody);
         // 5. 调用引擎的 sendToUser 方法进行消息路由和投递
         session.getEngine().sendToUser(toUserId, messageToForward);
         // 6. 给发送者一个发送成功的回执 (ACK)
@@ -131,7 +131,7 @@ public class MyMessageListener implements MessageEventListener {
                 .setServerMessageId(serverMessageId)
                 .setTimestamp(System.currentTimeMillis())
                 .build();
-        session.send(ProtobufMessage.of(ProtobufExampleCmd.P2P_MESSAGE_ACK, successAck));
+        session.send(ProtobufMessage.of(0, ProtobufExampleCmd.P2P_MESSAGE_ACK, successAck));
     }
 
 }

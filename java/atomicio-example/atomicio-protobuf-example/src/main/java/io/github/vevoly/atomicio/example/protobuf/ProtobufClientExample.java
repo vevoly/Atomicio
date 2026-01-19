@@ -69,7 +69,7 @@ public class ProtobufClientExample {
     private static void sendLoginRequest(AtomicIOClient client, String userId, String token) {
         LoginRequest loginRequestBody = LoginRequest.newBuilder()
                 .setUserId(userId).setToken(token).build();
-        AtomicIOMessage loginMessage = ProtobufMessage.of(ProtobufExampleCmd.LOGIN, loginRequestBody);
+        AtomicIOMessage loginMessage = ProtobufMessage.of(0, ProtobufExampleCmd.LOGIN, loginRequestBody);
         log.info("Sending LoginRequest for user '{}'...", userId);
         client.send(loginMessage);
     }
@@ -144,7 +144,7 @@ public class ProtobufClientExample {
                         .setClientMessageId("client-" + System.nanoTime()) // 生成一个唯一的客户端消息ID
                         .build();
 
-                AtomicIOMessage p2pMessage = ProtobufMessage.of(ProtobufExampleCmd.P2P_MESSAGE, p2pRequestBody);
+                AtomicIOMessage p2pMessage = ProtobufMessage.of(0, ProtobufExampleCmd.P2P_MESSAGE, p2pRequestBody);
 
                 log.info("Sending P2P message to '{}'...", toUserId);
                 client.send(p2pMessage);

@@ -31,6 +31,7 @@ public class TextMessageEncoder extends MessageToByteEncoder<TextMessage> {
         sb.append(msg.getDeviceId() != null ? msg.getDeviceId() : "");
         sb.append(':');
         sb.append(msg.getContent() != null ? msg.getContent() : "");
+        sb.append('\n');
 
         out.writeBytes(sb.toString().getBytes(StandardCharsets.UTF_8));
     }

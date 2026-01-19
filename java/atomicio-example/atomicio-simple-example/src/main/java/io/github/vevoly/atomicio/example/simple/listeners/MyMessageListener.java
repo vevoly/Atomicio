@@ -8,6 +8,8 @@ import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
+
 /**
  * 用户自定义消息监听器示例
  * sequenceId:commandId:deviceId:payload
@@ -84,14 +86,14 @@ public class MyMessageListener implements MessageEventListener {
         log.info("转发群消息: 从 '{}' -> 到群组 '{}', 内容: '{}'", fromUserId, groupId, msgBody);
 
         TextMessage forwardMessage = new TextMessage(
-                0,
+                message.getSequenceId(),
                 BusinessCommand.GROUP_MESSAGE,
                 session.getDeviceId(),
                 fromUserId + ":" + msgBody
         );
 
         // 使用 engine 发送到群组，并排除发送者自己
-        session.getEngine().sendToGroup(groupId, forwardMessage, fromUserId);
+        session.getEngine().sendToGroup(groupId, forwardMessage, Collections.singleton(fromUserId));
     }
 
 }

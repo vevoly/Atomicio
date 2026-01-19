@@ -42,7 +42,7 @@ public class ProtobufClientCodecProvider implements AtomicIOClientCodecProvider 
         Heartbeat heartbeat = Heartbeat.newBuilder()
                 .setTimestamp(System.currentTimeMillis())
                 .build();
-        return ProtobufMessage.of(AtomicIOCommand.HEARTBEAT_REQUEST, heartbeat);
+        return ProtobufMessage.of(0, AtomicIOCommand.HEARTBEAT_REQUEST, heartbeat);
     }
 
     @Override

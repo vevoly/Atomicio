@@ -58,8 +58,7 @@ public class DisruptorEventHandler implements EventHandler<DisruptorEntry> {
                 sessionManager.sendToUserLocally(message.getTarget(), forwardedMessage);
                 break;
             case SEND_TO_GROUP:
-                groupManager.sendToGroupLocally(message.getTarget(), forwardedMessage,
-                        message.getExcludeUserIds() != null ? message.getExcludeUserIds().toArray(new String[0]) : null);
+                groupManager.sendToGroupLocally(message.getTarget(), forwardedMessage, message.getExcludeUserIds());
                 break;
             case BROADCAST:
                 sessionManager.broadcastLocally(forwardedMessage);

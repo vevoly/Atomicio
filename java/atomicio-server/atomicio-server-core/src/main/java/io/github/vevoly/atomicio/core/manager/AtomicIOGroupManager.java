@@ -86,20 +86,19 @@ public class AtomicIOGroupManager implements GroupManager {
      * @param excludeUserIds 需要排除的用户ID数组
      */
     @Override
-    public void sendToGroupLocally(String groupId, Object message, String... excludeUserIds) {
+    public void sendToGroupLocally(String groupId, Object message, Set<String> excludeUserIds) {
         ChannelGroup group = localGroups.get(groupId);
         if (group == null || group.isEmpty()) {
             return;
         }
 
-        if (excludeUserIds != null && excludeUserIds.length > 0) {
+        if (excludeUserIds != null && excludeUserIds.size() > 0) {
             // 策略 A: 有排除名单，需遍历组内 Channel 进行过滤发送
-            Set<String> excludes = Set.of(excludeUserIds);
             group.forEach(channel -> {
                 AtomicIOSession session = sessionManager.getLocalSessionById(channel.id().asLongText());
                 if (session != null) {
                     String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
-                    if (userId != null && !excludes.contains(userId)) {
+                    if (userId != null && !excludeUserIds.contains(userId)) {
                         session.send(message);
                     }
                 }
