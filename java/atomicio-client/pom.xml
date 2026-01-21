@@ -15,6 +15,7 @@
         <module>atomicio-client-core</module>
         <module>atomicio-client-codec</module>
         <module>atomicio-client-sdk</module>
+        <module>atomicio-client-spring-boot-starter</module>
     </modules>
     <packaging>pom</packaging>
     <artifactId>atomicio-client</artifactId>

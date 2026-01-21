@@ -300,7 +300,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     public void sendToUser(String userId, AtomicIOMessage message) {
         boolean sentLocally = sessionManager.sendToUserLocally(userId, message);
         if (!sentLocally && clusterProvider != null) {
-            AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_USER, userId, null);
+            AtomicIOClusterMessage clusterMessage = clusterManager.buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_USER, userId, null);
             clusterManager.publish(clusterMessage);
         }
     }
@@ -351,7 +351,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     @Override
     public void sendToGroup(String groupId, AtomicIOMessage message, Set<String> excludeUserIds) {
         // 先进行一次预编码，后续分发都使用这个字节流
-        AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_GROUP, groupId, excludeUserIds);
+        AtomicIOClusterMessage clusterMessage = clusterManager.buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_GROUP, groupId, excludeUserIds);
         // 本地广播：利用物理 ChannelGroup 高效推送
         groupManager.sendToGroupLocally(groupId, message, excludeUserIds);
         // 集群分发：通知其他节点
@@ -366,7 +366,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         sessionManager.broadcastLocally(message);
         // 集群广播
         if (clusterProvider != null) {
-            AtomicIOClusterMessage clusterMessage = buildClusterMessage(message, AtomicIOClusterMessageType.BROADCAST, null, null);
+            AtomicIOClusterMessage clusterMessage = clusterManager.buildClusterMessage(message, AtomicIOClusterMessageType.BROADCAST, null, null);
             clusterManager.publish(clusterMessage);
         }
     }
@@ -419,43 +419,6 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                         return null;
                     });
         }
-    }
-
-    /**
-     * 构建集群消息
-     * @param message        消息
-     * @param messageType    消息类型
-     * @param target         目标
-     * @param excludeUserIds 排除的用户
-     * @return
-     */
-    private AtomicIOClusterMessage buildClusterMessage (
-            AtomicIOMessage message,
-            AtomicIOClusterMessageType messageType,
-            String target,
-            Set<String> excludeUserIds
-    ) {
-        // 1. 预编码
-        byte[] finalPayload = new byte[0];
-        try {
-            finalPayload = codecProvider.encodeToBytes(message, config);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
-        clusterMessage.setMessageType(messageType);
-        clusterMessage.setCommandId(message.getCommandId());
-        // 2. payload 存储的是“预编码”后的最终字节
-        clusterMessage.setPayload(finalPayload);
-        if (target != null) {
-            clusterMessage.setTarget(target);
-        }
-        if (excludeUserIds != null && excludeUserIds.size() > 0) {
-            HashSet<String> excludeUserIdSet = new HashSet<>(Set.copyOf(excludeUserIds));
-            clusterMessage.setExcludeUserIds(excludeUserIdSet);
-        }
-        return clusterMessage;
     }
 
 }

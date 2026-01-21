@@ -8,81 +8,53 @@
         <artifactId>atomicio-example</artifactId>
         <version>${revision}</version>
     </parent>
+    <packaging>pom</packaging>
 
     <name>Atomicio-Protobuf-Example</name>
     <artifactId>atomicio-protobuf-example</artifactId>
     <url>https://github.com/vevoly/Atomicio</url>
-    <description>A example with Protobuf protocol for Atomicio</description>
-    <dependencies>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-server-spring-boot-starter</artifactId>
-            <version>${revision}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-client-codec</artifactId>
-            <version>${revision}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-codec-protobuf</artifactId>
-            <version>${revision}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-client-sdk</artifactId>
-            <version>${revision}</version>
-        </dependency>
-    </dependencies>
+    <description>Protobuf protocol Example for AtomicIO, Includes Server and Client example.</description>
 
-    <!-- 配置 Protobuf 编译器插件 -->
-    <build>
-        <extensions>
-            <extension>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>${os-maven-plugin.version}</version>
-            </extension>
-        </extensions>
+    <modules>
+        <module>atomicio-protobuf-server-example</module>
+    </modules>
 
-        <plugins>
-            <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
-                <artifactId>protobuf-maven-plugin</artifactId>
-                <version>${protobuf-maven-plugin.version}</version>
-                <configuration>
-                    <protoSourceRoot>src/main/proto</protoSourceRoot>
-                    <protocArtifact>com.google.protobuf:protoc:${google-protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- **新增 build-helper-maven-plugin** -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.5.0</version>
-                <executions>
-                    <execution>
-                        <id>add-source</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                        </goals>
-                        <configuration>
-                            <sources>
-                                <source>${project.build.directory}/generated-sources/protobuf/java</source>
-                            </sources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+    <dependencyManagement>
+        <dependencies>
+
+            <!-- 服务器端 -->
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-server-spring-boot-starter</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-server-codec</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-id-snowflake</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <!-- 客户端 -->
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-client-spring-boot-starter</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-client-sdk</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-client-codec</artifactId>
+                <version>${revision}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>

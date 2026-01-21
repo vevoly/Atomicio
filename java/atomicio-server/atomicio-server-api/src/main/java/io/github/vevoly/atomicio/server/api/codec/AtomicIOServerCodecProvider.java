@@ -33,6 +33,18 @@ public interface AtomicIOServerCodecProvider {
     AtomicIOMessage createResponse(AtomicIOMessage requestMessage, int commandId, Object payload);
 
     /**
+     * 专门用于创建框架级的、简单的成功/失败响应。
+     * 这是 FrameworkCommandDispatcher 应该调用的方法。
+     *
+     * @param requestMessage 原始请求
+     * @param commandId      响应的指令ID
+     * @param success        操作是否成功
+     * @param message        附带的文本消息
+     * @return 一个实现了 AtomicIOMessage 的响应消息
+     */
+    AtomicIOMessage createResponse(AtomicIOMessage requestMessage, int commandId, boolean success, String message);
+
+    /**
      * 获取所有【入站】的协议相关 Handler。
      */
     List<ChannelHandler> getInboundHandlers(AtomicIOProperties config);

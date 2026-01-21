@@ -2,6 +2,8 @@ package io.github.vevoly.atomicio.client.api.codec;
 
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.result.AuthResult;
+import io.github.vevoly.atomicio.protocol.api.result.GeneralResult;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 
@@ -75,4 +77,44 @@ public interface AtomicIOClientCodecProvider {
 
     void buildPipeline(ChannelPipeline pipeline, AtomicIOClientConfig config);
 
+    /**
+     * 根据指令和载体，创建一个协议相关的请求消息。
+     *
+     * @param sequenceId 消息的序列号，由 RequestManager 生成
+     * @param commandId  消息的指令ID
+     * @param deviceId   当前客户端的设备ID
+     * @param params     包含了构建业务载体所需的所有原始数据的可变参数数组
+     * @return 一个实现了 AtomicIOMessage 接口的实例。
+     */
+    AtomicIOMessage createRequest(long sequenceId, int commandId, String deviceId, Object... params);
+
+    /**
+     * 解析 Payload 为指定类型的对象。
+     * 将一个 AtomicIOMessage 的二进制 payload 解析为指定的目标 Class 类型
+     * @param message       要解析的消息对象
+     * @param clazz         目标类型 Class 对象
+     * @return
+     * @throws Exception    如果解析失败，抛出异常
+     */
+    <T> T parsePayloadAs(AtomicIOMessage message, Class<T> clazz) throws Exception;
+
+    /**
+     * 将认证响应消息转换为一个协议无关的 AuthResult 对象。
+     *
+     * @param responseMessage  收到的响应消息
+     * @param originalUserId   原始请求中的 userId (用于填充 AuthResult)
+     * @param originalDeviceId 原始请求中的 deviceId (用于填充 AuthResult)
+     * @return 一个 AuthResult 实例
+     * @throws Exception 如果响应消息不是一个有效的认证响应
+     */
+    AuthResult toAuthResult(AtomicIOMessage responseMessage, String originalUserId, String originalDeviceId) throws Exception;
+
+    /**
+     * 将通用的响应消息转换为一个协议无关的 GeneralResult 对象。
+     *
+     * @param responseMessage 收到的响应消息
+     * @return 一个 GeneralResult 实例
+     * @throws Exception 如果响应消息不是一个有效的通用响应
+     */
+    GeneralResult toGeneralResult(AtomicIOMessage responseMessage) throws Exception;
 }

@@ -122,7 +122,7 @@ public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<Atomi
                     if (throwable != null) {
                         log.error("Authenticator threw an exception for session [{}].", session.getRemoteAddress(), throwable);
                         AtomicIOMessage response = engine.getCodecProvider()
-                                .createResponse(message, AtomicIOCommand.LOGIN_RESPONSE, "Error: Internal server error");
+                                .createResponse(message, AtomicIOCommand.LOGIN_RESPONSE, false, "Internal server error");
                         session.sendAndClose(response);
                         return;
                     }
@@ -133,12 +133,12 @@ public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<Atomi
                         AtomicIOBindRequest bindRequest = new AtomicIOBindRequest(authResult.userId()).withDeviceId(authResult.deviceId());
                         engine.bindUser(bindRequest, session);
                         AtomicIOMessage response = engine.getCodecProvider()
-                                .createResponse(message, AtomicIOCommand.LOGIN_RESPONSE, "Success: Welcome");
+                                .createResponse(message, AtomicIOCommand.LOGIN_RESPONSE, true, "Welcome");
                         session.send(response);
                     } else {
                         log.warn("Authentication failed for session [{}]. Reason: {}", session.getRemoteAddress(), authResult.errorMessage());
                         AtomicIOMessage response = engine.getCodecProvider()
-                                .createResponse(message, AtomicIOCommand.LOGIN_RESPONSE, "Error: " + authResult.errorMessage());
+                                .createResponse(message, AtomicIOCommand.LOGIN_RESPONSE, false, "Error: " + authResult.errorMessage());
                         session.sendAndClose(response);
                     }
                 });

@@ -2,8 +2,11 @@ package io.github.vevoly.atomicio.common.api.config;
 
 import io.github.vevoly.atomicio.common.api.id.AtomicIOIdGeneratorType;
 
-import java.util.UUID;
-
+/**
+ * 服务器端配置文件默认值
+ *
+ * @author vevoly
+ */
 public class AtomicIOConfigDefaultValue {
 
     public static final String SYS_ID = "ATOMICIO";

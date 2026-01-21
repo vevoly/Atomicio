@@ -1,6 +1,10 @@
 package io.github.vevoly.atomicio.server.api.manager;
 
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
+import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessageType;
+
+import java.util.Set;
 
 /**
  * 集群管理器接口
@@ -39,6 +43,14 @@ public interface ClusterManager {
      */
     void publishKickOut(String nodeId, AtomicIOClusterMessage message);
 
-
+    /**
+     * 构建集群消息
+     * @param message        消息
+     * @param messageType    消息类型
+     * @param target         发送目标
+     * @param excludeUserIds 排除用户
+     * @return
+     */
+    AtomicIOClusterMessage buildClusterMessage (AtomicIOMessage message, AtomicIOClusterMessageType messageType, String target, Set<String> excludeUserIds);
 
 }

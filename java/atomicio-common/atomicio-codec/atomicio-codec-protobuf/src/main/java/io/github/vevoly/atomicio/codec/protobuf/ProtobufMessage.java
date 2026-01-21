@@ -33,6 +33,10 @@ public class ProtobufMessage extends AbstractAtomicIOMessage {
         return protoMessage.getPayload().toByteArray();
     }
 
+    public Any getAnyPayload() {
+        return this.protoMessage.getPayload();
+    }
+
     /**
      * 反向转换的方法，方便编码
      * @param message

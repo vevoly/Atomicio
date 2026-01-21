@@ -34,7 +34,7 @@ public class AtomicIOCodecAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(AtomicIOServerCodecProvider.class)
-        public AtomicIOServerCodecProvider textCodecProvider(AtomicIOProperties properties) {
+        public AtomicIOServerCodecProvider textCodecProvider() {
             log.info("Creating default ServerCodecProvider: TextCodecProvider");
             return new TextServerCodecProvider();
         }
@@ -45,12 +45,12 @@ public class AtomicIOCodecAutoConfiguration {
      */
     @Configuration
     @ConditionalOnClass(ProtobufServerCodecProvider.class)
-    @ConditionalOnProperty(prefix = "atomicio.codec", name = "type", havingValue = "protobuf")
+    @ConditionalOnProperty(prefix = AtomicIOConfigDefaultValue.CONFIG_PREFIX_CODEC, name = "type", havingValue = "protobuf")
     static class ProtobufCodecConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(AtomicIOServerCodecProvider.class)
-        public AtomicIOServerCodecProvider protobufCodecProvider(AtomicIOProperties properties) {
+        public AtomicIOServerCodecProvider protobufCodecProvider() {
             log.info("Creating default ServerCodecProvider: ProtobufCodecProvider");
             return new ProtobufServerCodecProvider();
         }

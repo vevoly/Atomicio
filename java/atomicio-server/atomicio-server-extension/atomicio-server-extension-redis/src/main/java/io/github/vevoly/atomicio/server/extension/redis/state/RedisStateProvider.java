@@ -1,6 +1,7 @@
 package io.github.vevoly.atomicio.server.extension.redis.state;
 
-import io.github.vevoly.atomicio.server.api.constants.AtomicIOConstant;
+import io.github.vevoly.atomicio.common.api.constants.AtomicIOConstant;
+import io.github.vevoly.atomicio.server.api.constants.AtomicIOServerConstant;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.server.api.state.AtomicIOGroupStateProvider;
 import io.github.vevoly.atomicio.server.api.state.AtomicIOSessionStateProvider;
@@ -53,7 +54,7 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
             // 验证连接
             log.debug("正在验证 Redis 连接...");
             String pong = connection.sync().ping();
-            if (!"PONG".equalsIgnoreCase(pong)) {
+            if (!AtomicIOConstant.DEFAULT_HEARTBEAT_RESPONSE.equalsIgnoreCase(pong)) {
                 throw new IllegalStateException("Redis PING 命令失败，收到响应: " + pong);
             }
             log.info("RedisStateProvider 已启动，连接验证成功。");
@@ -99,11 +100,11 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
     public CompletableFuture<Map<String, String>> register(AtomicIOBindRequest request, String nodeId, boolean isMultiLogin) {
         String userId = request.getUserId();
         String deviceId = request.getDeviceId();
-        String key = AtomicIOConstant.SESSIONS_KEY_PREFIX + userId;
+        String key = AtomicIOServerConstant.SESSIONS_KEY_PREFIX + userId;
 
         // 原子性更新全局统计数据 (异步，不阻塞主流程)
-        asyncCommands.sadd(AtomicIOConstant.TOTAL_USERS_KEY, userId);
-        asyncCommands.incr(AtomicIOConstant.TOTAL_SESSIONS_KEY);
+        asyncCommands.sadd(AtomicIOServerConstant.TOTAL_USERS_KEY, userId);
+        asyncCommands.incr(AtomicIOServerConstant.TOTAL_SESSIONS_KEY);
 
         if (isMultiLogin) {
             // 多端登录：直接 HSET，返回空 Map
@@ -126,7 +127,7 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
 
     @Override
     public CompletableFuture<Void> unregister(String userId, String deviceId) {
-        String key = AtomicIOConstant.SESSIONS_KEY_PREFIX + userId;
+        String key = AtomicIOServerConstant.SESSIONS_KEY_PREFIX + userId;
         return asyncCommands.hdel(key, deviceId)
                 .thenAccept(v -> {log.debug("Redis Session 移除: user={}, device={}", userId, deviceId);})
                 .toCompletableFuture();
@@ -134,7 +135,7 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
 
     @Override
     public CompletableFuture<Map<String, String>> unregisterAll(String userId) {
-        String key = AtomicIOConstant.SESSIONS_KEY_PREFIX + userId;
+        String key = AtomicIOServerConstant.SESSIONS_KEY_PREFIX + userId;
         // 先获取所有会话，以便后续做集群清理
         return asyncCommands.hgetall(key).thenCompose(oldSessions -> {
             if (oldSessions.isEmpty()) {
@@ -147,13 +148,13 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
 
     @Override
     public CompletableFuture<Map<String, String>> findSessions(String userId) {
-        String key = AtomicIOConstant.SESSIONS_KEY_PREFIX + userId;
+        String key = AtomicIOServerConstant.SESSIONS_KEY_PREFIX + userId;
         return asyncCommands.hgetall(key).toCompletableFuture();
     }
 
     @Override
     public CompletableFuture<Boolean> isUserOnline(String userId) {
-        String key = AtomicIOConstant.SESSIONS_KEY_PREFIX + userId;
+        String key = AtomicIOServerConstant.SESSIONS_KEY_PREFIX + userId;
         return asyncCommands.exists(key)
                 .thenApply(count -> count != null && count > 0)
                 .toCompletableFuture();
@@ -161,13 +162,13 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
 
     @Override
     public CompletableFuture<Long> getTotalUserCount() {
-        return asyncCommands.scard(AtomicIOConstant.TOTAL_USERS_KEY)
+        return asyncCommands.scard(AtomicIOServerConstant.TOTAL_USERS_KEY)
                 .toCompletableFuture();
     }
 
     @Override
     public CompletableFuture<Long> getTotalSessionCount() {
-        return asyncCommands.get(AtomicIOConstant.TOTAL_SESSIONS_KEY)
+        return asyncCommands.get(AtomicIOServerConstant.TOTAL_SESSIONS_KEY)
                 .thenApply(val -> val != null ? Long.parseLong(val) : 0L)
                 .toCompletableFuture();
     }
@@ -178,7 +179,7 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
 
     @Override
     public CompletableFuture<Void> join(String groupId, String userId) {
-        String key = AtomicIOConstant.GROUPS_KEY_PREFIX + groupId;
+        String key = AtomicIOServerConstant.GROUPS_KEY_PREFIX + groupId;
         return asyncCommands.sadd(key, userId)
                 .thenAccept(v -> {log.debug("Redis状态操作: SADD {} {}", key, userId);})
                 .toCompletableFuture();
@@ -186,7 +187,7 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
 
     @Override
     public CompletableFuture<Void> leave(String groupId, String userId) {
-        String key = AtomicIOConstant.GROUPS_KEY_PREFIX + groupId;
+        String key = AtomicIOServerConstant.GROUPS_KEY_PREFIX + groupId;
         return asyncCommands.srem(key, userId)
                 .thenAccept(v -> {log.debug("Redis状态操作: SREM {} {}", key, userId);})
                 .toCompletableFuture();
@@ -194,7 +195,7 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
 
     @Override
     public CompletableFuture<Set<String>> getGroupMembers(String groupId) {
-        String key = AtomicIOConstant.GROUPS_KEY_PREFIX + groupId;
+        String key = AtomicIOServerConstant.GROUPS_KEY_PREFIX + groupId;
 
         // 1. 先用 SCARD 获取总数
         return asyncCommands.scard(key).thenCompose(size -> {
@@ -215,19 +216,19 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
 
     @Override
     public CompletableFuture<Long> getGroupMemberCount(String groupId) {
-        String key = AtomicIOConstant.GROUPS_KEY_PREFIX + groupId;
+        String key = AtomicIOServerConstant.GROUPS_KEY_PREFIX + groupId;
         return asyncCommands.scard(key).toCompletableFuture();
     }
 
     @Override
     public CompletableFuture<Boolean> isGroupMember(String groupId, String userId) {
-        String key = AtomicIOConstant.GROUPS_KEY_PREFIX + groupId;
+        String key = AtomicIOServerConstant.GROUPS_KEY_PREFIX + groupId;
         return asyncCommands.sismember(key, userId).toCompletableFuture();
     }
 
     @Override
     public CompletableFuture<Set<String>> getGroupsForUser(String userId) {
-        String key = AtomicIOConstant.GROUPS_TO_USERS_KEY_PREFIX + userId;
+        String key = AtomicIOServerConstant.GROUPS_TO_USERS_KEY_PREFIX + userId;
         return asyncCommands.scard(key).thenCompose(size -> {
             if (size == null || size == 0) {
                 return CompletableFuture.completedFuture(Collections.<String>emptySet());
@@ -242,7 +243,7 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
 
     @Override
     public CompletableFuture<Long> getGroupCountForUser(String userId) {
-        String key = AtomicIOConstant.USERS_TO_GROUPS_KEY_PREFIX + userId;
+        String key = AtomicIOServerConstant.USERS_TO_GROUPS_KEY_PREFIX + userId;
         return asyncCommands.scard(key).toCompletableFuture();
     }
 

@@ -3,9 +3,12 @@ package io.github.vevoly.atomicio.core.manager;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
+import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.server.api.manager.ClusterManager;
 import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
 
 import java.io.ByteArrayOutputStream;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 集群管理器
@@ -24,12 +29,21 @@ import java.io.ByteArrayOutputStream;
 @Slf4j
 public class AtomicIOClusterManager implements ClusterManager {
 
+    private final AtomicIOProperties config;
     private final AtomicIOClusterProvider clusterProvider;
+    private final AtomicIOServerCodecProvider codecProvider;
     private final DisruptorManager disruptorManager;
+
     private final Kryo kryo;
 
-    public AtomicIOClusterManager(@Nullable AtomicIOClusterProvider provider, DisruptorManager disruptorManager) {
+    public AtomicIOClusterManager(
+            AtomicIOProperties config,
+            @Nullable AtomicIOClusterProvider provider,
+            AtomicIOServerCodecProvider codecProvider,
+            DisruptorManager disruptorManager) {
+        this.config = config;
         this.clusterProvider = provider;
+        this.codecProvider = codecProvider;
         this.disruptorManager = disruptorManager;
         // 初始化 Kryo
         this.kryo = new Kryo();
@@ -91,6 +105,31 @@ public class AtomicIOClusterManager implements ClusterManager {
         byte[] msg = serialize(message);
         // 调用底层 provider 发送原始字节
         clusterProvider.publishKickOut(nodeId, msg);
+    }
+
+    @Override
+    public AtomicIOClusterMessage buildClusterMessage(AtomicIOMessage message, AtomicIOClusterMessageType messageType, String target, Set<String> excludeUserIds) {
+        // 1. 预编码
+        byte[] finalPayload = new byte[0];
+        try {
+            finalPayload = codecProvider.encodeToBytes(message, config);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
+        clusterMessage.setMessageType(messageType);
+        clusterMessage.setCommandId(message.getCommandId());
+        // 2. payload 存储的是“预编码”后的最终字节
+        clusterMessage.setPayload(finalPayload);
+        if (target != null) {
+            clusterMessage.setTarget(target);
+        }
+        if (excludeUserIds != null && excludeUserIds.size() > 0) {
+            HashSet<String> excludeUserIdSet = new HashSet<>(Set.copyOf(excludeUserIds));
+            clusterMessage.setExcludeUserIds(excludeUserIdSet);
+        }
+        return clusterMessage;
     }
 
     /**

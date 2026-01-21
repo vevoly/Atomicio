@@ -4,7 +4,6 @@ import io.github.vevoly.atomicio.server.api.constants.AtomicIOEventType;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
-import io.github.vevoly.atomicio.server.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.server.api.constants.IdleState;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.session.NettySession;
@@ -12,7 +11,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleStateEvent;
-import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 

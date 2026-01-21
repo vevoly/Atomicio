@@ -1,14 +1,12 @@
 package io.github.vevoly.atomicio.server.codec.protobuf;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import io.github.vevoly.atomicio.codec.decoder.ProtobufVarint32FrameDecoder;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufAdapterHandler;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.GenericMessage;
-import io.github.vevoly.atomicio.codec.protobuf.proto.Heartbeat;
+import io.github.vevoly.atomicio.codec.protobuf.proto.GenericResponse;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.netty.buffer.ByteBuf;
@@ -42,6 +40,16 @@ public class ProtobufServerCodecProvider implements AtomicIOServerCodecProvider 
 
         // 使用 ProtobufMessage 的工厂方法来创建
         // 从原始请求中获取 sequenceId
+        return ProtobufMessage.of(requestMessage.getSequenceId(), commandId, protoPayload);
+    }
+
+    @Override
+    public AtomicIOMessage createResponse(AtomicIOMessage requestMessage, int commandId, boolean success, String message) {
+        // Protobuf 协议，“成功/失败”的响应需要被包装成 GenericResponse
+        GenericResponse protoPayload = GenericResponse.newBuilder()
+                .setSuccess(success)
+                .setMessage(message)
+                .build();
         return ProtobufMessage.of(requestMessage.getSequenceId(), commandId, protoPayload);
     }
 

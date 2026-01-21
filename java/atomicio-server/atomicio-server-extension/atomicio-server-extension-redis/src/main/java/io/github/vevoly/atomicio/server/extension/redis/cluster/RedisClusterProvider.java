@@ -2,8 +2,9 @@ package io.github.vevoly.atomicio.server.extension.redis.cluster;
 
 import io.github.vevoly.atomicio.common.api.config.AtomicIOConfigDefaultValue;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.common.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
-import io.github.vevoly.atomicio.server.api.constants.AtomicIOConstant;
+import io.github.vevoly.atomicio.server.api.constants.AtomicIOServerConstant;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -87,7 +88,7 @@ public class RedisClusterProvider implements AtomicIOClusterProvider {
             // 验证连接
             try (StatefulRedisConnection<String, String> connection = redisClient.connect(StringCodec.UTF8)) {
                 String pong = connection.sync().ping();
-                if (!"PONG".equalsIgnoreCase(pong)) {
+                if (!AtomicIOConstant.DEFAULT_HEARTBEAT_RESPONSE.equalsIgnoreCase(pong)) {
                     throw new IllegalStateException("Redis PING 命令失败，收到响应: ".concat(pong));
                 }
                 log.info("RedisStateProvider 已启动，连接验证成功。");
@@ -115,7 +116,7 @@ public class RedisClusterProvider implements AtomicIOClusterProvider {
     @Override
     public void publish(byte[] data) {
         try {
-            publishConnection.async().publish(AtomicIOConstant.CLUSTER_CHANNEL_NAME, data);
+            publishConnection.async().publish(AtomicIOServerConstant.CLUSTER_CHANNEL_NAME, data);
         } catch (Exception e) {
             log.error("Failed to publish cluster message", e);
         }
@@ -124,7 +125,7 @@ public class RedisClusterProvider implements AtomicIOClusterProvider {
     @Override
     public void publishKickOut(String nodeId, byte[] data) {
         try {
-            publishConnection.async().publish(AtomicIOConstant.KICK_OUT_CHANNEL_PREFIX_NAME + nodeId, data);
+            publishConnection.async().publish(AtomicIOServerConstant.KICK_OUT_CHANNEL_PREFIX_NAME + nodeId, data);
         } catch (Exception e) {
             log.error("Failed to publishKickOut cluster message", e);
         }
@@ -138,7 +139,7 @@ public class RedisClusterProvider implements AtomicIOClusterProvider {
         subscribeConnection.addListener(new RedisPubSubAdapter<String, byte[]>() {
             @Override
             public void message(String channel, byte[] message) {
-                if (AtomicIOConstant.CLUSTER_CHANNEL_NAME.equals(channel)) {
+                if (AtomicIOServerConstant.CLUSTER_CHANNEL_NAME.equals(channel)) {
                     try {
                         dataConsumer.accept(message);
                     } catch (Exception e) {
@@ -148,8 +149,8 @@ public class RedisClusterProvider implements AtomicIOClusterProvider {
             }
         });
 
-        subscribeConnection.async().subscribe(AtomicIOConstant.CLUSTER_CHANNEL_NAME);
-        log.info("已成功订阅集群消息频道: {}", AtomicIOConstant.CLUSTER_CHANNEL_NAME);
+        subscribeConnection.async().subscribe(AtomicIOServerConstant.CLUSTER_CHANNEL_NAME);
+        log.info("已成功订阅集群消息频道: {}", AtomicIOServerConstant.CLUSTER_CHANNEL_NAME);
     }
 
     /**
@@ -161,7 +162,7 @@ public class RedisClusterProvider implements AtomicIOClusterProvider {
         if (subscribeConnection == null) {
             return;
         }
-        String kickOutChannel = AtomicIOConstant.KICK_OUT_CHANNEL_PREFIX_NAME + this.clusterNodeId;
+        String kickOutChannel = AtomicIOServerConstant.KICK_OUT_CHANNEL_PREFIX_NAME + this.clusterNodeId;
 
         // 添加监听器：只负责分发原始字节
         subscribeConnection.addListener(new RedisPubSubAdapter<String, byte[]>() {

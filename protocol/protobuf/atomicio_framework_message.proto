@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package io.github.vevoly.atomicio.codec.protobuf.proto;
+import "google/protobuf/any.proto";
+
+option java_multiple_files = true;
+option java_package = "io.github.vevoly.atomicio.codec.protobuf.proto";
+
+/**
+  所有 Protobuf 消息的“信封”
+  AtomicIO 框架中所有 Protobuf 消息的基础结构
+  用户业务逻辑在收到 GenericMessage 后，根据 commandId 和 Any 中的类型信息，再将其解包成自己定义的具体业务 message（如 MyLoginRequest, MyPlayerMove）。
+ */
+message GenericMessage {
+  // 消息的指令ID，对应 AtomicIOCommand 中的常量
+  int32 command_id = 1;
+  // 消息序列 ID，用于客户端异步请求与服务器响应的匹配
+  int64 sequence_id = 2;
+  // 消息载体
+  // 对于框架命令，它可能承载 LoginRequest 等。
+  // 对于业务命令，它将承载用户自定义的任何消息。
+  google.protobuf.Any payload = 3; // payload 是 Any 类型，
+}
+
+/**
+  心跳请求/响应载体
+  对应指令: HEARTBEAT_REQUEST, HEARTBEAT_RESPONSE
+ */
+message Heartbeat {
+  int64 timestamp = 1;
+}
+
+/**
+  登录请求消息
+  对应指令: LOGIN_REQUEST
+  它包含了执行登录业务所需的所有字段。
+  这个消息将被打包进 GenericMessage 的 payload 中。
+ */
+message LoginRequest {
+  string user_id = 1;
+  string token = 2;
+  string device_id = 3;
+}
+
+/**
+  通用的、只包含一个字符串载体的消息
+  用于指令: JOIN_GROUP_REQUEST, LEAVE_GROUP_REQUEST
+  其 value 字段将分别代表 groupId
+ */
+message StringRequest {
+  string value = 1;
+}
+
+/**
+ * 通用的、表示操作结果的响应载体。
+ * 用于指令: LOGIN_RESPONSE, JOIN_GROUP_RESPONSE, LEAVE_GROUP_RESPONSE 等。
+ */
+message GenericResponse {
+  // 操作是否成功
+  bool success = 1;
+  // 附带的文本消息，例如成功信息或失败原因
+  string message = 2;
+}
+

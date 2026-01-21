@@ -1,10 +1,16 @@
 package io.github.vevoly.atomicio.client.core;
 
-import io.github.vevoly.atomicio.client.api.codec.AtomicIOClientCodecProvider;
-import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
+import io.github.vevoly.atomicio.client.api.codec.AtomicIOClientCodecProvider;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
-import io.github.vevoly.atomicio.client.api.listeners.*;
+import io.github.vevoly.atomicio.client.core.handler.AtomicIOClientChannelHandler;
+import io.github.vevoly.atomicio.client.core.handler.AtomicIOHeartbeatHandler;
+import io.github.vevoly.atomicio.client.core.handler.AtomicIOReconnectHandler;
+import io.github.vevoly.atomicio.client.core.internal.AtomicIOClientRequestManager;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.result.AuthResult;
+import io.github.vevoly.atomicio.protocol.api.result.GeneralResult;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -13,14 +19,18 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.timeout.IdleStateHandler;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
-import java.util.List;
+import java.io.IOException;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * 客户端实现
@@ -30,20 +40,34 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 public class DefaultAtomicIOClient implements AtomicIOClient {
+
+    @Getter
     private final AtomicIOClientConfig config;
     private final AtomicIOClientCodecProvider codecProvider;
 
-    private SslContext sslContext;
-    private EventLoopGroup group;
+    @Getter
+    private EventLoopGroup eventLoopGroup;
+    @Getter
     private Bootstrap bootstrap;
-    private Channel channel;
+    private volatile Channel channel; // 被 I/O 线程赋值，主线程读取
+
+    private SslContext sslContext;
+
+    // 核心组建
+    @Getter
+    private final AtomicIOClientRequestManager requestManager = new AtomicIOClientRequestManager();
 
     // 存储用户注册的 Listeners
-    private final List<OnConnectedListener> connectedListeners = new CopyOnWriteArrayList<>();
-    private final List<OnDisconnectedListener> disconnectedListeners = new CopyOnWriteArrayList<>();
-    private final List<OnMessageListener> messageListeners = new CopyOnWriteArrayList<>();
-    private final List<OnErrorListener> errorListeners = new CopyOnWriteArrayList<>();
-    private final List<OnReconnectingListener> reconnectingListeners = new CopyOnWriteArrayList<>();
+    private volatile Consumer<Void> onConnectedListener;
+    private volatile Consumer<Void> onDisconnectedListener;
+    private volatile Consumer<AtomicIOMessage> onPushMessageListener;
+    private volatile Consumer<Throwable> onErrorListener;
+    private volatile BiConsumer<Integer, Integer> onReconnectListener;
+
+    // 存储已认证的 userId
+    private final AtomicReference<String> currentUserId = new AtomicReference<>(null);
+    // 存储已认证的 deviceId
+    private final AtomicReference<String> currentDeviceId = new AtomicReference<>(null);
 
     public DefaultAtomicIOClient(AtomicIOClientConfig config, AtomicIOClientCodecProvider codecProvider) {
         this.config = config;
@@ -67,53 +91,52 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
             throw new RuntimeException("Failed to build client SslContext", e);
         }
 
-        this.group = new NioEventLoopGroup();
-        final AtomicIOClientChannelHandler clientHandler = new AtomicIOClientChannelHandler(this);
-        final AtomicIOReconnectHandler reconnectHandler = new AtomicIOReconnectHandler(this);
+        this.eventLoopGroup = new NioEventLoopGroup();
         this.bootstrap = new Bootstrap();
 
-        bootstrap.group(group)
+        bootstrap.group(eventLoopGroup)
                 .channel(NioSocketChannel.class)
                 .option(ChannelOption.TCP_NODELAY, true)
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeoutMillis())
-                .handler(new ChannelInitializer<SocketChannel>() {
-                    @Override
-                    protected void initChannel(SocketChannel ch) throws Exception {
-                        ChannelPipeline pipeline = ch.pipeline();
-                        if (sslContext != null) {
-                            pipeline.addLast(sslContext.newHandler(ch.alloc(), config.getHost(), config.getPort()));
-                        }
-                        // 1. 协议层, 使用 CodecProvider 构建协议栈
-                        codecProvider.buildPipeline(pipeline, config);
-                        // 2. 心跳机制层
-                        if (config.isHeartbeatEnabled() && config.getWriterIdleSeconds() > 0) {
-                            // 从 CodecProvider 中获取心跳
-                            AtomicIOMessage heartbeatMessage = codecProvider.getHeartbeat();
-                            if (null == heartbeatMessage) {
-                                throw new IllegalStateException("心跳已开启, 但是 CodecProvider 未找到默认心跳消息.");
-                            }
-                            // 2.1 Netty 空闲检测，必须是每个 channel new 一个
-                            pipeline.addLast(new IdleStateHandler(0, config.getWriterIdleSeconds(),
-                                     0, TimeUnit.SECONDS));
-                            // 2.2 心跳发送
-                            pipeline.addLast(new AtomicIOHeartbeatHandler(heartbeatMessage));
-                        }
-                        // 3. 核心业务与事件翻译层
-                        pipeline.addLast(clientHandler);
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeoutMillis());
 
-                        // 4. 连接管理与重连层
-                        if (config.isReconnectEnabled()) {
-                            pipeline.addLast(reconnectHandler);
-                        }
-                    }
-                });
     }
 
     @Override
-    public Future<Void> connect() {
+    public CompletableFuture<Void> connect() {
+        // 动态设置 Handler
+        bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            protected void initChannel(SocketChannel ch) throws Exception {
+                ChannelPipeline pipeline = ch.pipeline();
+                if (sslContext != null) {
+                    pipeline.addLast(sslContext.newHandler(ch.alloc(), config.getServerHost(), config.getServerPort()));
+                }
+                // 1. 协议层, 使用 CodecProvider 构建协议栈
+                codecProvider.buildPipeline(pipeline, config);
+                // 2. 心跳机制层
+                if (config.isHeartbeatEnabled() && config.getWriterIdleSeconds() > 0) {
+                    // 从 CodecProvider 中获取心跳
+                    AtomicIOMessage heartbeatMessage = codecProvider.getHeartbeat();
+                    if (null == heartbeatMessage) {
+                        throw new IllegalStateException("心跳已开启, 但是 CodecProvider 未找到默认心跳消息.");
+                    }
+                    // 2.1 Netty 空闲检测，必须是每个 channel new 一个
+                    pipeline.addLast(new IdleStateHandler(0, config.getWriterIdleSeconds(),
+                             0, TimeUnit.SECONDS));
+                    // 2.2 心跳发送
+                    pipeline.addLast(new AtomicIOHeartbeatHandler(heartbeatMessage));
+                }
+                // 3. 核心业务与事件翻译层
+                pipeline.addLast(new AtomicIOClientChannelHandler(requestManager, onPushMessageListener, DefaultAtomicIOClient.this));
+                // 4. 连接管理与重连层
+                if (config.isReconnectEnabled()) {
+                    pipeline.addLast(new AtomicIOReconnectHandler(DefaultAtomicIOClient.this));
+                }
+            }
+        });
         CompletableFuture<Void> connectFuture = new CompletableFuture<>();
-        log.info("Connecting to {}:{}...", config.getHost(), config.getPort());
-        ChannelFuture f = bootstrap.connect(config.getHost(), config.getPort());
+        log.info("Connecting to {}:{}...", config.getServerHost(), config.getServerPort());
+        ChannelFuture f = bootstrap.connect(config.getServerHost(), config.getServerPort());
 
         f.addListener((ChannelFuture future) -> {
             if (future.isSuccess()) {
@@ -126,7 +149,6 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
                 connectFuture.completeExceptionally(future.cause());
             }
         });
-
         return connectFuture;
     }
 
@@ -135,8 +157,8 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
         if (channel != null) {
             channel.close();
         }
-        if (group != null) {
-            group.shutdownGracefully();
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully();
         }
         log.info("Client disconnected.");
     }
@@ -147,82 +169,219 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
     }
 
     @Override
-    public Future<Void> send(AtomicIOMessage message) {
-        CompletableFuture<Void> sendFuture = new CompletableFuture<>();
-        if (!isConnected()) {
-            sendFuture.completeExceptionally(new IllegalStateException("Client is not connected."));
-            return sendFuture;
-        }
+    public CompletableFuture<AuthResult> login(String userId, String token, String deviceId) {
 
-        channel.writeAndFlush(message).addListener((ChannelFuture future) -> {
-            if (future.isSuccess()) {
-                sendFuture.complete(null);
-            } else {
-                sendFuture.completeExceptionally(future.cause());
+        // 创建登录消息
+        AtomicIOMessage loginMessage = codecProvider.createRequest(
+                requestManager.nextSequenceId(),
+                AtomicIOCommand.LOGIN_REQUEST,
+                deviceId,
+                userId,
+                token
+        );
+
+        // 发送请求并获取响应 Future
+        CompletableFuture<AtomicIOMessage> responseFuture = sendRequestAndGetResponse(loginMessage);
+
+        // 使用 CodecProvider 解析响应
+        return responseFuture.thenApply(response -> {
+            try {
+                AuthResult authResult = codecProvider.toAuthResult(response, userId, deviceId);
+                if (authResult.success()) {
+                    this.currentUserId.set(userId);
+                    this.currentDeviceId.set(deviceId);
+                    log.info("登录成功! Client session 已绑定 userId={} and deviceId={}.", userId, deviceId);
+                }
+                return authResult;
+            } catch (Exception e) {
+                throw new CompletionException("解析登录响应失败.", e);
             }
         });
-        return sendFuture;
+    }
+
+    @Override
+    public CompletableFuture<Void> logout() {
+        String deviceId = this.currentDeviceId.get();
+        if (deviceId == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("当前客户端未登录，无法登出."));
+        }
+        AtomicIOMessage logoutMessage = codecProvider.createRequest(
+                requestManager.nextSequenceId(),
+                AtomicIOCommand.LOGOUT_REQUEST,
+                deviceId,
+                null
+        );
+        // 登出成功后，清空状态
+        return writeToChannel(logoutMessage).thenRun(() -> {
+            this.currentDeviceId.set(null);
+            this.currentUserId.set(null);
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> joinGroup(String groupId) {
+        String deviceId = this.currentDeviceId.get();
+        if (deviceId == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("当前客户端未登录，无法加入群组."));
+        }
+        AtomicIOMessage joinMessage = codecProvider.createRequest(
+                requestManager.nextSequenceId(),
+                AtomicIOCommand.JOIN_GROUP_REQUEST,
+                deviceId,
+                groupId
+        );
+        return sendRequestAndGetAck(joinMessage, "加入群组失败.");
+    }
+
+    @Override
+    public CompletableFuture<Void> leaveGroup(String groupId) {
+        String deviceId = this.currentDeviceId.get();
+        if (deviceId == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("当前客户端未登录，无法退出群组."));
+        }
+        AtomicIOMessage leaveMessage = codecProvider.createRequest(
+                requestManager.nextSequenceId(),
+                AtomicIOCommand.LEAVE_GROUP_REQUEST,
+                deviceId,
+                groupId
+        );
+        return sendRequestAndGetAck(leaveMessage, "退出群组失败.");
+    }
+
+    @Override
+    public CompletableFuture<Void> sendToUsers(AtomicIOMessage message, String... userIds) {
+        // 这个 API 的实现依赖于协议本身是否支持在一条消息中指定多个接收者。
+        // 在我们的 P2PMessageRequest 定义中，一次只能发给一个 to_user_id。
+        // 因此，更真实的实现是循环发送或在业务层构建一个包含 userIds 的消息体。
+        // 这里我们简化为只发送消息，由服务器处理。
+        return writeToChannel(message);
+    }
+
+    @Override
+    public CompletableFuture<Void> sendToGroup(AtomicIOMessage message, String groupId, Set<String> excludeUserIds) {
+        return writeToChannel(message);
+    }
+
+    @Override
+    public CompletableFuture<Void> broadcast(AtomicIOMessage message) {
+        return writeToChannel(message);
     }
 
     // --- 事件注册方法的实现 ---
     @Override
-    public AtomicIOClient onConnected(OnConnectedListener listener) {
-        connectedListeners.add(listener);
-        return this;
+    public void onConnected(Consumer<Void> listener) {
+        this.onConnectedListener = listener;
     }
 
     @Override
-    public AtomicIOClient onDisconnected(OnDisconnectedListener listener) {
-        disconnectedListeners.add(listener);
-        return this;
+    public void onDisconnected(Consumer<Void> listener) {
+        this.onDisconnectedListener = listener;
+
     }
 
     @Override
-    public AtomicIOClient onMessage(OnMessageListener listener) {
-        messageListeners.add(listener);
-        return this;
+    public void onPushMessage(Consumer<AtomicIOMessage> listener) {
+        this.onPushMessageListener = listener;
     }
 
     @Override
-    public AtomicIOClient onError(OnErrorListener listener) {
-        errorListeners.add(listener);
-        return this;
+    public void onError(Consumer<Throwable> listener) {
+        this.onErrorListener = listener;
     }
 
     @Override
-    public AtomicIOClient onReconnecting(OnReconnectingListener listener) {
-        reconnectingListeners.add(listener);
-        return this;
+    public void onReconnecting(BiConsumer<Integer, Integer> listener) {
+        this.onReconnectListener = listener;
     }
 
-    void fireConnectedEvent() {
-        connectedListeners.forEach(l -> l.onConnected(this));
+    public void fireConnectedEvent() {
+        if (onReconnectListener != null) {
+            try {
+                onConnectedListener.accept(null);
+            } catch (Exception e) {
+                log.error("执行 onConnectedListener 时发生异常.", e);
+            }
+        }
     }
 
-    void fireDisconnectedEvent() {
-        disconnectedListeners.forEach(l -> l.onDisconnected(this));
+    public void fireDisconnectedEvent() {
+        if (onDisconnectedListener != null) {
+            try {
+                onDisconnectedListener.accept(null);
+            } catch (Exception e) {
+                log.error("执行 onDisconnected listener 时发生异常.", e);
+            }
+        }
     }
 
-    void fireMessageEvent(AtomicIOMessage message) {
-        messageListeners.forEach(l -> l.onMessage(message));
+    public void firePushMessageEvent(AtomicIOMessage message) {
+        if (onPushMessageListener != null) {
+            try {
+                onPushMessageListener.accept(message);
+            } catch (Exception e) {
+                log.error("执行 onPushMessage listener 时发生异常.", e);
+            }
+        }
     }
 
-    void fireErrorEvent(Throwable cause) {
-        errorListeners.forEach(l -> l.onError(cause));
+    public void fireErrorEvent(Throwable cause) {
+        if (onErrorListener != null) {
+            try {
+                onErrorListener.accept(cause);
+            } catch (Exception e) {
+                log.error("执行 onError listener 时发生异常.", e);
+            }
+        }
     }
 
-    void fireReconnectingEvent(int attempt, int delay) {
-        reconnectingListeners.forEach(l -> l.onReconnecting(attempt, delay));
+    public void fireReconnectEvent(int attempt, int delay) {
+        if (onReconnectListener != null) {
+            try {
+                onReconnectListener.accept(attempt, delay);
+            } catch (Exception e) {
+                log.error("执行 onReconnecting listener 时发生异常.", e);
+            }
+        }
     }
 
-    AtomicIOClientConfig getConfig() {
-        return config;
+    private CompletableFuture<AtomicIOMessage> sendRequestAndGetResponse(AtomicIOMessage requestMessage) {
+        if (!isConnected()) return CompletableFuture.failedFuture(new IllegalStateException("Client is not connected."));
+
+        CompletableFuture<AtomicIOMessage> responseFuture = requestManager.registerRequest(requestMessage.getSequenceId());
+
+        channel.writeAndFlush(requestMessage).addListener(future -> {
+            if (!future.isSuccess()) {
+                requestManager.completeRequest(requestMessage.getSequenceId(), null); // 清理
+                responseFuture.completeExceptionally(future.cause());
+            }
+        });
+        return responseFuture;
     }
 
-    Bootstrap getBootstrap() {
-        return bootstrap;
+    private CompletableFuture<Void> sendRequestAndGetAck(AtomicIOMessage requestMessage, String errorMessagePrefix) {
+        return sendRequestAndGetResponse(requestMessage).thenAccept(response -> {
+            try {
+                GeneralResult result = codecProvider.toGeneralResult(response);
+                if (!result.success()) {
+                    throw new CompletionException(new IOException(errorMessagePrefix + ": " + result.message()));
+                }
+            } catch (Exception e) {
+                throw new CompletionException("解析 ACK response 失败.", e);
+            }
+        });
     }
-    EventLoopGroup getEventLoopGroup() {
-        return group;
+
+    private CompletableFuture<Void> writeToChannel(AtomicIOMessage message) {
+        if (!isConnected()) return CompletableFuture.failedFuture(new IllegalStateException("Not connected"));
+
+        CompletableFuture<Void> writeFuture = new CompletableFuture<>();
+        channel.writeAndFlush(message).addListener(future -> {
+            if (future.isSuccess()) {
+                writeFuture.complete(null);
+            } else {
+                writeFuture.completeExceptionally(future.cause());
+            }
+        });
+        return writeFuture;
     }
 }

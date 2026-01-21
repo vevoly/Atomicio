@@ -81,6 +81,11 @@
 
             <dependency>
                 <groupId>io.github.vevoly</groupId>
+                <artifactId>atomicio-common-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.vevoly</groupId>
                 <artifactId>atomicio-server-api</artifactId>
                 <version>${revision}</version>
             </dependency>

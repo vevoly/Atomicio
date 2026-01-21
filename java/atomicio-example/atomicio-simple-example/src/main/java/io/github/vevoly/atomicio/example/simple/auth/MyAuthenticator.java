@@ -3,7 +3,7 @@ package io.github.vevoly.atomicio.example.simple.auth;
 import io.github.vevoly.atomicio.codec.text.TextMessage;
 import io.github.vevoly.atomicio.example.simple.service.AuthService;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
-import io.github.vevoly.atomicio.server.api.auth.AuthResult;
+import io.github.vevoly.atomicio.protocol.api.result.AuthResult;
 import io.github.vevoly.atomicio.server.api.auth.Authenticator;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import lombok.extern.slf4j.Slf4j;

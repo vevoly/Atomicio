@@ -1,8 +1,10 @@
 package io.github.vevoly.atomicio.starter.autoconfiguration;
 
+import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.core.manager.AtomicIOClusterManager;
 import io.github.vevoly.atomicio.core.manager.AtomicIOStateManager;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
+import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.server.api.manager.ClusterManager;
 import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
 import io.github.vevoly.atomicio.server.api.manager.StateManager;
@@ -29,11 +31,20 @@ import org.springframework.context.annotation.Configuration;
 public class AtomicIOClusterCoreAutoConfiguration {
 
     @Bean
-    @ConditionalOnBean(AtomicIOClusterProvider.class)
+    @ConditionalOnBean(value = {
+            AtomicIOProperties.class,
+            AtomicIOClusterProvider.class,
+            AtomicIOServerCodecProvider.class
+    })
     @ConditionalOnMissingBean(ClusterManager.class)
-    public ClusterManager clusterManager(AtomicIOClusterProvider provider, DisruptorManager disruptor) {
+    public ClusterManager clusterManager(
+            AtomicIOProperties config,
+            AtomicIOClusterProvider provider,
+            AtomicIOServerCodecProvider codecProvider,
+            DisruptorManager disruptor
+    ) {
         log.info("AtomicIO: 检测到集群驱动 {}，正在启动通用集群管理器...", provider.getClass().getSimpleName());
-        return new AtomicIOClusterManager(provider, disruptor);
+        return new AtomicIOClusterManager(config, provider, codecProvider, disruptor);
     }
 
     @Bean

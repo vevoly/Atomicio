@@ -1,6 +1,7 @@
 package io.github.vevoly.atomicio.server.api.auth;
 
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.result.AuthResult;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 
 import java.util.concurrent.CompletableFuture;

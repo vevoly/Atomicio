@@ -46,6 +46,13 @@ public class TextServerCodecProvider implements AtomicIOServerCodecProvider {
         return new TextMessage(requestMessage.getSequenceId(), commandId, deviceId, content);
     }
 
+    @Override
+    public AtomicIOMessage createResponse(AtomicIOMessage requestMessage, int commandId, boolean success, String message) {
+        String textPayload = (success ? "Success: " : "Error: ") + message;
+        String deviceId = (requestMessage instanceof TextMessage) ? ((TextMessage) requestMessage).getDeviceId() : null;
+        return new TextMessage(requestMessage.getSequenceId(), commandId, deviceId, textPayload);
+    }
+
     /**
      * 获取所有【入站】的协议相关 Handler。
      * 顺序：分帧 -> 解码
