@@ -14,6 +14,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -27,12 +28,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 @AutoConfigureAfter(name = {
         "io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOLocalStateFallbackAutoConfiguration",
+        "io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOCodecAutoConfiguration"
 })
 public class AtomicIOClusterCoreAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(value = {
-            AtomicIOProperties.class,
             AtomicIOClusterProvider.class,
             AtomicIOServerCodecProvider.class
     })
@@ -43,14 +44,15 @@ public class AtomicIOClusterCoreAutoConfiguration {
             AtomicIOServerCodecProvider codecProvider,
             DisruptorManager disruptor
     ) {
-        log.info("AtomicIO: 检测到集群驱动 {}，正在启动通用集群管理器...", provider.getClass().getSimpleName());
+        log.info("AtomicIO: 检测到集群驱动 {}，启动通用集群管理器...", provider.getClass().getSimpleName());
         return new AtomicIOClusterManager(config, provider, codecProvider, disruptor);
     }
 
     @Bean
-    @ConditionalOnBean(ClusterManager.class)
+    @ConditionalOnBean(AtomicIOStateProvider.class)
     @ConditionalOnMissingBean(StateManager.class)
     public StateManager stateManager(AtomicIOStateProvider stateProvider, ObjectProvider<ClusterManager> clusterManagerProvider) {
+        log.info("AtomicIO: 启用集群状态管理器 (集群模式)");
         return new AtomicIOStateManager(stateProvider, clusterManagerProvider.getIfAvailable());
     }
 }

@@ -18,7 +18,7 @@ public class MyEngineReadyListener implements EngineReadyListener {
     @Override
     public void onEngineReady(AtomicIOEngine engine) {
         log.info("=====================================================");
-        log.info(" 欢迎使用 Atomicio IO 引擎!");
+        log.info(" 欢迎使用 Atomicio IO 框架!");
         log.info(" Protobuf example 所有监听器已经注册完成，现在可以尝试连接！");
         log.info("=====================================================");
     }

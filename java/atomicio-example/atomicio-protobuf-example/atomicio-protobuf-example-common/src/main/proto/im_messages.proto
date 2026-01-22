@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+// 定义 Java 生成类的包名
+package io.github.vevoly.atomicio.example.protobuf.proto;
+
+// 选项：为每个 message 生成独立的 Java 文件
+option java_multiple_files = true;
+
+// option java_outer_classname = "IMMessages";
+
+
+// --- P2P 消息 ---
+
+// C -> S
+// 对应 BusinessCommand.P2P_MESSAGE_REQUEST
+message P2PMessageRequest {
+  string to_user_id = 1;           // 消息接收者的用户ID
+  string content = 2;              // 消息内容
+  int64 client_time = 3;           // 客户端消息发送时间
+  string client_message_id = 4;    // 客户端生成的消息唯一ID，用于ACK
+  optional int32 content_type = 5; // 消息内容类型，例如 1=文本, 2=图片URL, 3=语音URL
+}
+
+// S -> C
+// 对应 BusinessCommand.P2P_MESSAGE_NOTIFY
+message P2PMessageNotify {
+  string from_user_id = 1;      // 消息发送者的用户ID
+  string content = 2;           // 消息内容
+  int64 server_time = 3;        // 服务器消息接收时间
+  int64 server_message_id = 4;  // 服务器生成的消息唯一ID
+}
+
+// S -> C
+// 对应 BusinessCommand.P2P_MESSAGE_ACK
+message P2PMessageAck {
+  string client_message_id = 1; // 回应对应的客户端消息ID
+  bool success = 2;             // 消息是否成功处理
+  int32 code = 3;               // 错误码
+  string message = 4;           // 错误信息
+  int64 server_message_id = 5;  // 返回服务器生成的消息ID
+  int64 timestamp = 6;          // 服务器处理消息的时间戳
+}
+
+// --- Group 消息 ---
+
+// C -> S
+// 对应 BusinessCommand.GROUP_MESSAGE_REQUEST
+message GroupMessageRequest {
+  string client_message_id = 1;    // 客户端生成的消息唯一ID，用于ACK
+  string group_id = 2;             // 消息要发往的群组ID
+  string content = 3;              // 消息内容
+  optional int32 content_type = 4; // 消息内容类型，例如 1=文本, 2=图片URL, 3=语音URL
+  int64 client_time = 5;           // 客户端消息发送时间
+}
+
+
+// S -> C
+// 服务器将群消息转发给群成员时使用的结构
+// 对应 BusinessCommand.GROUP_MESSAGE_NOTIFY
+message GroupMessageNotify {
+  string group_id = 1;             // 消息要发往的群组ID
+  string from_user_id = 2;         // 消息发送者的用户ID
+  string content = 3;              // 消息内容
+  optional int32 content_type = 4; // 消息内容类型，例如 1=文本, 2=图片URL, 3=语音URL
+  int64 server_message_id = 5;     // 服务器生成的消息唯一ID
+  int64 server_time = 6;           // 服务器消息接收时间
+}
+
+// S -> C
+// 服务器向发送者确认群消息已收到/处理的回执
+// 对应 BusinessCommand.GROUP_MESSAGE_ACK (如果需要)
+message GroupMessageAck {
+  string client_message_id = 1;  // 回应对应的客户端消息ID
+  bool success = 2;              // 是否成功被服务器接收
+  string message = 3;            // 附带的文本消息 (例如 "You are not in this group")
+  int64 server_message_id = 4;   // 返回服务器生成的消息ID
+}

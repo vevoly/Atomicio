@@ -1,3 +1,7 @@
+logging:
+  level:
+    root: info
+    io.github.vevoly.atomicio: debug
 
 atomicio:
   enabled: true             # 是否启用 atomicio
@@ -13,9 +17,9 @@ atomicio:
     queue-min-percent: 90   # 单台服务器IO事件队列最容量告警阈值 (百分比)
   codec:                    # 解码器类型
     type: protobuf          # 可选值: text, protobuf, mqtt ...
-    max-frame-length: 100   # 最大帧长度 (限制消息长度 单位：字节）
+    max-frame-length: 256   # 最大帧长度 (限制消息长度 单位：字节）
   cluster:                  # 集群配置
-    enabled: true           # 是否开启集群
+    enabled: false          # 是否开启集群
     type: redis             # 集群广播类型 可选值: redis, kafka, rocketmq ...
     redis:                  # redis 连接信息
       uri: redis://localhost:6379

@@ -1,9 +1,6 @@
 package io.github.vevoly.atomicio.codec.protobuf;
 
-import com.google.protobuf.Any;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Message;
+import com.google.protobuf.*;
 import io.github.vevoly.atomicio.codec.protobuf.proto.GenericMessage;
 import io.github.vevoly.atomicio.protocol.api.message.AbstractAtomicIOMessage;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
@@ -65,21 +62,17 @@ public class ProtobufMessage extends AbstractAtomicIOMessage {
      * @return 一个实现了 AtomicIOMessage 接口的实例，可以直接通过 session.send() 或 engine.sendToUser() 发送。
      */
     public static AtomicIOMessage of(long sequenceId, int commandId, Message message) {
-        // 1. 将业务消息序列化为字节
-        byte[] payload = message.toByteArray();
-        // 2. 创建我们的通用信封 GenericMessage
-        GenericMessage genericMessage = null;
-        try {
-            genericMessage = GenericMessage.newBuilder()
-                    .setSequenceId(sequenceId)
-                    .setCommandId(commandId)
-                    .setPayload(Any.parseFrom(ByteString.copyFrom(payload)))
-                    .build();
-        } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
+        if (message == null) {
+            message = Empty.getDefaultInstance();
         }
-        // 3. 将信封包装成 ProtobufMessage (我们的 AtomicIOMessage 适配器)
-        //    编码器在发送时，会处理这个 ProtobufMessage，将其转换为 GenericMessage 的字节流
+
+        // 打包业务消息
+        Any anyPayload = Any.pack(message);
+        GenericMessage genericMessage = GenericMessage.newBuilder()
+                .setSequenceId(sequenceId)
+                .setCommandId(commandId)
+                .setPayload(anyPayload)
+                .build();
         return new ProtobufMessage(genericMessage);
     }
 }

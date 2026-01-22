@@ -1,14 +1,17 @@
 package io.github.vevoly.atomicio.core.handler;
 
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOPayloadParser;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
-import io.github.vevoly.atomicio.server.api.auth.Authenticator;
+import io.github.vevoly.atomicio.server.api.auth.AtomicIOAuthenticator;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
@@ -21,30 +24,25 @@ import java.nio.charset.StandardCharsets;
  * @author vevoly
  */
 @Slf4j
+@RequiredArgsConstructor
 @ChannelHandler.Sharable
 public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<AtomicIOMessage> {
 
-    private final AtomicIOEngine engine;
-    private final Authenticator authenticator;
-
-    public AtomicIOCommandDispatcher(AtomicIOEngine engine, Authenticator authenticator) {
-        if (engine == null || authenticator == null) {
-            throw new IllegalArgumentException("AtomicIOEngine and Authenticator cannot be null.");
-        }
-        this.engine = engine;
-        this.authenticator = authenticator;
-    }
+    @NonNull private final AtomicIOEngine engine;
+    @NonNull private final AtomicIOPayloadParser payloadParser;
+    @NonNull private final AtomicIOAuthenticator authenticator;
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, AtomicIOMessage message) throws Exception {
-        int cmd = message.getCommandId();
-
+        // 1. 获取 Session
         AtomicIOSession session = engine.getSessionManager().getLocalSessionById(ctx.channel().id().asLongText());
         if (session == null) {
-            log.error("Could not find session for channel [{}]. Closing connection.", ctx.channel().id());
+            log.error("Session not found for active channel [{}].", ctx.channel().id());
             ctx.close();
             return;
         }
+
+        final int cmd = message.getCommandId();
 
         // 优先处理框架命令
         if (handleFrameworkCommand(session, message)) {
@@ -157,53 +155,66 @@ public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<Atomi
      * 处理加入群组请求。
      */
     private void handleJoinGroup(AtomicIOSession session, AtomicIOMessage message) {
-        // 假设 payload 是 groupId 的 UTF-8 字符串
-        String groupId = new String(message.getPayload(), StandardCharsets.UTF_8);
-        if (groupId.isEmpty()) {
-            log.warn("Join group request from user '{}' contains an empty groupId.", session.getUserId());
-            return;
+
+        try {
+            // 1. 使用 PayloadParser 进行协议无关的解析
+            String groupId = payloadParser.parseAsString(message);
+            if (groupId == null || groupId.isEmpty()) {
+                log.warn("Join group request from user '{}' contains an empty groupId.", session.getUserId());
+                // 回复一个失败的响应
+                session.send(engine.getCodecProvider().createResponse(message, AtomicIOCommand.JOIN_GROUP_RESPONSE, false, "GroupId cannot be empty"));
+                return;
+            }
+            log.debug("User '{}' joining group '{}'.", session.getUserId(), groupId);
+            // todo 全局异步异常处理
+            engine.joinGroup(groupId, session.getUserId())
+                    .whenComplete((__, throwable) -> {
+                        AtomicIOMessage response;
+                        if (throwable != null) {
+                            log.error("Failed to join group '{}' for user '{}'.", groupId, session.getUserId());
+                            response = engine.getCodecProvider()
+                                    .createResponse(message, AtomicIOCommand.JOIN_GROUP_RESPONSE, false, "Error: Failed to join group");
+                        } else {
+                            response = engine.getCodecProvider()
+                                    .createResponse(message, AtomicIOCommand.JOIN_GROUP_RESPONSE, true, "Success: Joined group " + groupId);
+                        }
+                        session.send(response);
+                    });
+        } catch (Exception e) {
+            log.error("Failed to parse JOIN_GROUP_REQUEST payload for user '{}'.", session.getUserId(), e);
+            session.send(engine.getCodecProvider().createResponse(message, AtomicIOCommand.JOIN_GROUP_RESPONSE, false, "Malformed request payload"));
         }
 
-        log.debug("User '{}' joining group '{}'.", session.getUserId(), groupId);
-        engine.joinGroup(groupId, session.getUserId())
-                .whenComplete((__, throwable) -> {
-                    AtomicIOMessage response;
-                    if (throwable != null) {
-                        log.error("Failed to join group '{}' for user '{}'.", groupId, session.getUserId());
-                        response = engine.getCodecProvider()
-                                .createResponse(message, AtomicIOCommand.JOIN_GROUP_RESPONSE, "Error: Failed to join group");
-                    } else {
-                        response = engine.getCodecProvider()
-                                .createResponse(message, AtomicIOCommand.JOIN_GROUP_RESPONSE, "Success: Joined group " + groupId);
-                    }
-                    session.send(response);
-                });
     }
 
     /**
      * 处理离开群组请求。
      */
     private void handleLeaveGroup(AtomicIOSession session, AtomicIOMessage message) {
-        String groupId = new String(message.getPayload(), StandardCharsets.UTF_8);
-        if (groupId.isEmpty()) {
-            log.warn("Leave group request from user '{}' contains an empty groupId.", session.getUserId());
-            return;
+        try {
+            String groupId = payloadParser.parseAsString(message);
+            if (groupId.isEmpty()) {
+                log.warn("Leave group request from user '{}' contains an empty groupId.", session.getUserId());
+                return;
+            }
+            log.debug("User '{}' leaving group '{}'.", session.getUserId(), groupId);
+            engine.leaveGroup(groupId, session.getUserId())
+                    .whenComplete((__, throwable) -> {
+                        AtomicIOMessage response;
+                        if (throwable != null) {
+                            log.error("Failed to leave group '{}' for user '{}'.", groupId, session.getUserId(), throwable);
+                            response = engine.getCodecProvider()
+                                    .createResponse(message, AtomicIOCommand.LEAVE_GROUP_RESPONSE, "Error: Failed to leave group");
+                        } else {
+                            response = engine.getCodecProvider()
+                                    .createResponse(message, AtomicIOCommand.LEAVE_GROUP_RESPONSE, "Success: Left group " + groupId);
+                        }
+                        session.send(response);
+                    });
+        } catch (Exception e) {
+            log.error("Failed to parse LEAVE_GROUP_REQUEST payload for user '{}'.", session.getUserId(), e);
+            session.send(engine.getCodecProvider().createResponse(message, AtomicIOCommand.LEAVE_GROUP_RESPONSE, false, "Malformed request payload"));
         }
-
-        log.debug("User '{}' leaving group '{}'.", session.getUserId(), groupId);
-        engine.leaveGroup(groupId, session.getUserId())
-                .whenComplete((__, throwable) -> {
-                    AtomicIOMessage response;
-                    if (throwable != null) {
-                        log.error("Failed to leave group '{}' for user '{}'.", groupId, session.getUserId(), throwable);
-                        response = engine.getCodecProvider()
-                                .createResponse(message, AtomicIOCommand.LEAVE_GROUP_RESPONSE, "Error: Failed to leave group");
-                    } else {
-                        response = engine.getCodecProvider()
-                                .createResponse(message, AtomicIOCommand.LEAVE_GROUP_RESPONSE, "Success: Left group " + groupId);
-                    }
-                    session.send(response);
-                });
     }
 
     /**

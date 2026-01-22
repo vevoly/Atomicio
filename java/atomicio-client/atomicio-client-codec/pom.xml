@@ -9,22 +9,20 @@
         <version>${revision}</version>
     </parent>
 
+    <packaging>pom</packaging>
     <name>Atocicio-Client-Codec</name>
     <artifactId>atomicio-client-codec</artifactId>
     <description>Atomicio Codec module for AtomicIO client.</description>
+
+    <modules>
+        <module>atomicio-client-codec-protobuf</module>
+        <module>atomicio-client-codec-text</module>
+    </modules>
 
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-client-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-codec-protobuf</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-codec-text</artifactId>
         </dependency>
     </dependencies>
 

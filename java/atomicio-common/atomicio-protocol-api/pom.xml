@@ -13,7 +13,7 @@
     <artifactId>atomicio-protocol-api</artifactId>
     <url>https://github.com/vevoly/Atomicio</url>
     <description>
-         Atomicio protocol api is a basic data contract module with Server and Client Sdk.
+         Atomicio protocol api is a basic data contract module with Server and Client.
     </description>
 
     <dependencies>

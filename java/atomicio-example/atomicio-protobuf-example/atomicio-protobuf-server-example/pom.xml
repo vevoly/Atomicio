@@ -17,63 +17,20 @@
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-protobuf-example-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-server-spring-boot-starter</artifactId>
         </dependency>
         <dependency>
             <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-codec-protobuf</artifactId>
+            <artifactId>atomicio-server-codec-protobuf</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-server-extension-redis</artifactId>
+        </dependency>
     </dependencies>
-
-    <!-- 配置 Protobuf 编译器插件 -->
-    <build>
-        <extensions>
-            <extension>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>${os-maven-plugin.version}</version>
-            </extension>
-        </extensions>
-
-        <plugins>
-            <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
-                <artifactId>protobuf-maven-plugin</artifactId>
-                <version>${protobuf-maven-plugin.version}</version>
-                <configuration>
-                    <protoSourceRoot>src/main/proto</protoSourceRoot>
-                    <protocArtifact>com.google.protobuf:protoc:${google-protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.5.0</version>
-                <executions>
-                    <execution>
-                        <id>add-source</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                        </goals>
-                        <configuration>
-                            <sources>
-                                <source>${project.build.directory}/generated-sources/protobuf/java</source>
-                            </sources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
 
 </project>

@@ -21,6 +21,10 @@
         </dependency>
         <dependency>
             <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-server-codec-text</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-server-extension-redis</artifactId>
             <version>${revision}</version>
         </dependency>

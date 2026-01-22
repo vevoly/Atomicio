@@ -1,4 +1,3 @@
-io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOCodecAutoConfiguration
 io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOEngineAutoConfiguration
 io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOManagerAutoConfiguration
 io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOClusterCoreAutoConfiguration

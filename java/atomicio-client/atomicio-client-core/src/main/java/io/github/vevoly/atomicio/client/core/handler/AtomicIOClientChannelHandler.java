@@ -14,7 +14,8 @@ import java.util.function.Consumer;
 
 /**
  * 客户端的核心业务处理器。
- * 负责将 Netty 事件翻译为客户端 SDK 的事件。
+ * 1. 【消息路由】将入站的 AtomicIOMessage 智能分流为“响应”和“推送”。
+ * 2. 【生命周期】将 Netty 的 Channel 生命周期事件 (Active, Inactive, Exception) 翻译为客户端的事件。
  *
  * @since 0.5.0
  * @author vevoly
@@ -25,7 +26,6 @@ import java.util.function.Consumer;
 public class AtomicIOClientChannelHandler extends SimpleChannelInboundHandler<AtomicIOMessage> {
 
     private final AtomicIOClientRequestManager requestManager;
-    private final Consumer<AtomicIOMessage> onPushMessageListener;
     private final DefaultAtomicIOClient client;
 
     /**
@@ -54,13 +54,23 @@ public class AtomicIOClientChannelHandler extends SimpleChannelInboundHandler<At
 
     /**
      * 收到消息时，触发 onMessage 事件
+     *
      * @param ctx
-     * @param msg
+     * @param message
      * @throws Exception
      */
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, AtomicIOMessage msg) throws Exception {
-        client.firePushMessageEvent(msg);
+    protected void channelRead0(ChannelHandlerContext ctx, AtomicIOMessage message) throws Exception {
+        boolean isResponse = requestManager.completeRequest(message.getSequenceId(), message);
+
+        // 如果不是任何请求的响应，那么就将其视为服务器推送
+        if (!isResponse) {
+            log.debug("Received a push message from server: {}", message);
+            // 通过 client 实例来触发 onPushMessage 事件
+            client.firePushMessageEvent(message);
+        } else {
+            log.debug("Received a response for request with sequenceId={}", message.getSequenceId());
+        }
     }
 
     /**

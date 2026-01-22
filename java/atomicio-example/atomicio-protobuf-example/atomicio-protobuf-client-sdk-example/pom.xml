@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.github.vevoly</groupId>
+        <artifactId>atomicio-protobuf-example</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <name>Atomicio-Protobuf-Client-SDK-Example</name>
+    <artifactId>atomicio-protobuf-client-sdk-example</artifactId>
+    <url>https://github.com/vevoly/Atomicio</url>
+    <description>A example with Protobuf protocol Client for Atomicio-Client SDK</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-protobuf-example-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-client-sdk</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-client-codec-protobuf</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.4.11</version>
+        </dependency>
+    </dependencies>
+</project>

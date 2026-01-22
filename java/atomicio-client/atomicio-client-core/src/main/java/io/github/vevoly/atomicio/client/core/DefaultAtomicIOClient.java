@@ -127,7 +127,7 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
                     pipeline.addLast(new AtomicIOHeartbeatHandler(heartbeatMessage));
                 }
                 // 3. 核心业务与事件翻译层
-                pipeline.addLast(new AtomicIOClientChannelHandler(requestManager, onPushMessageListener, DefaultAtomicIOClient.this));
+                pipeline.addLast(new AtomicIOClientChannelHandler(requestManager, DefaultAtomicIOClient.this));
                 // 4. 连接管理与重连层
                 if (config.isReconnectEnabled()) {
                     pipeline.addLast(new AtomicIOReconnectHandler(DefaultAtomicIOClient.this));

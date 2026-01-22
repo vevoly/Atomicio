@@ -20,7 +20,7 @@ public interface AtomicIOServerCodecProvider {
 
     /**
      * 根据一个收到的请求消息，创建一个与之协议匹配的响应消息。
-     * 这是框架实现协议无关响应的关键。FrameworkCommandDispatcher 将调用此方法
+     * 这是框架实现协议无关响应的关键。AtomicIOCommandDispatcher 将调用此方法
      * 来生成如 LOGIN_RESPONSE, JOIN_GROUP_RESPONSE 等框架级响应。
      *
      * @param requestMessage 触发响应的原始请求消息。实现类可以用它来获取 sequenceId 等元数据。
@@ -34,7 +34,7 @@ public interface AtomicIOServerCodecProvider {
 
     /**
      * 专门用于创建框架级的、简单的成功/失败响应。
-     * 这是 FrameworkCommandDispatcher 应该调用的方法。
+     * 这是 AtomicIOCommandDispatcher 应该调用的方法。
      *
      * @param requestMessage 原始请求
      * @param commandId      响应的指令ID

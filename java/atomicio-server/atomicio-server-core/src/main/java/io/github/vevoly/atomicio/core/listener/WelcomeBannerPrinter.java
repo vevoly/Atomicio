@@ -9,7 +9,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 
 /**
- * 一个私有的内部类，专门负责打印欢迎横幅。
+ * 负责打印欢迎横幅。
  *
  * @since 0.1.5
  * @author vevoly
@@ -45,7 +45,7 @@ public class WelcomeBannerPrinter implements EngineReadyListener {
                         "        _\\///________\\///________\\///_____________\\/////_______\\///______________\\///__\\///////////________\\/////////__\\///////////_______\\/////_______" +
                 ANSI_RESET, // --- 重置颜色 ---
                 "",
-                ANSI_BRIGHT_CYAN + "  :: Atomicio IO Engine :: (v" + version + ") ::  Author: Vevoly " + ANSI_RESET,
+                ANSI_BRIGHT_CYAN + "  :: Atomicio IO Framework :: (v" + version + ") :: Author: Vevoly :: QQ: 6493**46" + ANSI_RESET,
                 "=================================================================================================",
                 "  Port         : " + properties.getPort(),
                 "  Cluster Mode : " + (properties.getCluster().isEnabled() ? "Enabled (" + properties.getCluster().getType() + ")" : "Disabled"),

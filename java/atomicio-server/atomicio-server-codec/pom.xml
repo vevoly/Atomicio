@@ -9,19 +9,18 @@
         <version>${revision}</version>
     </parent>
 
+    <packaging>pom</packaging>
     <name>Atomcio-Server-Codec</name>
     <artifactId>atomicio-server-codec</artifactId>
+    <url>https://github.com/vevoly/Atomicio</url>
     <description>Server codec module for AtomicIO Server</description>
 
+    <modules>
+        <module>atomicio-server-codec-text</module>
+        <module>atomicio-server-codec-protobuf</module>
+    </modules>
+
     <dependencies>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-codec-protobuf</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-codec-text</artifactId>
-        </dependency>
         <dependency>
             <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-server-core</artifactId>

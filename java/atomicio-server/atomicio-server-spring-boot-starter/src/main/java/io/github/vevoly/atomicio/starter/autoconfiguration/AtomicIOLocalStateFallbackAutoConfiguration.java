@@ -2,11 +2,9 @@ package io.github.vevoly.atomicio.starter.autoconfiguration;
 
 import io.github.vevoly.atomicio.core.manager.AtomicIOStateManager;
 import io.github.vevoly.atomicio.core.state.AtomicIOLocalStateProvider;
-import io.github.vevoly.atomicio.server.api.manager.ClusterManager;
 import io.github.vevoly.atomicio.server.api.manager.StateManager;
 import io.github.vevoly.atomicio.server.api.state.AtomicIOStateProvider;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -29,7 +27,7 @@ public class AtomicIOLocalStateFallbackAutoConfiguration {
      * 这个条件保证了如果上面的 RedisStateConfiguration 生效了，这个就不会生效
      */
     @AutoConfigureAfter(name = "io.github.vevoly.atomicio.server.extension.redis.RedisProviderAutoConfiguration")
-    @ConditionalOnMissingBean(AtomicIOStateProvider.class) // 如果没有提供 Redis 模块
+    @ConditionalOnMissingBean(AtomicIOStateProvider.class)
     static class LocalStateConfiguration {
         @Bean
         public AtomicIOStateProvider localStateProvider() {

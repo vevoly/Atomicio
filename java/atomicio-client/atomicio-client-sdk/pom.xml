@@ -19,5 +19,9 @@
             <groupId>io.github.vevoly</groupId>
             <artifactId>atomicio-client-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-client-codec-protobuf</artifactId>
+        </dependency>
     </dependencies>
 </project>

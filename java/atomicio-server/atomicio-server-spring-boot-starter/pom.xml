@@ -17,7 +17,11 @@
     <dependencies>
         <dependency>
             <groupId>io.github.vevoly</groupId>
-            <artifactId>atomicio-server-codec</artifactId>
+            <artifactId>atomicio-protocol-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.vevoly</groupId>
+            <artifactId>atomicio-server-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

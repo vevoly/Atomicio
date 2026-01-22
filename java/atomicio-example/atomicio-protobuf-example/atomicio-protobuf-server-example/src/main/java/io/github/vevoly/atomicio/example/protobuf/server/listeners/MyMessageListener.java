@@ -1,21 +1,17 @@
 package io.github.vevoly.atomicio.example.protobuf.server.listeners;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.github.vevoly.atomicio.common.api.id.AtomicIOIdGenerator;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
-import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
-import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
-import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
-import io.github.vevoly.atomicio.server.api.listeners.MessageEventListener;
-import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
-import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
-import io.github.vevoly.atomicio.example.protobuf.server.cmd.BusinessCommand;
+import io.github.vevoly.atomicio.example.protobuf.common.cmd.BusinessCommand;
 import io.github.vevoly.atomicio.example.protobuf.proto.*;
+import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOPayloadParser;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
+import io.github.vevoly.atomicio.server.api.listeners.MessageEventListener;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Optional;
+import java.util.Collections;
 
 /**
  * protobuf 消息监听器
@@ -25,113 +21,105 @@ import java.util.Optional;
  */
 @Slf4j
 @Component
+@AllArgsConstructor
 public class MyMessageListener implements MessageEventListener {
 
-    @Autowired
-    private AtomicIOIdGenerator idGenerator;
+    private final AtomicIOIdGenerator idGenerator;
+
+    private final AtomicIOPayloadParser payloadParser;
 
     @Override
     public void onMessage(AtomicIOSession session, AtomicIOMessage message) {
-        int commandId = message.getCommandId();
-        byte[] payload = message.getPayload();
+        log.debug("收到消息 from user '{}': commandId={}", session.getUserId(), message.getCommandId());
 
         try {
-            switch (commandId) {
-                case AtomicIOCommand.HEARTBEAT_REQUEST:
-                    log.info("收到客户端 {} 心跳.", Optional.ofNullable(session.getAttribute(AtomicIOSessionAttributes.USER_ID)));
+            switch (message.getCommandId()) {
+                case BusinessCommand.P2P_MESSAGE_REQUEST:
+                    handleP2PMessage(session, payloadParser.parse(message, P2PMessageRequest.class));
                     break;
-                case BusinessCommand.LOGIN:
-                    // 将 payload 字节解码成我们自己的业务消息
-                    LoginRequest loginRequest = LoginRequest.parseFrom(payload);
-                    handleLogin(session, loginRequest);
+
+                case BusinessCommand.GROUP_MESSAGE_REQUEST:
+                    handleGroupMessage(session, payloadParser.parse(message, GroupMessageRequest.class));
                     break;
-                 case BusinessCommand.P2P_MESSAGE:
-                     P2PMessageRequest p2pMessage = P2PMessageRequest.parseFrom(payload);
-                     handleP2PMessage(session, p2pMessage);
-                     break;
+
                 default:
-                    log.warn("收到未知命令: {}", commandId);
+                    log.warn("收到未知命令 from user '{}': {}", session.getUserId(), message.getCommandId());
             }
-        } catch (InvalidProtocolBufferException e) {
-            log.error("Failed to parse protobuf payload for commandId: {}", commandId, e);
+        } catch (Exception e) {
+            log.error("解析或处理消息失败 for commandId: {}", message.getCommandId(), e);
             session.close();
         }
     }
 
     /**
-     * 处理登录逻辑
-     * @param session   消息发送者的会话
-     * @param request   已经解码的登录请求
-     */
-    private void handleLogin(AtomicIOSession session, LoginRequest request) {
-        String userId = request.getUserId();
-        String token = request.getToken();
-        log.info("Handling login for user: {}", userId);
-
-        // 模拟认证
-        if (token != null && !token.isEmpty()) {
-            // 通过 session.getEngine() 调用引擎服务
-            session.getEngine().bindUser(AtomicIOBindRequest.of(userId), session);
-            log.info("User {} authenticated and bound to session {}", userId, session.getId());
-            // 回复客户端
-            AtomicIOMessage response = ProtobufMessage.of(0, BusinessCommand.LOGIN_RESPONSE,
-                    LoginResponse.newBuilder().setSuccess(true).setServerTime(System.currentTimeMillis()).build());
-            session.send(response);
-        } else {
-            session.close();
-        }
-    }
-
-    /**
-     * 处理点对点消息逻辑
-     * @param session 消息发送者会话
-     * @param request 已经解码的 P2P 消息请求
+     * 处理点对点消息
      */
     private void handleP2PMessage(AtomicIOSession session, P2PMessageRequest request) {
-
-        // 1. 获取发送者和接收者的信息
-        String fromUserId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
+        String fromUserId = session.getUserId();
         String toUserId = request.getToUserId();
-        String content = request.getContent();
         String clientMessageId = request.getClientMessageId();
-        // 2. 安全检查
-        if (fromUserId == null) {
-            log.warn("An unauthenticated session {} tried to send a P2P message.", session.getId());
-            session.close();
-            return;
-        }
-        if (toUserId == null || toUserId.isEmpty() || clientMessageId == null || clientMessageId.isEmpty()) {
-            log.warn("Invalid P2P request from user {}: missing toUserId or clientMessageId.", fromUserId);
-            // 请求无效，也给一个失败的 ACK
-            P2PMessageAck invalidAck = P2PMessageAck.newBuilder()
-                    .setClientMessageId(clientMessageId != null ? clientMessageId : "")
-                    .setSuccess(false)
-                    .setCode(400)
-                    .setMessage("Missing recipient or client message id")
-                    .build();
-            session.send(ProtobufMessage.of(0, BusinessCommand.P2P_MESSAGE_ACK, invalidAck));
-            return;
-        }
-        log.info("User '{}' sends message (clientMsgId:{}) to user '{}'", fromUserId, clientMessageId, toUserId);
+
+        // 1. 构建并发送 ACK
         long serverMessageId = idGenerator.nextId();
-        // 4. 构建需要转发给接收者的“通知”消息
-        P2PMessageNotify notifyMessageBody = P2PMessageNotify.newBuilder()
-                .setFromUserId(fromUserId)
-                .setContent(content)
-                .setServerMessageId(serverMessageId)
-                .setServerTime(System.currentTimeMillis())
-                .build();
-        AtomicIOMessage messageToForward = ProtobufMessage.of(0, BusinessCommand.P2P_MESSAGE_NOTIFY, notifyMessageBody);
-        // 5. 调用引擎的 sendToUser 方法进行消息路由和投递
-        session.getEngine().sendToUser(toUserId, messageToForward);
-        // 6. 给发送者一个发送成功的回执 (ACK)
-        P2PMessageAck successAck = P2PMessageAck.newBuilder()
+        P2PMessageAck ackPayload = P2PMessageAck.newBuilder()
                 .setClientMessageId(clientMessageId)
                 .setSuccess(true)
                 .setServerMessageId(serverMessageId)
                 .setTimestamp(System.currentTimeMillis())
                 .build();
-        session.send(ProtobufMessage.of(0, BusinessCommand.P2P_MESSAGE_ACK, successAck));
+        AtomicIOMessage ackMessage = session.getEngine().getCodecProvider()
+                .createResponse(null, BusinessCommand.P2P_MESSAGE_ACK, ackPayload);
+        session.send(ackMessage);
+
+        log.info("P2P message from '{}' to '{}' (clientMsgId:{}) acknowledged with serverMsgId:{}.",
+                fromUserId, toUserId, clientMessageId, serverMessageId);
+
+        // 2. 构建并转发 Notify
+        P2PMessageNotify notifyPayload = P2PMessageNotify.newBuilder()
+                .setFromUserId(fromUserId)
+                .setContent(request.getContent())
+                .setServerMessageId(serverMessageId)
+                .setServerTime(System.currentTimeMillis())
+                .build();
+        AtomicIOMessage notifyMessage = session.getEngine().getCodecProvider()
+                .createResponse(null, BusinessCommand.P2P_MESSAGE_NOTIFY, notifyPayload);
+
+        session.getEngine().sendToUser(toUserId, notifyMessage);
     }
 
+    /**
+     * 处理群消息
+     */
+    private void handleGroupMessage(AtomicIOSession session, GroupMessageRequest request) {
+        String fromUserId = session.getUserId();
+        String groupId = request.getGroupId();
+        String clientMessageId = request.getClientMessageId();
+
+        // 1. (可选) 发送 ACK 给发送者
+        long serverMessageId = idGenerator.nextId();
+        GroupMessageAck ackPayload = GroupMessageAck.newBuilder()
+                .setClientMessageId(clientMessageId)
+                .setSuccess(true)
+                .setServerMessageId(serverMessageId)
+                .build();
+        AtomicIOMessage ackMessage = session.getEngine().getCodecProvider()
+                .createResponse(null, BusinessCommand.GROUP_MESSAGE_ACK, ackPayload);
+        session.send(ackMessage);
+
+        log.info("Group message from '{}' to group '{}' (clientMsgId:{}) acknowledged with serverMsgId:{}.",
+                fromUserId, groupId, clientMessageId, serverMessageId);
+
+        // 2. 构建并广播 Notify 给群成员 (排除发送者)
+        GroupMessageNotify notifyPayload = GroupMessageNotify.newBuilder()
+                .setGroupId(groupId)
+                .setFromUserId(fromUserId)
+                .setContent(request.getContent())
+                .setServerMessageId(serverMessageId)
+                .setServerTime(System.currentTimeMillis())
+                .build();
+        AtomicIOMessage notifyMessage = session.getEngine().getCodecProvider()
+                .createResponse(null, BusinessCommand.GROUP_MESSAGE_NOTIFY, notifyPayload);
+
+        session.getEngine().sendToGroup(groupId, notifyMessage, Collections.singleton(fromUserId));
+    }
 }

@@ -5,8 +5,9 @@ import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.handler.AtomicIOCommandDispatcher;
 import io.github.vevoly.atomicio.core.listener.WelcomeBannerPrinter;
+import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOPayloadParser;
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
-import io.github.vevoly.atomicio.server.api.auth.Authenticator;
+import io.github.vevoly.atomicio.server.api.auth.AtomicIOAuthenticator;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.server.api.manager.*;
@@ -33,6 +34,7 @@ import org.springframework.context.annotation.Lazy;
 @AutoConfigureAfter(name = {
         "io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOManagerAutoConfiguration",
         "io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOLocalStateFallbackAutoConfiguration",
+        "io.github.vevoly.atomicio.starter.autoconfiguration.AtomicIOClusterCoreAutoConfiguration",
 })
 public class AtomicIOEngineAutoConfiguration {
 
@@ -52,7 +54,7 @@ public class AtomicIOEngineAutoConfiguration {
             ObjectProvider<ClusterManager> clusterManager,
             @Lazy AtomicIOCommandDispatcher commandDispatcher
     ) {
-        log.info("Createing DefaultAtomicIOEngine");
+        log.info("AtomicIO: 创建 AtomicIOEngine");
         return new DefaultAtomicIOEngine(
                 config,
                 disruptorManager,
@@ -80,9 +82,9 @@ public class AtomicIOEngineAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public AtomicIOCommandDispatcher atomicIOCommandDispatcher(AtomicIOEngine engine, Authenticator authenticator) {
+    public AtomicIOCommandDispatcher atomicIOCommandDispatcher(AtomicIOEngine engine, AtomicIOPayloadParser payloadParser, AtomicIOAuthenticator authenticator) {
         log.info("Creating FrameworkCommandDispatcher, powered by user-provided [{}].", authenticator.getClass().getSimpleName());
-        return new AtomicIOCommandDispatcher(engine, authenticator);
+        return new AtomicIOCommandDispatcher(engine, payloadParser, authenticator);
     }
 
     /**
