@@ -1,5 +1,6 @@
 package io.github.vevoly.atomicio.core.handler;
 
+import io.github.vevoly.atomicio.common.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOPayloadParser;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
@@ -28,9 +29,9 @@ import java.nio.charset.StandardCharsets;
 @ChannelHandler.Sharable
 public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<AtomicIOMessage> {
 
-    @NonNull private final AtomicIOEngine engine;
-    @NonNull private final AtomicIOPayloadParser payloadParser;
-    @NonNull private final AtomicIOAuthenticator authenticator;
+    private final AtomicIOEngine engine;
+    private final AtomicIOPayloadParser payloadParser;
+    private final AtomicIOAuthenticator authenticator;
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, AtomicIOMessage message) throws Exception {
@@ -204,10 +205,10 @@ public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<Atomi
                         if (throwable != null) {
                             log.error("Failed to leave group '{}' for user '{}'.", groupId, session.getUserId(), throwable);
                             response = engine.getCodecProvider()
-                                    .createResponse(message, AtomicIOCommand.LEAVE_GROUP_RESPONSE, "Error: Failed to leave group");
+                                    .createResponse(message, AtomicIOCommand.LEAVE_GROUP_RESPONSE, false, "Error: Failed to leave group");
                         } else {
                             response = engine.getCodecProvider()
-                                    .createResponse(message, AtomicIOCommand.LEAVE_GROUP_RESPONSE, "Success: Left group " + groupId);
+                                    .createResponse(message, AtomicIOCommand.LEAVE_GROUP_RESPONSE, true, "Success: Left group " + groupId);
                         }
                         session.send(response);
                     });
@@ -224,13 +225,13 @@ public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<Atomi
         // 心跳的作用主要是保持连接活跃和检测死链，回复一个响应即可
         log.info("Received 💗 from session {}, responding.", session.getId());
         AtomicIOMessage heartbeatResponse = engine.getCodecProvider()
-                .createResponse(message, AtomicIOCommand.HEARTBEAT_RESPONSE, "PONG");
+                .createResponse(message, AtomicIOCommand.HEARTBEAT_RESPONSE, true, AtomicIOConstant.DEFAULT_HEARTBEAT_RESPONSE);
         session.send(heartbeatResponse);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        log.error("Exception caught in FrameworkCommandDispatcher for channel [{}]: {}",
+        log.error("Exception caught in AtomicIOCommandDispatcher for channel [{}]: {}",
                 ctx.channel().id(), cause.getMessage(), cause);
         ctx.close();
     }

@@ -3,9 +3,7 @@ package io.github.vevoly.atomicio.client.core;
 import io.github.vevoly.atomicio.client.api.AtomicIOClient;
 import io.github.vevoly.atomicio.client.api.codec.AtomicIOClientCodecProvider;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
-import io.github.vevoly.atomicio.client.core.handler.AtomicIOClientChannelHandler;
-import io.github.vevoly.atomicio.client.core.handler.AtomicIOHeartbeatHandler;
-import io.github.vevoly.atomicio.client.core.handler.AtomicIOReconnectHandler;
+import io.github.vevoly.atomicio.client.core.handler.*;
 import io.github.vevoly.atomicio.client.core.internal.AtomicIOClientRequestManager;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
@@ -132,6 +130,8 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
                 if (config.isReconnectEnabled()) {
                     pipeline.addLast(new AtomicIOReconnectHandler(DefaultAtomicIOClient.this));
                 }
+                // 5. 全局异常处理器
+                pipeline.addLast(new GlobalPipelineClientExceptionHandler(new ClientExceptionHandler(DefaultAtomicIOClient.this)));
             }
         });
         CompletableFuture<Void> connectFuture = new CompletableFuture<>();
@@ -254,6 +254,29 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
         // 在我们的 P2PMessageRequest 定义中，一次只能发给一个 to_user_id。
         // 因此，更真实的实现是循环发送或在业务层构建一个包含 userIds 的消息体。
         // 这里我们简化为只发送消息，由服务器处理。
+
+        // todo 服务器端缺少发送消息
+        String deviceId = this.currentDeviceId.get();
+        if (deviceId == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("当前客户端未登录，无法发送消息."));
+        }
+
+        if (userIds == null || userIds.length == 0) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // 1. 如果协议支持批量发送（推荐）：构建一个包含多个 userId 的请求
+        // 借鉴 ioGame 的逻辑，这里发送一条 P2P_BATCH_REQUEST 到服务器
+        AtomicIOMessage forwardMessage = codecProvider.createRequest(
+                requestManager.nextSequenceId(),
+                AtomicIOCommand.SEND_TO_USER, // 需要在你的 Command 定义中添加
+                deviceId,
+                userIds, // 将接收者数组放入 payload 或特定字段
+                message.getPayload() // 原始业务负载
+        );
+
+        // 2. 发送并等待 ACK，确保服务器收到了转发指令
+        return sendRequestAndGetAck(forwardMessage, "批量发送消息失败.");
         return writeToChannel(message);
     }
 

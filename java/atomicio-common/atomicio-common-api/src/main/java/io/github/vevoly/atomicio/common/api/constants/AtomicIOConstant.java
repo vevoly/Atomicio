@@ -12,6 +12,9 @@ public class AtomicIOConstant {
     public static final String SUCCESS = "Success";
     public static final String FAILURE = "Failure";
 
+    public static final String INTERNAL_SERVER_ERROR = "Internal Server Error";
+    public static final String DISRUPTOR_INTERNAL_SERVER_ERROR = "Internal server error during event processing";
+
     public static final String DEFAULT_HEARTBEAT_REQUEST = "PING";
     public static final String DEFAULT_HEARTBEAT_RESPONSE = "PONG";
 }

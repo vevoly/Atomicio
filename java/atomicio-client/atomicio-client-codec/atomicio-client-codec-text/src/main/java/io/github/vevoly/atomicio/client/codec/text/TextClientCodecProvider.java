@@ -44,7 +44,8 @@ public class TextClientCodecProvider implements AtomicIOClientCodecProvider {
 
     @Override
     public AtomicIOMessage createHeartbeatResponse(AtomicIOMessage requestMessage) {
-        return new TextMessage(requestMessage.getSequenceId(), AtomicIOCommand.HEARTBEAT_REQUEST,  "",AtomicIOCommand.HEARTBEAT_REQUEST + ":PONG");
+        return new TextMessage(requestMessage.getSequenceId(), AtomicIOCommand.HEARTBEAT_REQUEST,  "",
+                AtomicIOCommand.HEARTBEAT_REQUEST + ":" + AtomicIOConstant.DEFAULT_HEARTBEAT_RESPONSE);
     }
 
     @Override

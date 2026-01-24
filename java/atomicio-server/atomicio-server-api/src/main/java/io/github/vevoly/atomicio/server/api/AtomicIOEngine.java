@@ -207,4 +207,13 @@ public interface AtomicIOEngine {
      * @return a List of the sessions that were kicked.
      */
     List<AtomicIOSession> kickUser(String userId, @Nullable AtomicIOMessage kickOutMessage);
+
+    /**
+     * 关闭一个会话
+     * 1. 清除会话
+     * 2. 清除群组
+     * 3. 清除状态
+     * @param session 会话
+     */
+    void clearSession(AtomicIOSession session);
 }

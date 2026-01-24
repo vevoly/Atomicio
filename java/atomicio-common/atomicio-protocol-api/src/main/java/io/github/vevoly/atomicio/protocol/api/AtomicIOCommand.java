@@ -11,6 +11,11 @@ public class AtomicIOCommand {
     private AtomicIOCommand() {}
 
     /**
+     * S -> C: 系统错误通知
+     */
+    public static final int SYSTEM_ERROR_NOTIFY = -1;
+
+    /**
      * C -> S: 心跳请求
      */
     public static final int HEARTBEAT_REQUEST = 1; // 心跳

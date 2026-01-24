@@ -5,6 +5,8 @@ import io.github.vevoly.atomicio.client.api.codec.AtomicIOClientCodecProvider;
 import io.github.vevoly.atomicio.client.api.config.AtomicIOClientConfig;
 import io.github.vevoly.atomicio.client.codec.protobuf.ProtobufClientCodecProvider;
 import io.github.vevoly.atomicio.client.core.DefaultAtomicIOClient;
+import io.github.vevoly.atomicio.example.protobuf.client.sdk.handler.PushMessageHandler;
+import io.github.vevoly.atomicio.example.protobuf.client.sdk.listeners.ConnectionListener;
 import io.github.vevoly.atomicio.example.protobuf.common.cmd.BusinessCommand;
 import io.github.vevoly.atomicio.example.protobuf.proto.GroupMessageNotify;
 import io.github.vevoly.atomicio.example.protobuf.proto.GroupMessageRequest;
@@ -27,9 +29,6 @@ import java.util.concurrent.ThreadLocalRandom;
 @Slf4j
 public class ProtobufClientSdkExample {
 
-    private static String currentUserId;
-    private static String currentDeviceId;
-
     public static void main(String[] args) {
 
         // 手动创建和配置所有组件
@@ -42,76 +41,26 @@ public class ProtobufClientSdkExample {
         config.setMaxFrameLength(256);
 
         AtomicIOClientCodecProvider codecProvider = new ProtobufClientCodecProvider();
-
-        // 手动实例化客户端核心实现
         AtomicIOClient client = new DefaultAtomicIOClient(config, codecProvider);
 
-        // 注册事件监听器
-        client.onConnected(v -> log.info(">>>>>>>>> SDK: 成功连接到服务器! <<<<<<<<<"));
-        client.onDisconnected(v -> {
-            log.warn(">>>>>>>>> SDK: 与服务器断开连接. <<<<<<<<<");
-            System.exit(0); // 简单起见，断开就退出
-        });
-        client.onPushMessage(message -> handlePushMessage(message, codecProvider));
-        client.onError(err -> log.error(">>>>>>>>> SDK: 发生错误 <<<<<<<<<", err));
+        // 实例化所有监听器
+        ConnectionListener connectionListener = new ConnectionListener(client);
+        PushMessageHandler pushMessageHandler = new PushMessageHandler(codecProvider);
 
-        // 启动并执行业务流程
+        // 注册事件监听器
+        client.onConnected(connectionListener::onConnected);
+        client.onDisconnected(connectionListener::onDisconnected);
+        client.onReconnecting(connectionListener::onReconnecting);
+        client.onPushMessage(pushMessageHandler::handle);
+        client.onError(err -> log.error(">>>>>>>>> 客户端捕获到未处理的严重异常! <<<<<<<<<", err));
+
         try {
             log.info("SDK: 尝试连接...");
             client.connect().join();
-
-            // 登录
-            currentUserId = "user_" + ThreadLocalRandom.current().nextInt(1000, 9999);
-            currentDeviceId = "sdk-device-" + currentUserId;
-
-            client.login(currentUserId, "any-valid-token", currentDeviceId)
-                    .thenCompose(loginResult -> {
-                        if (loginResult.success()) {
-                            log.info("<<<<<<<<< SDK: 登录成功! {}", loginResult.errorMessage());
-                            // 登录成功后，加入群组
-                            return client.joinGroup("public-group");
-                        } else {
-                            log.error("<<<<<<<<< SDK: 登录失败: {}", loginResult.errorMessage());
-                            return CompletableFuture.failedFuture(new RuntimeException("Login failed"));
-                        }
-                    })
-                    .thenAccept(v -> {
-                        log.info("<<<<<<<<< SDK: 成功加入群组 'public-group'!");
-                        // 所有准备工作完成，启动控制台输入
-                        startConsoleInput(client, codecProvider);
-                    })
-                    .exceptionally(ex -> {
-                        log.error("SDK: 启动流程失败", ex.getCause());
-                        client.disconnect();
-                        return null;
-                    })
-                    .join(); // 阻塞等待整个启动流程完成
-
+            startConsoleInput(client, codecProvider);
         } catch (Exception e) {
             log.error("SDK: 启动或登录过程中发生严重错误", e);
             client.disconnect();
-        }
-    }
-
-    /**
-     * 处理服务器主动推送的消息
-     */
-    private static void handlePushMessage(AtomicIOMessage message, AtomicIOClientCodecProvider codecProvider) {
-        try {
-            switch (message.getCommandId()) {
-                case BusinessCommand.P2P_MESSAGE_NOTIFY:
-                    P2PMessageNotify p2pNotify = codecProvider.parsePayloadAs(message, P2PMessageNotify.class);
-                    log.info("<<<<<<<<< [私聊] 收到来自 [{}]: {}", p2pNotify.getFromUserId(), p2pNotify.getContent());
-                    break;
-                case BusinessCommand.GROUP_MESSAGE_NOTIFY:
-                    GroupMessageNotify groupNotify = codecProvider.parsePayloadAs(message, GroupMessageNotify.class);
-                    log.info("<<<<<<<<< [群聊-{}] 收到来自 [{}]: {}", groupNotify.getGroupId(), groupNotify.getFromUserId(), groupNotify.getContent());
-                    break;
-                default:
-                    log.warn("<<<<<<<<< 收到未处理的推送消息，指令ID: {}", message.getCommandId());
-            }
-        } catch (Exception e) {
-            log.error("<<<<<<<<< 解析推送消息 payload 错误, 指令ID: {}", message.getCommandId(), e);
         }
     }
 
@@ -148,7 +97,7 @@ public class ProtobufClientSdkExample {
                             .setContent(content)
                             .build();
 
-                    AtomicIOMessage msg = codecProvider.createRequest(0, BusinessCommand.P2P_MESSAGE_REQUEST, currentDeviceId, payload);
+                    AtomicIOMessage msg = codecProvider.createRequest(0, BusinessCommand.P2P_MESSAGE_REQUEST, "", payload);
                     client.sendToUsers(msg, toUserId);
 
                 } else if (line.startsWith("#")) {
@@ -164,7 +113,7 @@ public class ProtobufClientSdkExample {
                             .setContent(content)
                             .build();
 
-                    AtomicIOMessage msg = codecProvider.createRequest(0, BusinessCommand.GROUP_MESSAGE_REQUEST, currentDeviceId, payload);
+                    AtomicIOMessage msg = codecProvider.createRequest(0, BusinessCommand.GROUP_MESSAGE_REQUEST, "", payload);
                     client.sendToGroup(msg, groupId, null);
                 }
             }

@@ -1,8 +1,8 @@
 package io.github.vevoly.atomicio.core.handler;
 
-import io.github.vevoly.atomicio.server.api.constants.ConnectionRejectType;
-import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.utils.IpUtils;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
+import io.github.vevoly.atomicio.server.api.constants.ConnectionRejectType;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -26,10 +26,10 @@ public class IpConnectionLimitHandler extends ChannelInboundHandlerAdapter {
      * 每个 ip 最大连接数
      */
     private final int maxConnectionsPerIp;
-    private final DefaultAtomicIOEngine engine;
+    private final AtomicIOEngine engine;
     private final Map<String, AtomicInteger> ipConnectionCounts = new ConcurrentHashMap<>();
 
-    public IpConnectionLimitHandler(DefaultAtomicIOEngine engine) {
+    public IpConnectionLimitHandler(AtomicIOEngine engine) {
         this.engine = engine;
         this.maxConnectionsPerIp = engine.getConfig().getIpSecurity().getMaxConnect();
     }

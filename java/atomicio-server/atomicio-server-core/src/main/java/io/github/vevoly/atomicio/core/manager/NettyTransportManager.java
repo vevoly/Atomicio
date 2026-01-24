@@ -1,21 +1,19 @@
 package io.github.vevoly.atomicio.core.manager;
 
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
-import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.handler.*;
 import io.github.vevoly.atomicio.core.ssl.SslContextFactory;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
+import io.github.vevoly.atomicio.server.api.manager.TransportManager;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -28,9 +26,9 @@ import java.util.concurrent.TimeUnit;
  * @author vevoly
  */
 @Slf4j
-public class NettyServerManager {
+public class NettyTransportManager implements TransportManager {
 
-    private final DefaultAtomicIOEngine engine; // 核心引擎
+    private final AtomicIOEngine engine; // 核心引擎
     private final AtomicIOProperties config; // 框架配置
     private final AtomicIOServerCodecProvider codecProvider; // 编/解码提供器
     private AtomicIOCommandDispatcher commandDispatcher; // 框架指令调度器
@@ -49,14 +47,17 @@ public class NettyServerManager {
     private NettyEventTranslationHandler nettyEventTranslationHandler; // Netty 事件翻译处理器
     private OverloadProtectionHandler overloadProtectionHandler; // 服务器负载保护处理器
     private RawBytesMessageHandler rawBytesMessageHandler; // 原生字节消息处理器，绿色通道
+    private PipelineExceptionHandler globalExceptionHandler; // 全局异常处理器
 
     private final ChannelInitializer<SocketChannel> childHandlerInitializer;
 
-    public NettyServerManager(DefaultAtomicIOEngine engine, AtomicIOCommandDispatcher commandDispatcher) {
+    public NettyTransportManager(AtomicIOEngine engine, AtomicIOCommandDispatcher commandDispatcher,
+                                 PipelineExceptionHandler globalExceptionHandler) {
         this.engine = engine;
         this.config = engine.getConfig();
         this.codecProvider = engine.getCodecProvider();
         this.commandDispatcher = commandDispatcher;
+        this.globalExceptionHandler = globalExceptionHandler;
 
         // 初始化所有需要共享的 Handler 实例
         initializeHandlers();
@@ -64,6 +65,7 @@ public class NettyServerManager {
         this.childHandlerInitializer = new ServerChannelInitializer();
     }
 
+    @Override
     public Future<Void> start() {
         CompletableFuture<Void> future = new CompletableFuture<>();
 
@@ -90,6 +92,7 @@ public class NettyServerManager {
         return future;
     }
 
+    @Override
     public void stop() {
         log.info("Netty Server shutting down...");
         // 关闭顺序与启动相反
@@ -130,7 +133,7 @@ public class NettyServerManager {
         log.info("初始化集群消息直通处理器 ...");
         this.rawBytesMessageHandler = new RawBytesMessageHandler();
         log.info("初始化 Netty 事件翻译处理器 ...");
-        this.nettyEventTranslationHandler = new NettyEventTranslationHandler(engine.getDisruptorManager(), engine);
+        this.nettyEventTranslationHandler = new NettyEventTranslationHandler(engine);
 
     }
 
@@ -180,6 +183,8 @@ public class NettyServerManager {
             }
             // 事件翻译层
             pipeline.addLast(nettyEventTranslationHandler);
+            // 全局同步异常处理
+            pipeline.addLast(globalExceptionHandler);
         }
     }
 

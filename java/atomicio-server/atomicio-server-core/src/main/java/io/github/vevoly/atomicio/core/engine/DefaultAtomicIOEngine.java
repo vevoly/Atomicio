@@ -2,8 +2,6 @@ package io.github.vevoly.atomicio.core.engine;
 
 import io.github.vevoly.atomicio.common.api.config.AtomicIOConfigDefaultValue;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
-import io.github.vevoly.atomicio.core.handler.AtomicIOCommandDispatcher;
-import io.github.vevoly.atomicio.core.manager.NettyServerManager;
 import io.github.vevoly.atomicio.core.session.NettySession;
 import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
@@ -23,7 +21,9 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Future;
@@ -59,13 +59,14 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     private final DisruptorManager disruptorManager; // Disruptor 管理器
     private final ClusterManager clusterManager; // 集群管理器
     private final StateManager stateManager; // 状态管理器
-    private final NettyServerManager nettyServerManager; // Netty 管理器
+    private final TransportManager nettyTransportManager; // 传输层管理器
 
     // 线程安全的状态机
     private final AtomicReference<AtomicIOLifeState> state = new AtomicReference<>(AtomicIOLifeState.NEW);
 
     public DefaultAtomicIOEngine(
             AtomicIOProperties config,
+            TransportManager transportManager,
             DisruptorManager disruptorManager,
             IOEventManager eventManager,
             SessionManager sessionManager,
@@ -73,10 +74,8 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             AtomicIOServerCodecProvider codecProvider,
             AtomicIOStateProvider stateProvider,
             StateManager stateManager,
-            @Nullable AtomicIOClusterProvider clusterProvider,
-            ClusterManager clusterManager,
-            AtomicIOCommandDispatcher commandDispatcher
-
+            AtomicIOClusterProvider clusterProvider,
+            ClusterManager clusterManager
     ) {
         this.config = config;
         this.codecProvider = codecProvider;
@@ -89,8 +88,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         this.eventManager = eventManager;
         this.sessionManager = sessionManager;
         this.groupManager = groupManager;
-        this.nettyServerManager = new NettyServerManager(this, commandDispatcher);
-
+        this.nettyTransportManager = transportManager;
     }
 
     // -- 生命周期管理 --
@@ -145,7 +143,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
                 stateManager.start();
             }
             // 4. 启动 Netty 服务器
-            nettyServerManager.start().get(); // 阻塞等待 Netty 服务器启动完成
+            nettyTransportManager.start().get(); // 阻塞等待 Netty 服务器启动完成
             // 5. 设置运行状态
             state.set(AtomicIOLifeState.RUNNING);
             // 6. 发布引擎就绪事件
@@ -168,7 +166,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         }
         log.info("Atomicio 引擎 shutting down...");
         // 关闭 Netty 服务器
-        nettyServerManager.stop();
+        nettyTransportManager.stop();
         // 关闭集群管理器
         if (this.clusterManager != null) {
             this.clusterManager.shutdown();
@@ -403,7 +401,8 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
      * 会话关闭时执行逻辑
      * @param session
      */
-    public void onSessionClosed(AtomicIOSession session) {
+    @Override
+    public void clearSession(AtomicIOSession session) {
         String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
         String deviceId = session.getAttribute(AtomicIOSessionAttributes.DEVICE_ID);
 

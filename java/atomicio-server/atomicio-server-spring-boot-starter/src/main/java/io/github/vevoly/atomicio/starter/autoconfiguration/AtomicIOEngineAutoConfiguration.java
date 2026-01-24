@@ -2,9 +2,13 @@ package io.github.vevoly.atomicio.starter.autoconfiguration;
 
 import io.github.vevoly.atomicio.common.api.config.AtomicIOConfigDefaultValue;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.common.api.exception.AtomicIOExceptionHandler;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.handler.AtomicIOCommandDispatcher;
+import io.github.vevoly.atomicio.core.handler.PipelineExceptionHandler;
+import io.github.vevoly.atomicio.core.handler.DefaultExceptionHandler;
 import io.github.vevoly.atomicio.core.listener.WelcomeBannerPrinter;
+import io.github.vevoly.atomicio.core.manager.NettyTransportManager;
 import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOPayloadParser;
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.server.api.auth.AtomicIOAuthenticator;
@@ -43,6 +47,7 @@ public class AtomicIOEngineAutoConfiguration {
     @ConditionalOnProperty(prefix = AtomicIOConfigDefaultValue.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = false)
     public AtomicIOEngine atomicIOEngine(
             AtomicIOProperties config,
+            @Lazy TransportManager transportManager,
             DisruptorManager disruptorManager,
             IOEventManager eventManager,
             SessionManager sessionManager,
@@ -51,12 +56,12 @@ public class AtomicIOEngineAutoConfiguration {
             AtomicIOStateProvider stateProvider,
             StateManager stateManager,
             ObjectProvider<AtomicIOClusterProvider> clusterProvider,
-            ObjectProvider<ClusterManager> clusterManager,
-            @Lazy AtomicIOCommandDispatcher commandDispatcher
+            ObjectProvider<ClusterManager> clusterManager
     ) {
         log.info("AtomicIO: 创建 AtomicIOEngine");
         return new DefaultAtomicIOEngine(
                 config,
+                transportManager,
                 disruptorManager,
                 eventManager,
                 sessionManager,
@@ -65,8 +70,7 @@ public class AtomicIOEngineAutoConfiguration {
                 stateProvider,
                 stateManager,
                 clusterProvider.getIfAvailable(),
-                clusterManager.getIfAvailable(),
-                commandDispatcher
+                clusterManager.getIfAvailable()
         );
     }
 
@@ -83,8 +87,32 @@ public class AtomicIOEngineAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public AtomicIOCommandDispatcher atomicIOCommandDispatcher(AtomicIOEngine engine, AtomicIOPayloadParser payloadParser, AtomicIOAuthenticator authenticator) {
-        log.info("Creating FrameworkCommandDispatcher, powered by user-provided [{}].", authenticator.getClass().getSimpleName());
+        log.info("AtomicIO: 创建 AtomicIOCommandDispatcher, powered by user-provided [{}].", authenticator.getClass().getSimpleName());
         return new AtomicIOCommandDispatcher(engine, payloadParser, authenticator);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AtomicIOExceptionHandler serverExceptionHandler(AtomicIOEngine engine) {
+        return new DefaultExceptionHandler(engine);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public PipelineExceptionHandler globalExceptionHandler(AtomicIOExceptionHandler exceptionHandler) {
+        return new PipelineExceptionHandler(exceptionHandler);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public TransportManager transportManager(
+            AtomicIOEngine engine,
+            AtomicIOCommandDispatcher commandDispatcher,
+            PipelineExceptionHandler globalExceptionHandler
+    ) {
+        NettyTransportManager transportManager = new NettyTransportManager(engine, commandDispatcher, globalExceptionHandler);
+//        ((DefaultAtomicIOEngine) engine).setTransportManager(transportManager);
+        return transportManager;
     }
 
     /**

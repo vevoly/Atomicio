@@ -1,5 +1,6 @@
 package io.github.vevoly.atomicio.core.handler;
 
+import io.github.vevoly.atomicio.common.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
@@ -48,12 +49,12 @@ public class HeartbeatResponseHandler extends SimpleChannelInboundHandler<Atomic
         if (session == null) {
             return;
         }
-        log.info("Received 💗 from session {}, responding.", session.getId());
+        log.info("Received 💗 from session {}, responding1.", session.getId());
         // 从引擎获取当前的 CodecProvider
         AtomicIOServerCodecProvider codecProvider = engine.getCodecProvider();
         // 委托给 CodecProvider 创建回应
         AtomicIOMessage response = engine.getCodecProvider()
-                .createResponse(requestMessage, AtomicIOCommand.HEARTBEAT_RESPONSE, "PONG");
+                .createResponse(requestMessage, AtomicIOCommand.HEARTBEAT_RESPONSE, true, AtomicIOConstant.DEFAULT_HEARTBEAT_RESPONSE);
         if (response != null) {
             session.send(response);
         }

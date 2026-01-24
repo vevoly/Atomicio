@@ -5,6 +5,7 @@ import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.util.DaemonThreadFactory;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.handler.DisruptorEventHandler;
+import io.github.vevoly.atomicio.core.handler.DisruptorExceptionHandler;
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.server.api.manager.DisruptorEntry;
 import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
@@ -56,6 +57,8 @@ public class DefaultDisruptorManager implements DisruptorManager {
                 65536,                       // RingBuffer 大小
                 DaemonThreadFactory.INSTANCE // 线程工厂
         );
+        // 设置异常处理器
+        disruptor.setDefaultExceptionHandler(new DisruptorExceptionHandler());
         // 连接消费者
         disruptor.handleEventsWith(new DisruptorEventHandler(engine));
         this.ringBuffer = disruptor.start();

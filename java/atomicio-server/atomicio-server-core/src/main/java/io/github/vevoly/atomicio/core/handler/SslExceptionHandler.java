@@ -1,11 +1,11 @@
 package io.github.vevoly.atomicio.core.handler;
 
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.server.api.constants.ConnectionRejectType;
-import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.net.ssl.SSLException;
@@ -17,11 +17,11 @@ import javax.net.ssl.SSLException;
  * @author vevoly
  */
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 @ChannelHandler.Sharable
 public class SslExceptionHandler extends ChannelInboundHandlerAdapter {
 
-    private final DefaultAtomicIOEngine engine;
+    private final AtomicIOEngine engine;
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {

@@ -2,9 +2,9 @@ package io.github.vevoly.atomicio.core.handler;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import io.github.vevoly.atomicio.server.api.constants.ConnectionRejectType;
-import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
 import io.github.vevoly.atomicio.core.utils.IpUtils;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
+import io.github.vevoly.atomicio.server.api.constants.ConnectionRejectType;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -24,12 +24,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 @ChannelHandler.Sharable
 public class IpRateLimitHandler extends ChannelInboundHandlerAdapter {
 
-    private final DefaultAtomicIOEngine engine;
+    private final AtomicIOEngine engine;
     private final int rateLimitCount;
     private final int rateLimitInterval;
     private final Cache<String, AtomicInteger> ipConnectionRates;
 
-    public IpRateLimitHandler(DefaultAtomicIOEngine engine) {
+    public IpRateLimitHandler(AtomicIOEngine engine) {
         this.engine = engine;
         this.rateLimitCount = engine.getConfig().getIpSecurity().getRateLimitCount();
         this.rateLimitInterval = engine.getConfig().getIpSecurity().getRateLimitInterval();

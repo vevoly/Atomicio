@@ -1,11 +1,12 @@
 package io.github.vevoly.atomicio.core.handler;
 
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
-import io.github.vevoly.atomicio.server.api.constants.ConnectionRejectType;
 import io.github.vevoly.atomicio.core.engine.DefaultAtomicIOEngine;
-import io.github.vevoly.atomicio.core.manager.DefaultDisruptorManager;
+import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
+import io.github.vevoly.atomicio.server.api.constants.ConnectionRejectType;
 import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
 import io.netty.channel.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -16,14 +17,11 @@ import lombok.extern.slf4j.Slf4j;
  * @author vevoly
  */
 @Slf4j
+@RequiredArgsConstructor
 @ChannelHandler.Sharable
 public class OverloadProtectionHandler extends ChannelInboundHandlerAdapter {
 
-    private final DefaultAtomicIOEngine engine;
-
-    public OverloadProtectionHandler(DefaultAtomicIOEngine engine) {
-        this.engine = engine;
-    }
+    private final AtomicIOEngine engine;
 
     /**
      * 在 Channel 注册到 EventLoop 时进行检查，这是最早的可靠时机。

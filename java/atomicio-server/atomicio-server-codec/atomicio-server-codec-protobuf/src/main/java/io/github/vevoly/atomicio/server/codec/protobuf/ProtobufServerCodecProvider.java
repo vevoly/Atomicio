@@ -37,7 +37,6 @@ public class ProtobufServerCodecProvider implements AtomicIOServerCodecProvider 
         }
 
         Message protoPayload = (Message) payload;
-
         // 使用 ProtobufMessage 的工厂方法来创建
         // 从原始请求中获取 sequenceId
         return ProtobufMessage.of(requestMessage.getSequenceId(), commandId, protoPayload);
