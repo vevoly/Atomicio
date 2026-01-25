@@ -6,7 +6,7 @@ package io.github.vevoly.atomicio.common.api.constants;
  * @since 0.6.6
  * @author vevoly
  */
-public class AtomicIOConstant {
+public final class AtomicIOConstant {
 
     // -- 项目通用常量 --
     public static final String SUCCESS = "Success";
@@ -17,4 +17,5 @@ public class AtomicIOConstant {
 
     public static final String DEFAULT_HEARTBEAT_REQUEST = "PING";
     public static final String DEFAULT_HEARTBEAT_RESPONSE = "PONG";
+
 }

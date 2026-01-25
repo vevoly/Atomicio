@@ -53,6 +53,39 @@ public class TextServerCodecProvider implements AtomicIOServerCodecProvider {
         return new TextMessage(requestMessage.getSequenceId(), commandId, deviceId, textPayload);
     }
 
+    @Override
+    public AtomicIOMessage createPushMessage(String fromUserId, String fromGroupId, int businessPayloadType, Object businessPayload) {
+        // 1. 验证并转换 businessPayload
+        //    对于 Text 协议，我们期望业务载荷最终是一个 String
+        if (!(businessPayload instanceof String)) {
+            throw new IllegalArgumentException("Text protocol requires a String businessPayload for PushMessage.");
+        }
+        String bizPayloadString = (String) businessPayload;
+
+        // 2. 按照 "fromUserId|fromGroupId|bizType|bizPayloadString" 格式拼接 payload
+        StringBuilder sb = new StringBuilder();
+
+        // fromUserId
+        sb.append(fromUserId != null ? fromUserId : "");
+        sb.append('|');
+
+        // fromGroupId (如果为 null，则为空字符串)
+        sb.append(fromGroupId != null ? fromGroupId : "");
+        sb.append('|');
+
+        // businessPayloadType
+        sb.append(businessPayloadType);
+        sb.append('|');
+
+        // businessPayloadString
+        sb.append(bizPayloadString);
+
+        // 3. 创建最终的 TextMessage
+        //    对于服务器主动推送，sequenceId 通常为 0
+        //    deviceId 在推送场景下意义不大，可以为 null
+        return new TextMessage(0, AtomicIOCommand.PUSH_MESSAGE, null, sb.toString());
+    }
+
     /**
      * 获取所有【入站】的协议相关 Handler。
      * 顺序：分帧 -> 解码

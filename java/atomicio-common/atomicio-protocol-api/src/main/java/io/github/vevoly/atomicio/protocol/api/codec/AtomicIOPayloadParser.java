@@ -1,6 +1,7 @@
 package io.github.vevoly.atomicio.protocol.api.codec;
 
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.routing.AtomicIOForwardingEnvelope;
 
 /**
  * 消息解析器
@@ -30,4 +31,12 @@ public interface AtomicIOPayloadParser {
      * @throws Exception 如果 payload 不是一个简单的字符串载体
      */
     String parseAsString(AtomicIOMessage message) throws Exception;
+
+    /**
+     * 将一个消息解析为一个通用的、协议无关的转发信封。
+     * @param message 要解析的消息
+     * @return 一个实现了 AtomicIOForwardingEnvelope 接口的对象
+     * @throws Exception 如果解析失败
+     */
+    AtomicIOForwardingEnvelope parseAsForwardingEnvelope(AtomicIOMessage message) throws Exception;
 }

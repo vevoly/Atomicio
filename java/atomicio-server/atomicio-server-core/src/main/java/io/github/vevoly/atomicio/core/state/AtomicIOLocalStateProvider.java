@@ -6,10 +6,7 @@ import io.github.vevoly.atomicio.server.api.state.AtomicIOSessionStateProvider;
 import io.github.vevoly.atomicio.server.api.state.AtomicIOStateProvider;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -94,6 +91,16 @@ public class AtomicIOLocalStateProvider implements AtomicIOStateProvider, Atomic
     public CompletableFuture<Map<String, String>> findSessions(String userId) {
         Map<String, String> sessions = userSessions.getOrDefault(userId, Collections.emptyMap());
         return CompletableFuture.completedFuture(sessions);
+    }
+
+    @Override
+    public CompletableFuture<String> findNodeForUser(String userId) {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> findNodesForUsers(List<String> userIds) {
+        return null;
     }
 
     @Override

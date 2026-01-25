@@ -4,6 +4,7 @@ import io.github.vevoly.atomicio.common.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.codec.AtomicIOPayloadParser;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
+import io.github.vevoly.atomicio.protocol.api.routing.AtomicIOForwardingEnvelope;
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
 import io.github.vevoly.atomicio.server.api.auth.AtomicIOAuthenticator;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
@@ -16,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
 
 /**
  * 框架指令调度器
@@ -106,6 +109,18 @@ public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<Atomi
                 handleHeartbeat(session, message);
                 return true;
 
+            case AtomicIOCommand.SEND_TO_USER:
+                handleSendToUser(session, message);
+                return true;
+
+            case AtomicIOCommand.SEND_TO_USERS:
+                handleSendToUsersBatch(session, message);
+                return true;
+
+            case AtomicIOCommand.SEND_TO_GROUP:
+                handleSendToGroup(session, message);
+                return true;
+
             default:
                 // 不是框架命令无需关心
                 return false;
@@ -149,6 +164,7 @@ public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<Atomi
     private void handleLogout(AtomicIOSession session) {
         log.info("User '{}' on device '{}' requested logout. Closing session [{}].",
                 session.getUserId(), session.getDeviceId(), session.getRemoteAddress());
+        // todo 这里用 kickUser 语意有问题，后续重构
         engine.kickUser(session.getUserId(), null);
     }
 
@@ -227,6 +243,70 @@ public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<Atomi
         AtomicIOMessage heartbeatResponse = engine.getCodecProvider()
                 .createResponse(message, AtomicIOCommand.HEARTBEAT_RESPONSE, true, AtomicIOConstant.DEFAULT_HEARTBEAT_RESPONSE);
         session.send(heartbeatResponse);
+    }
+
+    /**
+     * 处理【单播】转发请求。
+     */
+    private void handleSendToUser(AtomicIOSession session, AtomicIOMessage message) {
+        try {
+            // 将消息解析为通用信封
+            AtomicIOForwardingEnvelope envelope = payloadParser.parseAsForwardingEnvelope(message);
+
+            // 从信封中获取单播所需的信息
+            List<String> toUserIds = envelope.getToUserIds();
+            if (toUserIds == null || toUserIds.isEmpty()) {
+                log.warn("SEND_TO_USER request from '{}' is missing a target user.", session.getUserId());
+                return;
+            }
+            String toUserId = toUserIds.get(0); // 单播只取第一个
+
+            // 构建 PushMessage
+            AtomicIOMessage messageToPush = engine.getCodecProvider().createPushMessage(
+                    session.getUserId(), null, envelope.getBusinessPayloadType(), envelope.getBusinessPayload()
+            );
+
+            engine.sendToUser(toUserId, messageToPush);
+
+        } catch (Exception e) {
+            log.error("Failed to handle SEND_TO_USER request from user '{}'.", session.getUserId(), e);
+        }
+    }
+
+    /**
+     * 处理【批量多播】转发请求。
+     */
+    private void handleSendToUsersBatch(AtomicIOSession session, AtomicIOMessage message) {
+        try {
+            AtomicIOForwardingEnvelope envelope = payloadParser.parseAsForwardingEnvelope(message);
+            List<String> toUserIds = envelope.getToUserIds();
+            if (toUserIds == null || toUserIds.isEmpty()) return;
+            AtomicIOMessage messageToPush = engine.getCodecProvider().createPushMessage(
+                    session.getUserId(), null, envelope.getBusinessPayloadType(), envelope.getBusinessPayload()
+            );
+            engine.sendToUsers(toUserIds, messageToPush);
+        } catch (Exception e) {
+            log.error("Failed to handle SEND_TO_USERS_BATCH request from user '{}'.", session.getUserId(), e);
+        }
+    }
+
+    /**
+     * 处理【群组广播】转发请求。
+     */
+    private void handleSendToGroup(AtomicIOSession session, AtomicIOMessage message) {
+        try {
+            AtomicIOForwardingEnvelope envelope = payloadParser.parseAsForwardingEnvelope(message);
+            String toGroupId = envelope.getToGroupId();
+            if (toGroupId == null || toGroupId.isEmpty()) return;
+            AtomicIOMessage messageToPush = engine.getCodecProvider().createPushMessage(
+                    session.getUserId(), toGroupId, envelope.getBusinessPayloadType(), envelope.getBusinessPayload()
+            );
+            Set<String> excludes = envelope.getExcludeUserIds();
+            excludes.add(session.getUserId());
+            engine.sendToGroup(toGroupId, messageToPush, excludes);
+        } catch (Exception e) {
+            log.error("Failed to handle SEND_TO_GROUP request from user '{}'.", session.getUserId(), e);
+        }
     }
 
     @Override

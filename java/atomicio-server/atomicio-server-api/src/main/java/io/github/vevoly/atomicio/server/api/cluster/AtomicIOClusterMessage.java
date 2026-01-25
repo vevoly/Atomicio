@@ -5,6 +5,7 @@ import lombok.ToString;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -23,30 +24,40 @@ public class AtomicIOClusterMessage implements Serializable {
 
     /**
      * 消息类型
+     * 决定了接收节点应该如何处理这条消息
      */
     private AtomicIOClusterMessageType messageType;
-
-    /**
-     * 目标
-     */
-    private String target; // userId, groupId, all
-
-    /**
-     * 排除的用户
-     */
-    private Set<String> excludeUserIds;
-
-    /**
-     * 目标设备 ID
-     * 专门用于踢出指定设备，若为空则表示踢出该用户所有设备
-     */
-    private String deviceId;
 
     /**
      * 节点 ID (可选)
      * 标明这条消息是谁发出的
      */
     private String fromNodeId;
+
+    /**
+     * 【单目标】用户ID (用于 SEND_TO_USER)。
+     */
+    private String targetUserId;
+
+    /**
+     * 【多目标】用户ID列表 (用于 SEND_TO_USERS_BATCH)。
+     */
+    private List<String> targetUserIds;
+
+    /**
+     * 【单目标】群组ID (用于 SEND_TO_GROUP)。
+     */
+    private String targetGroupId;
+
+    /**
+     * 【多目标】设备ID列表 (用于 KICK_OUT)。
+     */
+    private List<String> targetDeviceIds;
+
+    /**
+     * 排除的用户
+     */
+    private Set<String> excludeUserIds;
 
     /**
      * 指令号

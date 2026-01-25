@@ -45,6 +45,16 @@ public interface AtomicIOServerCodecProvider {
     AtomicIOMessage createResponse(AtomicIOMessage requestMessage, int commandId, boolean success, String message);
 
     /**
+     * 创建服务器主动推送的 PushMessage
+     * @param fromUserId             发送者ID
+     * @param fromGroupId            发送组ID，可能为 null
+     * @param businessPayloadType    载体类型
+     * @param businessPayload        载体
+     * @return
+     */
+    AtomicIOMessage createPushMessage(String fromUserId, String fromGroupId, int businessPayloadType, Object businessPayload);
+
+    /**
      * 获取所有【入站】的协议相关 Handler。
      */
     List<ChannelHandler> getInboundHandlers(AtomicIOProperties config);

@@ -70,7 +70,7 @@ public class NettyEventTranslationHandler extends ChannelInboundHandlerAdapter {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         final AtomicIOSession session = engine.getSessionManager().getLocalSessionById(ctx.channel().id().asLongText());
         if (session != null) {
-            // 1. 立即、同步地执行状态清理
+            // 1. 立即、同步地执行状态清理 // todo 涉及到 redis 应该修改成异步清理
             engine.clearSession(session);
             // 发布异步 DISCONNECT 事件
             disruptorManager.publish(disruptorEntry -> {

@@ -62,3 +62,66 @@ message GenericResponse {
   string message = 2;
 }
 
+/**
+ * 单播消息转发请求的载体。
+ * 对应指令: SEND_TO_USER
+ */
+message ForwardToUserRequest {
+  // 目标用户ID
+  string to_user_id = 1;
+
+  // 业务载荷类型 (由业务层定义, e.g., 2001=TextChatMessage)
+  int32 business_payload_type = 2;
+
+  // 业务载荷本身 (二进制)
+  bytes business_payload = 3;
+}
+
+/**
+ * 批量/多播消息转发请求的载体。
+ * 对应指令: SEND_TO_USERS_BATCH
+ */
+message ForwardToUsersRequest {
+  // 目标用户ID列表
+  repeated string to_user_ids = 1;
+
+  // 业务载荷类型 (同上)
+  int32 business_payload_type = 2;
+
+  // 业务载荷本身 (同上)
+  bytes business_payload = 3;
+}
+
+/**
+ * 群组消息转发请求的载体。
+ * 对应指令: SEND_TO_GROUP
+ */
+message ForwardToGroupRequest {
+  // 目标群组ID
+  string to_group_id = 1;
+  // (可选) 需要从接收者中排除的用户ID
+  repeated string exclude_user_ids = 2;
+
+  // 业务载荷类型 (同上)
+  int32 business_payload_type = 3;
+
+  // 业务载荷本身 (同上)
+  bytes business_payload = 4;
+}
+
+
+/**
+ * 服务器向客户端推送消息的载体。
+ * 对应指令: PUSH_MESSAGE
+ */
+message PushMessage {
+  // 消息的原始发送者
+  string from_user_id = 1;
+  // (可选) 如果是群消息，这里是来源群组ID
+  optional string from_group_id = 2;
+  // 业务载荷类型 (原样透传)
+  int32 business_payload_type = 3;
+  // 业务载荷本身 (原样透传)
+  bytes business_payload = 4;
+}
+

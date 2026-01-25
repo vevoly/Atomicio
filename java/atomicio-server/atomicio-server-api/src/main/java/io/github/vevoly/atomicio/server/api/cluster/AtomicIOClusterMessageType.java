@@ -8,6 +8,7 @@ package io.github.vevoly.atomicio.server.api.cluster;
  */
 public enum AtomicIOClusterMessageType {
     SEND_TO_USER,
+    SEND_TO_USERS_BATCH,
     SEND_TO_GROUP,
     BROADCAST,
     KICK_OUT,

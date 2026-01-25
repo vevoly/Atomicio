@@ -1,12 +1,15 @@
 package io.github.vevoly.atomicio.server.codec.protobuf;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import io.github.vevoly.atomicio.codec.decoder.ProtobufVarint32FrameDecoder;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufAdapterHandler;
 import io.github.vevoly.atomicio.codec.protobuf.ProtobufMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.GenericMessage;
 import io.github.vevoly.atomicio.codec.protobuf.proto.GenericResponse;
+import io.github.vevoly.atomicio.codec.protobuf.proto.PushMessage;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
+import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.netty.buffer.ByteBuf;
@@ -50,6 +53,25 @@ public class ProtobufServerCodecProvider implements AtomicIOServerCodecProvider 
                 .setMessage(message)
                 .build();
         return ProtobufMessage.of(requestMessage.getSequenceId(), commandId, protoPayload);
+    }
+
+    @Override
+    public AtomicIOMessage createPushMessage(String fromUserId, String fromGroupId, int businessPayloadType, Object businessPayload) {
+        if (!(businessPayload instanceof Message)) {
+            throw new IllegalArgumentException("Protobuf protocol requires a Message payload.");
+        }
+        // 1. 将业务 Object 重新序列化为 bytes，以放入 PushMessage 的 payload
+        byte[] bizPayloadBytes = ((Message) businessPayload).toByteArray();
+        // 2. 构建框架级的 PushMessage
+        PushMessage.Builder pushBuilder = PushMessage.newBuilder()
+                .setFromUserId(fromUserId)
+                .setBusinessPayloadType(businessPayloadType)
+                .setBusinessPayload(ByteString.copyFrom(bizPayloadBytes));
+        if (fromGroupId != null) {
+            pushBuilder.setFromGroupId(fromGroupId);
+        }
+        // 3. 使用 ProtobufMessage.of 工厂方法创建最终消息
+        return ProtobufMessage.of(0, AtomicIOCommand.PUSH_MESSAGE, pushBuilder.build());
     }
 
     @Override

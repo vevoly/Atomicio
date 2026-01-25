@@ -153,6 +153,13 @@ public interface AtomicIOEngine {
     void sendToUser(String userId, AtomicIOMessage message);
 
     /**
+     * 向指定用户列表发送消息。引擎会自动寻找这些用户所在的节点并投递。
+     * @param userIds 目标用户ID列表
+     * @param message 消息对象
+     */
+    void sendToUsers(List<String> userIds, AtomicIOMessage message);
+
+    /**
      * 将用户加入到指定的组（用户的所有会话）。
      * 组可以是任何业务概念：房间、队伍、公会、聊天频道等。
      * 如果组不存在，引擎应自动创建。

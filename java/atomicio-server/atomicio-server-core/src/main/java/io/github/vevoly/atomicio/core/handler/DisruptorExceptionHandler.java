@@ -22,6 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class DisruptorExceptionHandler implements ExceptionHandler<DisruptorEntry> {
 
+    private final AtomicIOEngine engine;
+
     /**
      * 当处理 Disruptor 事件的过程中发生异常时被调用。
      * 这是我们处理业务逻辑异步异常的核心入口。
@@ -37,7 +39,7 @@ public class DisruptorExceptionHandler implements ExceptionHandler<DisruptorEntr
             AtomicIOSession session = event.getSession();
             if (session.isActive()) {
                 try {
-                    AtomicIOMessage errorMessage = session.getEngine().getCodecProvider()
+                    AtomicIOMessage errorMessage = engine.getCodecProvider()
                             .createResponse(null, AtomicIOCommand.SYSTEM_ERROR_NOTIFY, false, AtomicIOConstant.DISRUPTOR_INTERNAL_SERVER_ERROR);
                     session.sendAndClose(errorMessage);
                     log.info("Sent error notification and closed session [{}] due to Disruptor exception.", sessionId);

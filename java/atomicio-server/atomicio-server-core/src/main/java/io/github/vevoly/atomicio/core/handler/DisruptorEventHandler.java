@@ -11,6 +11,8 @@ import io.github.vevoly.atomicio.server.api.manager.IOEventManager;
 import io.github.vevoly.atomicio.server.api.manager.SessionManager;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
+
 /**
  * Disruptor 事件的最终消费者。
  * 这个类的 onEvent 方法会在独立的业务线程中被调用。
@@ -34,11 +36,15 @@ public class DisruptorEventHandler implements EventHandler<DisruptorEntry> {
     @Override
     public void onEvent(DisruptorEntry entry, long sequence, boolean endOfBatch) throws Exception {
         try {
+            if (entry == null) return;
             if (entry.getClusterMessage() != null) {
                 handleClusterMessage(entry.getClusterMessage());
             } else if (entry.getType() != null) { // 确保是 IO 事件
                 handleIOEvent(entry);
             }
+        } catch (Throwable throwable) {
+            // 捕获 Throwable，防止 Disruptor 消费者线程崩溃退出
+            log.error("Disruptor event handling failed at sequence {}", sequence, throwable);
         } finally {
             // 事件处理完成后，清理 Event 对象，以便 Disruptor 复用
             entry.clear();
@@ -48,25 +54,69 @@ public class DisruptorEventHandler implements EventHandler<DisruptorEntry> {
     /**
      * 处理集群消息
      *
-     * @param message   集群消息
+     * @param clusterMessage   集群消息
      */
-    private void handleClusterMessage(AtomicIOClusterMessage message) {
+    private void handleClusterMessage(AtomicIOClusterMessage clusterMessage) {
         // 创建一个特殊的、直接持有最终字节的消息
-        AtomicIOMessage forwardedMessage = new RawBytesMessage(message.getPayload());
-        switch (message.getMessageType()) {
+        AtomicIOMessage forwardedMessage = new RawBytesMessage(clusterMessage.getPayload());
+        switch (clusterMessage.getMessageType()) {
             case SEND_TO_USER:
-                sessionManager.sendToUserLocally(message.getTarget(), forwardedMessage);
+                sessionManager.sendToUserLocally(clusterMessage.getTargetUserId(), forwardedMessage);
+                break;
+            case SEND_TO_USERS_BATCH:
+                handleBatchSend(clusterMessage, forwardedMessage);
                 break;
             case SEND_TO_GROUP:
-                groupManager.sendToGroupLocally(message.getTarget(), forwardedMessage, message.getExcludeUserIds());
+                groupManager.sendToGroupLocally(clusterMessage.getTargetGroupId(), forwardedMessage, clusterMessage.getExcludeUserIds());
                 break;
             case BROADCAST:
                 sessionManager.broadcastLocally(forwardedMessage);
                 break;
+            case KICK_OUT:
+                handleKickOut(clusterMessage, forwardedMessage);
+                break;
             default:
-                log.warn("Unhandled cluster message type: {}", message.getMessageType());
+                log.warn("Unhandled cluster message type: {}", clusterMessage.getMessageType());
+        }
+    }
+
+    /**
+     * 踢人
+     * @param clusterMessage
+     * @param forwardedMessage
+     */
+    private void handleKickOut(AtomicIOClusterMessage clusterMessage, AtomicIOMessage forwardedMessage) {
+        List<String> deviceIdsToKick = clusterMessage.getTargetDeviceIds();
+        if (deviceIdsToKick == null || deviceIdsToKick.isEmpty()) {
+            log.warn("Received KICK_OUT cluster message with no target deviceIds.");
+            return;
         }
 
+        AtomicIOMessage kickOutNotify = (clusterMessage.getPayload() != null)
+                ? new RawBytesMessage(clusterMessage.getPayload())
+                : null;
+
+        // 遍历并调用按 deviceId 踢人方法
+        for (String deviceId : deviceIdsToKick) {
+            sessionManager.kickOutByDeviceId(deviceId, kickOutNotify);
+        }
+    }
+
+    /**
+     * 批量发送逻辑
+     */
+    private void handleBatchSend(AtomicIOClusterMessage clusterMessage, AtomicIOMessage message) {
+        List<String> userIds = clusterMessage.getTargetUserIds();
+        if (userIds == null || userIds.isEmpty()) return;
+
+        // 批量场景下，建议对循环体进行异常隔离，防止某一个 Session 故障影响其他用户
+        for (String userId : userIds) {
+            try {
+                sessionManager.sendToUserLocally(userId, message);
+            } catch (Exception e) {
+                log.error("Failed to send batch message to user: {}", userId, e);
+            }
+        }
     }
 
     /**
@@ -74,6 +124,7 @@ public class DisruptorEventHandler implements EventHandler<DisruptorEntry> {
      * @param disruptorEntry IO 事件
      */
     private void handleIOEvent(DisruptorEntry disruptorEntry) {
+        if (disruptorEntry == null) return;
         switch (disruptorEntry.getType()) {
             case CONNECT:
                 eventManager.fireConnectEvent(disruptorEntry.getSession());

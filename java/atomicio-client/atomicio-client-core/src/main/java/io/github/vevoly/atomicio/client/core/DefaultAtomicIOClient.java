@@ -269,7 +269,7 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
         // 借鉴 ioGame 的逻辑，这里发送一条 P2P_BATCH_REQUEST 到服务器
         AtomicIOMessage forwardMessage = codecProvider.createRequest(
                 requestManager.nextSequenceId(),
-                AtomicIOCommand.SEND_TO_USER, // 需要在你的 Command 定义中添加
+                AtomicIOCommand.SEND_TO_USERS, // 需要在你的 Command 定义中添加
                 deviceId,
                 userIds, // 将接收者数组放入 payload 或特定字段
                 message.getPayload() // 原始业务负载
@@ -277,7 +277,6 @@ public class DefaultAtomicIOClient implements AtomicIOClient {
 
         // 2. 发送并等待 ACK，确保服务器收到了转发指令
         return sendRequestAndGetAck(forwardMessage, "批量发送消息失败.");
-        return writeToChannel(message);
     }
 
     @Override

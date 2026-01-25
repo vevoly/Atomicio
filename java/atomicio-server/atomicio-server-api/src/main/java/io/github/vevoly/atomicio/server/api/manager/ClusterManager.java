@@ -37,11 +37,12 @@ public interface ClusterManager {
     void publish(AtomicIOClusterMessage message);
 
     /**
-     * 发布一个消息到集群中，并指定目标节点
-     * @param nodeId
-     * @param message
+     * 向一个指定的节点发布集群消息
+     *
+     * @param targetNodeId 目标节点的唯一ID
+     * @param message      要发送的集群消息POJO
      */
-    void publishKickOut(String nodeId, AtomicIOClusterMessage message);
+    void publishToNode(String targetNodeId, AtomicIOClusterMessage message);
 
     /**
      * 构建集群消息
@@ -51,6 +52,6 @@ public interface ClusterManager {
      * @param excludeUserIds 排除用户
      * @return
      */
-    AtomicIOClusterMessage buildClusterMessage (AtomicIOMessage message, AtomicIOClusterMessageType messageType, String target, Set<String> excludeUserIds);
+    AtomicIOClusterMessage buildClusterMessage (AtomicIOMessage message, AtomicIOClusterMessageType messageType, Object target, Set<String> excludeUserIds);
 
 }

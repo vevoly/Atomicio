@@ -99,7 +99,7 @@ public class AtomicIOEngineAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public PipelineExceptionHandler globalExceptionHandler(AtomicIOExceptionHandler exceptionHandler) {
+    public PipelineExceptionHandler pipelineExceptionHandler(AtomicIOExceptionHandler exceptionHandler) {
         return new PipelineExceptionHandler(exceptionHandler);
     }
 

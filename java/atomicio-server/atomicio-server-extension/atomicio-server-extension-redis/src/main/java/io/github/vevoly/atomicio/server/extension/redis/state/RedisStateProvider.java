@@ -31,8 +31,8 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
     private StatefulRedisConnection<String, String> connection;
     private RedisAsyncCommands<String, String> asyncCommands;
 
-    private static final int SSCAN_THRESHOLD = 5000;            // 阈值，当群人数数量超过该值时，使用 SSCAN 命令
-    private static final int SSCAN_COUNT_PER_ITERATION = 1000; // 每次 SSCAN 命令获取的元素数量
+    private static final int SSCAN_THRESHOLD = 5000;            // 阈值，当群人数数量超过该值时，使用 SSCAN 命令 todo: 优化可配置
+    private static final int SSCAN_COUNT_PER_ITERATION = 1000;  // 每次 SSCAN 命令获取的元素数量
 
     public RedisStateProvider(RedisClient redisClient) {
         if (redisClient == null) {
@@ -100,64 +100,95 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
     public CompletableFuture<Map<String, String>> register(AtomicIOBindRequest request, String nodeId, boolean isMultiLogin) {
         String userId = request.getUserId();
         String deviceId = request.getDeviceId();
-        String key = AtomicIOServerConstant.SESSIONS_KEY_PREFIX + userId;
-
-        // 原子性更新全局统计数据 (异步，不阻塞主流程)
-        asyncCommands.sadd(AtomicIOServerConstant.TOTAL_USERS_KEY, userId);
-        asyncCommands.incr(AtomicIOServerConstant.TOTAL_SESSIONS_KEY);
+        String userSessionsKey = AtomicIOServerConstant.userSessions(userId);
 
         if (isMultiLogin) {
             // 多端登录：直接 HSET，返回空 Map
-            return asyncCommands.hset(key, deviceId, nodeId)
-                    .thenApply(v -> Collections.<String, String>emptyMap())
+            return asyncCommands.<Void>eval(
+                    LuaScripts.REGISTER_MULTI_LOGIN,
+                    ScriptOutputType.STATUS,
+                    new String[]{userSessionsKey, AtomicIOServerConstant.USER_NODES_KEY},
+                    deviceId,
+                    nodeId,
+                    userId
+            ).thenApply(v -> Collections.<String, String>emptyMap())
                     .toCompletableFuture();
         } else {
             // 单点登录：执行 Lua 脚本
             // 参数说明：脚本内容, 返回类型, 键数组, 参数数组
             return asyncCommands.<List<String>>eval(
-                    LuaScripts.SWITCH_SINGLE_LOGIN,
+                    LuaScripts.REGISTER_SINGLE_LOGIN,
                     ScriptOutputType.MULTI,
-                    new String[]{key},
+                    new String[]{userSessionsKey, AtomicIOServerConstant.USER_NODES_KEY},
                     deviceId,
-                    nodeId
-            ).thenApply(this::convertListToMap) // 将 Lua 返回的 List 转为 Map<deviceId, nodeId
+                    nodeId,
+                    userId
+            ).thenApply(this::convertListToMap) // 将 Lua 返回的 List 转为 Map<deviceId, nodeId>
             .toCompletableFuture();
         }
     }
 
     @Override
     public CompletableFuture<Void> unregister(String userId, String deviceId) {
-        String key = AtomicIOServerConstant.SESSIONS_KEY_PREFIX + userId;
-        return asyncCommands.hdel(key, deviceId)
-                .thenAccept(v -> {log.debug("Redis Session 移除: user={}, device={}", userId, deviceId);})
-                .toCompletableFuture();
-    }
-
-    @Override
-    public CompletableFuture<Map<String, String>> unregisterAll(String userId) {
-        String key = AtomicIOServerConstant.SESSIONS_KEY_PREFIX + userId;
-        // 先获取所有会话，以便后续做集群清理
-        return asyncCommands.hgetall(key).thenCompose(oldSessions -> {
-            if (oldSessions.isEmpty()) {
-                return CompletableFuture.completedFuture(oldSessions);
+        String userSessionsKey = AtomicIOServerConstant.userSessions(userId);
+        return asyncCommands.<Long>eval(
+                LuaScripts.UNREGISTER_SESSION,
+                ScriptOutputType.INTEGER,
+                new String[]{userSessionsKey, AtomicIOServerConstant.USER_NODES_KEY, AtomicIOServerConstant.TOTAL_USERS_KEY},
+                deviceId, userId
+        ).thenAccept(removed -> {
+            if (removed > 0) {
+                log.debug("Redis Session 移除成功: user={}, device={}", userId, deviceId);
             }
-            // 删除该用户整个 HASH 键
-            return asyncCommands.del(key).thenApply(v -> oldSessions);
         }).toCompletableFuture();
     }
 
     @Override
+    public CompletableFuture<Map<String, String>> unregisterAll(String userId) {
+        String userSessionsKey = AtomicIOServerConstant.userSessions(userId);
+        return asyncCommands.<List<String>>eval(
+                LuaScripts.UNREGISTER_ALL_SESSIONS,
+                ScriptOutputType.MULTI,
+                new String[]{userSessionsKey, AtomicIOServerConstant.USER_NODES_KEY, AtomicIOServerConstant.TOTAL_USERS_KEY},
+                userId
+        ).thenApply(this::convertListToMap).toCompletableFuture();
+    }
+
+    @Override
     public CompletableFuture<Map<String, String>> findSessions(String userId) {
-        String key = AtomicIOServerConstant.SESSIONS_KEY_PREFIX + userId;
-        return asyncCommands.hgetall(key).toCompletableFuture();
+        String userSessionsKey = AtomicIOServerConstant.userSessions(userId);
+        return asyncCommands.hgetall(userSessionsKey).toCompletableFuture();
+    }
+
+    @Override
+    public CompletableFuture<String> findNodeForUser(String userId) {
+        return asyncCommands.hget(AtomicIOServerConstant.USER_NODES_KEY, userId).toCompletableFuture();
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> findNodesForUsers(List<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return CompletableFuture.completedFuture(Collections.emptyMap());
+        }
+        // 使用 HMGET 进行批量查询
+        return asyncCommands.hmget(AtomicIOServerConstant.USER_NODES_KEY, userIds.toArray(new String[0]))
+                .toCompletableFuture()
+                .thenApply(keyValues -> {
+                    Map<String, String> userNodeMap = new HashMap<>();
+                    for (int i = 0; i < userIds.size(); i++) {
+                        KeyValue<String, String> kv = keyValues.get(i);
+                        // Lettuce 的 hmget 返回的 list 中，不存在的 key 对应的 value 是空的 KeyValue
+                        if (kv != null && kv.hasValue()) {
+                            userNodeMap.put(userIds.get(i), kv.getValue());
+                        }
+                    }
+                    return userNodeMap;
+                });
     }
 
     @Override
     public CompletableFuture<Boolean> isUserOnline(String userId) {
-        String key = AtomicIOServerConstant.SESSIONS_KEY_PREFIX + userId;
-        return asyncCommands.exists(key)
-                .thenApply(count -> count != null && count > 0)
-                .toCompletableFuture();
+        return asyncCommands.hexists(AtomicIOServerConstant.USER_NODES_KEY, userId).toCompletableFuture();
     }
 
     @Override
@@ -179,18 +210,22 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
 
     @Override
     public CompletableFuture<Void> join(String groupId, String userId) {
-        String key = AtomicIOServerConstant.GROUPS_KEY_PREFIX + groupId;
-        return asyncCommands.sadd(key, userId)
-                .thenAccept(v -> {log.debug("Redis状态操作: SADD {} {}", key, userId);})
-                .toCompletableFuture();
+        return asyncCommands.<Void>eval(
+                LuaScripts.JOIN_GROUP,
+                ScriptOutputType.STATUS,
+                new String[]{AtomicIOServerConstant.groupMembers(groupId), AtomicIOServerConstant.userGroups(userId)},
+                userId, groupId
+        ).toCompletableFuture();
     }
 
     @Override
     public CompletableFuture<Void> leave(String groupId, String userId) {
-        String key = AtomicIOServerConstant.GROUPS_KEY_PREFIX + groupId;
-        return asyncCommands.srem(key, userId)
-                .thenAccept(v -> {log.debug("Redis状态操作: SREM {} {}", key, userId);})
-                .toCompletableFuture();
+        return asyncCommands.<Void>eval(
+                LuaScripts.LEAVE_GROUP,
+                ScriptOutputType.STATUS,
+                new String[]{AtomicIOServerConstant.groupMembers(groupId), AtomicIOServerConstant.userGroups(userId)},
+                userId, groupId
+        ).toCompletableFuture();
     }
 
     @Override

@@ -4,7 +4,6 @@ import io.github.vevoly.atomicio.common.api.config.AtomicIOConfigDefaultValue;
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.common.api.constants.AtomicIOConstant;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
-import io.github.vevoly.atomicio.server.api.constants.AtomicIOServerConstant;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -16,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -114,77 +114,32 @@ public class RedisClusterProvider implements AtomicIOClusterProvider {
     }
 
     @Override
-    public void publish(byte[] data) {
-        try {
-            publishConnection.async().publish(AtomicIOServerConstant.CLUSTER_CHANNEL_NAME, data);
-        } catch (Exception e) {
-            log.error("Failed to publish cluster message", e);
+    public void publish(String channel, byte[] data) {
+        if (publishConnection != null) {
+            publishConnection.async().publish(channel, data);
         }
     }
 
     @Override
-    public void publishKickOut(String nodeId, byte[] data) {
-        try {
-            publishConnection.async().publish(AtomicIOServerConstant.KICK_OUT_CHANNEL_PREFIX_NAME + nodeId, data);
-        } catch (Exception e) {
-            log.error("Failed to publishKickOut cluster message", e);
-        }
-    }
-
-    @Override
-    public void subscribe(Consumer<byte[]> dataConsumer) {
-        if (subscribeConnection == null) {
+    public void subscribe(Consumer<byte[]> dataConsumer, String... channels) {
+        if (subscribeConnection == null || channels.length == 0) {
             return;
         }
         subscribeConnection.addListener(new RedisPubSubAdapter<String, byte[]>() {
             @Override
             public void message(String channel, byte[] message) {
-                if (AtomicIOServerConstant.CLUSTER_CHANNEL_NAME.equals(channel)) {
-                    try {
-                        dataConsumer.accept(message);
-                    } catch (Exception e) {
-                        log.error("Failed to process received cluster message", e);
-                    }
+                try {
+                    dataConsumer.accept(message);
+                } catch (Exception e) {
+                    log.error("Error processing received message from channel '{}'", channel, e);
                 }
             }
         });
 
-        subscribeConnection.async().subscribe(AtomicIOServerConstant.CLUSTER_CHANNEL_NAME);
-        log.info("已成功订阅集群消息频道: {}", AtomicIOServerConstant.CLUSTER_CHANNEL_NAME);
+        subscribeConnection.async()
+                .subscribe(channels)
+                .thenAccept(v -> log.info("已成功订阅集群消息频道: {}", Arrays.toString(channels)));
+
     }
 
-    /**
-     * 订阅属于本节点的踢人通知
-     * @param kickOutConsumer 处理踢出逻辑的回调 (接收消息格式：userId:deviceId)
-     */
-    @Override
-    public void subscribeKickOut(Consumer<byte[]> kickOutConsumer) {
-        if (subscribeConnection == null) {
-            return;
-        }
-        String kickOutChannel = AtomicIOServerConstant.KICK_OUT_CHANNEL_PREFIX_NAME + this.clusterNodeId;
-
-        // 添加监听器：只负责分发原始字节
-        subscribeConnection.addListener(new RedisPubSubAdapter<String, byte[]>() {
-            @Override
-            public void message(String channel, byte[] message) {
-                // 只有当频道名完全匹配时才处理
-                if (kickOutChannel.equals(channel)) {
-                    try {
-                        kickOutConsumer.accept(message);
-                    } catch (Exception e) {
-                        log.error("执行踢出回调逻辑失败", e);
-                    }
-                }
-            }
-        });
-
-        // 执行异步订阅
-        subscribeConnection.async().subscribe(kickOutChannel)
-                .thenAccept(v -> log.info("已成功开启本节点踢出频道订阅: {}", kickOutChannel))
-                .exceptionally(e -> {
-                    log.error("订阅踢出频道失败: {}", kickOutChannel, e);
-                    return null;
-                });
-    }
 }

@@ -1,9 +1,14 @@
 package io.github.vevoly.atomicio.core.manager;
 
+import io.github.vevoly.atomicio.core.message.RawBytesMessage;
+import io.github.vevoly.atomicio.core.session.NettySession;
 import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
+import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.manager.SessionManager;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
+import io.netty.channel.ChannelFutureListener;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,20 +34,38 @@ public class AtomicIOSessionManager implements SessionManager {
 
     /**
      * 纯粹的本地添加，不涉及任何登录策略决策
+     * (HandlerAdded 时调用)
      */
     @Override
     public void addLocalSession(AtomicIOSession session) {
-        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
-        String deviceId = session.getAttribute(AtomicIOSessionAttributes.DEVICE_ID);
-        String sessionId = session.getId();
         allSessions.put(session.getId(), session);
-        if (userId != null) {
-            userToSessionIds.computeIfAbsent(userId, k -> ConcurrentHashMap.newKeySet()).add(session.getId());
+        log.debug("SessionManager: 物理连接已创建 [Session: {}]", session.getId());
+    }
+
+    /**
+     * 业务身份绑定 (Engine.bindUser 时调用)
+     * 作用：补全 UserId 和 DeviceId 的索引
+     * @param sessionId 会话 ID
+     * @param userId    用户 ID
+     * @param deviceId  设备 ID
+     */
+    @Override
+    public void bindLocalSession(String sessionId, String userId, String deviceId) {
+        AtomicIOSession session = allSessions.get(sessionId);
+        if (session == null) {
+            log.warn("尝试绑定一个不存在的 session: {}", sessionId);
+            return;
         }
+        session.setAttribute(AtomicIOSessionAttributes.USER_ID, userId);
+        session.setAttribute(AtomicIOSessionAttributes.DEVICE_ID, deviceId);
+        session.setAttribute(AtomicIOSessionAttributes.IS_AUTHENTICATED, true);
+        // 建立 UserId 索引
+        userToSessionIds.computeIfAbsent(userId, k -> ConcurrentHashMap.newKeySet()).add(sessionId);
+        // 建立 DeviceId 索引
         if (deviceId != null) {
             deviceToSessionId.put(deviceId, sessionId);
         }
-        log.debug("SessionManager: 物理连接已入库 [User: {}, Device: {}, Session: {}]", userId, deviceId, sessionId);
+        log.info("SessionManager: 身份绑定成功 [User: {}, Device: {}, Session: {}]", userId, deviceId, sessionId);
     }
 
     /**
@@ -78,6 +101,13 @@ public class AtomicIOSessionManager implements SessionManager {
      */
     @Override
     public AtomicIOSession getLocalSessionById(String sessionId) {
+        return allSessions.get(sessionId);
+    }
+
+    @Override
+    public AtomicIOSession getLocalSessionByDeviceId(String deviceId) {
+        String sessionId = deviceToSessionId.get(deviceId);
+        if (sessionId == null) return null;
         return allSessions.get(sessionId);
     }
 
@@ -139,6 +169,34 @@ public class AtomicIOSessionManager implements SessionManager {
                 session.send(message);
             }
         });
+    }
+
+    @Override
+    public void kickOutLocally(String userId, @Nullable AtomicIOMessage kickOutMessage) {
+        List<AtomicIOSession> locals = getLocalSessionsByUserId(userId);
+        if (locals.isEmpty()) return;
+
+        for (AtomicIOSession session : locals) {
+            if (!session.isActive()) continue;
+            if (kickOutMessage != null) {
+                session.sendAndClose(kickOutMessage);
+            } else {
+                session.close();
+            }
+        }
+    }
+
+    @Override
+    public void kickOutByDeviceId(String deviceId, AtomicIOMessage kickOutMessage) {
+        AtomicIOSession session = getLocalSessionByDeviceId(deviceId);
+        if (session == null || !session.isActive()) return;
+
+        log.info("Kicking out session by deviceId: [{}].", deviceId);
+        if (kickOutMessage != null) {
+            session.sendAndClose(kickOutMessage);
+        } else {
+            session.close();
+        }
     }
 
     /**

@@ -10,6 +10,7 @@ import io.github.vevoly.atomicio.server.api.state.AtomicIOStateProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -54,33 +55,34 @@ public class AtomicIOStateManager implements StateManager {
     //  会话管理 (Session Management)
     // =====================================================================
 
-    /**
-     * 注册会话：协调存储更新与集群踢人消息发布
-     */
     @Override
     public CompletableFuture<Map<String, String>> register(AtomicIOBindRequest request, boolean isMultiLogin) {
-        String userId = request.getUserId();
-
-        // 1. 调用 Provider 更新全局状态
+        // 调用 Provider 更新全局状态
         return stateProvider.getSessionStateProvider()
-                .register(request, currentNodeId, isMultiLogin)
-                .thenApply(kickedMap -> {
-                    // 2. 如果是集群模式，编排跨节点踢人通知
-                    if (clusterManager != null && !kickedMap.isEmpty()) {
-                        kickedMap.forEach((deviceId, targetNodeId) -> {
-                            // 仅通知远端节点，本地由 Engine 自己通过 SessionManager 处理
-                            if (!currentNodeId.equals(targetNodeId)) {
-                                sendRemoteKickOut(userId, deviceId, targetNodeId);
-                            }
-                        });
-                    }
-                    return kickedMap; // 返回给 Engine，以便处理本地关闭
-                });
+                .register(request, currentNodeId, isMultiLogin);
+//                .thenApply(kickedMap -> {
+//                    // 集群通知逻辑
+//                    if (clusterManager != null && !kickedMap.isEmpty()) {
+//                        // 将被踢的用户按目标节点分组
+//                        Map<String, List<String>> nodeToDevices = kickedMap.entrySet().stream()
+//                                .filter(entry -> !currentNodeId.equals(entry.getValue())) // 只处理远程节点
+//                                .collect(Collectors.groupingBy(
+//                                        Map.Entry::getValue,
+//                                        Collectors.mapping(Map.Entry::getKey, Collectors.toList())
+//                                ));
+//
+//                        // 为每个远程节点发送一条批量踢人指令
+//                        nodeToDevices.forEach((targetNodeId, deviceIds) -> {
+//                            log.info("StateManager: 向节点 {} 发送批量踢人指令 [User:{}, Devices:{}]",
+//                                    targetNodeId, request.getUserId(), deviceIds);
+//                            AtomicIOClusterMessage msg = buildKickOutMessage(request.getUserId(), deviceIds);
+//                            clusterManager.publishToNode(targetNodeId, msg);
+//                        });
+//                    }
+//                    return kickedMap;
+//                });
     }
 
-    /**
-     * 注销会话：更新存储状态
-     */
     @Override
     public CompletableFuture<Void> unregister(String userId, String deviceId) {
         return stateProvider.getSessionStateProvider().unregister(userId, deviceId);
@@ -91,17 +93,38 @@ public class AtomicIOStateManager implements StateManager {
      * 1. 从存储中移除 2. 发布集群通知
      */
     @Override
-    public CompletableFuture<Void> kickUserGlobal(String userId) {
+    public CompletableFuture<Map<String, String>> kickUserGlobal(String userId) {
+        // 调用 Provider 原子性地删除该用户的所有会话记录
         return stateProvider.getSessionStateProvider().unregisterAll(userId)
-                .thenAccept(allSessions -> {
-                    if (clusterManager != null && !allSessions.isEmpty()) {
-                        allSessions.forEach((deviceId, targetNodeId) -> {
-                            if (!currentNodeId.equals(targetNodeId)) {
-                                sendRemoteKickOut(userId, deviceId, targetNodeId);
-                            }
-                        });
-                    }
+                .thenApply(kickedSessions -> {
+                    log.info("StateManager: User '{}' global sessions cleared. Count: {}",
+                            userId, (kickedSessions != null ? kickedSessions.size() : 0));
+                    return kickedSessions; // 返回给 Engine
                 });
+
+//                .thenAccept(kickedSessions -> { // kickedSessions: Map<deviceId, nodeId>
+//                    // 如果是集群模式，且确实有会话被踢掉，则发布集群通知
+//                    if (clusterManager != null && kickedSessions != null && !kickedSessions.isEmpty()) {
+//                        log.debug("User '{}' was globally kicked. Kicked sessions: {}", userId, kickedSessions);
+//                        // 将被踢的会话按目标节点进行分组
+//                        Map<String, List<String>> nodeToDevices = kickedSessions.entrySet().stream()
+//                                // 排除在本节点上的会话，因为它们将由 Engine 直接处理
+//                                .filter(entry -> !currentNodeId.equals(entry.getValue()))
+//                                .collect(Collectors.groupingBy(
+//                                        Map.Entry::getValue, // 按 nodeId 分组
+//                                        Collectors.mapping(Map.Entry::getKey, Collectors.toList()) // 收集 deviceId
+//                                ));
+//                        // 为每个远程节点，发送一条批量踢人指令
+//                        nodeToDevices.forEach((targetNodeId, deviceIdsOnNode) -> {
+//                            log.info("StateManager: 向节点 {} 发送全局踢人指令 [User:{}, Devices:{}]",
+//                                    targetNodeId, userId, deviceIdsOnNode);
+//                            // 创建批量踢人消息
+//                            AtomicIOClusterMessage kickOutMessage = buildKickOutMessage(userId, deviceIdsOnNode);
+//                            // 通过 ClusterManager 定向发布
+//                            clusterManager.publishToNode(targetNodeId, kickOutMessage);
+//                        });
+//                    }
+//                });
     }
 
     // =====================================================================
@@ -124,20 +147,29 @@ public class AtomicIOStateManager implements StateManager {
         return stateProvider.getGroupStateProvider().getGroupMembers(groupId);
     }
 
-    // =====================================================================
-    //  内部辅助 (Internal Helpers)
-    // =====================================================================
+    @Override
+    public CompletableFuture<String> findNodeForUser(String userId) {
+        return stateProvider.getSessionStateProvider().findNodeForUser(userId);
+    }
 
-    private void sendRemoteKickOut(String userId, String deviceId, String targetNodeId) {
-        if (clusterManager == null) return;
+    @Override
+    public CompletableFuture<Map<String, String>> findNodesForUsers(List<String> userIds) {
+        return stateProvider.getSessionStateProvider().findNodesForUsers(userIds);
+    }
 
+    /**
+     * 构建挤下线通知消息
+     */
+    /**
+     * 创建一个（批量）踢人指令的集群消息。
+     */
+    private AtomicIOClusterMessage buildKickOutMessage(String userId, List<String> deviceIds) {
         AtomicIOClusterMessage msg = new AtomicIOClusterMessage();
         msg.setMessageType(AtomicIOClusterMessageType.KICK_OUT);
-        msg.setTarget(userId);
-        msg.setDeviceId(deviceId);
-        msg.setFromNodeId(currentNodeId);
-
-        log.info("StateManager: 向节点 {} 发送踢人指令 [User:{}, Device:{}]", targetNodeId, userId, deviceId);
-        clusterManager.publishKickOut(targetNodeId, msg);
+        msg.setTargetUserId(userId);
+        msg.setTargetDeviceIds(deviceIds);
+        msg.setFromNodeId(clusterManager.getCurrentNodeId());
+        return msg;
     }
+
 }

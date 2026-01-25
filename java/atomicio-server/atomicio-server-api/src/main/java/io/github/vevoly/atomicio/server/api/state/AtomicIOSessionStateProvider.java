@@ -2,6 +2,7 @@ package io.github.vevoly.atomicio.server.api.state;
 
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -19,6 +20,7 @@ public interface AtomicIOSessionStateProvider {
 
     /**
      * 注册一个新的会话，并根据登录策略处理会话冲突
+     * 不仅处理设备级的注册，还负责维护 userId -> nodeId 的全局映射
      *
      * @param request           包含 userId, deviceId 等信息的绑定请求
      * @param nodeId            当前会话所在的节点ID
@@ -30,6 +32,7 @@ public interface AtomicIOSessionStateProvider {
 
     /**
      * 注销一个指定用户的指定设备会话
+     * 当一个用户的最后一个设备下线时，这个方法需要清理 userId -> nodeId 的全局映射
      *
      * @param userId   用户ID
      * @param deviceId 设备ID
@@ -39,6 +42,7 @@ public interface AtomicIOSessionStateProvider {
 
     /**
      * 注销一个用户的所有会话（例如，管理员踢人时）
+     * 这个方法需要清理 userId -> nodeId 的全局映射
      *
      * @param userId 用户ID
      * @return a Future of a Map containing all deviceId -> nodeId mappings of the sessions that were unregistered.
@@ -52,6 +56,23 @@ public interface AtomicIOSessionStateProvider {
      * @return a Future of a Map where key is deviceId and value is nodeId.
      */
     CompletableFuture<Map<String, String>> findSessions(String userId);
+
+    /**
+     * 查询一个用户当前所在的节点ID
+     * @param userId 用户ID
+     * @return a Future of the primary nodeId of the user.
+     */
+    CompletableFuture<String> findNodeForUser(String userId);
+
+    /**
+     * 批量查询多个用户所在的节点
+     * 这是一个性能优化，旨在减少与状态存储的交互次数。
+     *
+     * @param userIds 要查询的用户ID列表
+     * @return a Future of a Map where key is userId and value is the primary nodeId.
+     *         如果某个用户不在线，Map 中将不包含该用户的条目。
+     */
+    CompletableFuture<Map<String, String>> findNodesForUsers(List<String> userIds);
 
     /**
      * 检查一个用户是否在线（至少有一个会话）

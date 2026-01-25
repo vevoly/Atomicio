@@ -9,15 +9,14 @@ import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessageType;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
+import io.github.vevoly.atomicio.server.api.constants.AtomicIOServerConstant;
 import io.github.vevoly.atomicio.server.api.manager.ClusterManager;
 import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
 
 import java.io.ByteArrayOutputStream;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  * 集群管理器
@@ -34,7 +33,19 @@ public class AtomicIOClusterManager implements ClusterManager {
     private final AtomicIOServerCodecProvider codecProvider;
     private final DisruptorManager disruptorManager;
 
-    private final Kryo kryo;
+    // 线程安全 初始化 Kryo
+    private static final ThreadLocal<Kryo> kryoThreadLocal = ThreadLocal.withInitial(() -> {
+        Kryo kryo = new Kryo();
+        kryo.register(AtomicIOClusterMessage.class, 100);
+        kryo.register(java.util.ArrayList.class, 101);
+        kryo.register(java.util.HashSet.class, 102);
+        kryo.register(AtomicIOClusterMessageType.class);
+        kryo.register(byte[].class);
+        return kryo;
+    });
+
+    // 在 ThreadLocal 中同时复用 Kryo 和 Output 缓冲区
+    private static final ThreadLocal<Output> outputThreadLocal = ThreadLocal.withInitial(() -> new Output(1024, -1));
 
     public AtomicIOClusterManager(
             AtomicIOProperties config,
@@ -45,13 +56,6 @@ public class AtomicIOClusterManager implements ClusterManager {
         this.clusterProvider = provider;
         this.codecProvider = codecProvider;
         this.disruptorManager = disruptorManager;
-        // 初始化 Kryo
-        this.kryo = new Kryo();
-        // 注册需要序列化的类
-        kryo.register(AtomicIOClusterMessage.class);
-        kryo.register(java.util.HashSet.class);
-        kryo.register(AtomicIOClusterMessageType.class);
-        kryo.register(byte[].class);
     }
 
     /**
@@ -62,9 +66,10 @@ public class AtomicIOClusterManager implements ClusterManager {
     public void start() {
         if (clusterProvider != null) {
             clusterProvider.start();
-            // 订阅原始字节，然后在这里反序列化和分发
-            clusterProvider.subscribe(this::handleReceivedData);
-            clusterProvider.subscribeKickOut(this::handleReceivedData);
+            // 订阅频道
+            clusterProvider.subscribe(this::handleReceivedData,
+                    AtomicIOServerConstant.CLUSTER_TOPIC_GLOBAL,
+                    AtomicIOServerConstant.clusterTopicForNode(getCurrentNodeId()));
         }
     }
 
@@ -91,45 +96,68 @@ public class AtomicIOClusterManager implements ClusterManager {
             return;
         }
         // 序列化
-        byte[] msg = serialize(message);
+        byte[] data = serialize(message);
         // 调用底层 provider 发送原始字节
-        clusterProvider.publish(msg);
+        clusterProvider.publish(AtomicIOServerConstant.CLUSTER_TOPIC_GLOBAL, data);
     }
 
     @Override
-    public void publishKickOut(String nodeId, AtomicIOClusterMessage message) {
+    public void publishToNode(String targetNodeId, AtomicIOClusterMessage message) {
         if (clusterProvider == null) {
             return;
         }
-        // 序列化
-        byte[] msg = serialize(message);
-        // 调用底层 provider 发送原始字节
-        clusterProvider.publishKickOut(nodeId, msg);
+        byte[] data = serialize(message);
+        clusterProvider.publish(AtomicIOServerConstant.clusterTopicForNode(targetNodeId), data);
     }
 
     @Override
-    public AtomicIOClusterMessage buildClusterMessage(AtomicIOMessage message, AtomicIOClusterMessageType messageType, String target, Set<String> excludeUserIds) {
-        // 1. 预编码
+    public AtomicIOClusterMessage buildClusterMessage(AtomicIOMessage message, AtomicIOClusterMessageType messageType, Object target, Set<String> excludeUserIds) {
         byte[] finalPayload = new byte[0];
-        try {
-            finalPayload = codecProvider.encodeToBytes(message, config);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        if (message.getPayload() != null) {
+            try {
+                finalPayload = codecProvider.encodeToBytes(message, config);
+            } catch (Exception e) {
+                log.error("Payload encode error", e);
+                return null;
+            }
         }
 
         AtomicIOClusterMessage clusterMessage = new AtomicIOClusterMessage();
         clusterMessage.setMessageType(messageType);
         clusterMessage.setCommandId(message.getCommandId());
-        // 2. payload 存储的是“预编码”后的最终字节
         clusterMessage.setPayload(finalPayload);
-        if (target != null) {
-            clusterMessage.setTarget(target);
-        }
-        if (excludeUserIds != null && excludeUserIds.size() > 0) {
-            HashSet<String> excludeUserIdSet = new HashSet<>(Set.copyOf(excludeUserIds));
-            clusterMessage.setExcludeUserIds(excludeUserIdSet);
+        clusterMessage.setExcludeUserIds(excludeUserIds);
+
+        // 根据消息类型设置不同的目标字段
+        switch (messageType) {
+            case SEND_TO_USER:
+                clusterMessage.setTargetUserId((String) target);
+                break;
+            case SEND_TO_GROUP:
+                clusterMessage.setTargetGroupId((String) target);
+                break;
+            case SEND_TO_USERS_BATCH:
+                processBatchTarget(clusterMessage, target);
+                break;
+            case BROADCAST:
+                // 广播消息不需要 target
+                break;
+            case KICK_OUT:
+                clusterMessage.setTargetUserId((String) target);
+                break;
+            default:
+                log.warn("Unknown message type: {}. Message will be dropped.", messageType);
+                return null; // 丢弃消息
         }
         return clusterMessage;
+    }
+
+    private void processBatchTarget(AtomicIOClusterMessage msg, Object target) {
+        if (target instanceof List) {
+            msg.setTargetUserIds((List<String>) target);
+        } else if (target instanceof Collection) {
+            msg.setTargetUserIds(new ArrayList<>((Collection<String>) target));
+        }
     }
 
     /**
@@ -137,13 +165,11 @@ public class AtomicIOClusterManager implements ClusterManager {
      */
     public byte[] serialize(AtomicIOClusterMessage message) {
         if (message == null) return new byte[0];
-        // Kryo 非线程安全，建议在方法内 new 或者使用 ThreadLocal
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (Output output = new Output(baos)) {
-            kryo.writeObject(output, message);
-            output.close();
-            return baos.toByteArray();
-        }
+        Kryo kryo = kryoThreadLocal.get(); // 线程安全
+        Output output = outputThreadLocal.get();
+        output.reset(); // 重置指针，复用缓冲区
+        kryo.writeObject(output, message);
+        return output.toBytes();
     }
 
     /**
@@ -151,12 +177,10 @@ public class AtomicIOClusterManager implements ClusterManager {
      * @param data
      */
     private void handleReceivedData(byte[] data) {
-        if (data == null || data.length == 0) {
-            return;
-        }
+        if (data == null || data.length == 0) return;
+        Kryo kryo = kryoThreadLocal.get();
         try (Input input = new Input(data)) {
             AtomicIOClusterMessage message = kryo.readObject(input, AtomicIOClusterMessage.class);
-            input.close();
             // 将反序列化后的 POJO 发布到 Disruptor
             disruptorManager.publish(disruptorEntry -> disruptorEntry.setClusterMessage(message));
         } catch (Exception e) {
