@@ -17,9 +17,22 @@ import java.util.Objects;
 @Builder
 @AllArgsConstructor
 public class AtomicIOBindRequest {
+
+    /**
+     * 用户 ID
+     */
     private final String userId;
+
+    /**
+     * 设备 ID
+     */
     private String deviceId; // 默认为 null
-    private String platform; // 默认为 null
+
+    /**
+     * 设备类型。
+     * 例如: "PC", "Web", "iOS", "Android"
+     */
+    private String deviceType;
 
     public AtomicIOBindRequest(String userId) {
         this.userId = Objects.requireNonNull(userId, "User ID cannot be null");
@@ -44,11 +57,4 @@ public class AtomicIOBindRequest {
         return this;
     }
 
-    /**
-     * 为绑定请求附加一个平台信息。
-     */
-    public AtomicIOBindRequest withPlatform(String platform) {
-        this.platform = platform;
-        return this;
-    }
 }

@@ -4,6 +4,7 @@ import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterMessageType;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -53,5 +54,30 @@ public interface ClusterManager {
      * @return
      */
     AtomicIOClusterMessage buildClusterMessage (AtomicIOMessage message, AtomicIOClusterMessageType messageType, Object target, Set<String> excludeUserIds);
+
+    /**
+     * 通过集群，向指定的多个远程用户发送消息。
+     * 内部会处理节点查询、分组和批量精准投递。
+     *
+     * @param remoteUserIds 已经确认不在本机的用户ID列表
+     * @param message       要发送的消息
+     */
+    void sendToUsers(List<String> remoteUserIds, AtomicIOMessage message);
+
+    /**
+     * 通过集群，向一个群组广播消息。
+     *
+     * @param groupId        群组ID
+     * @param message        要发送的消息
+     * @param excludeUserIds 需要排除的用户ID
+     */
+    void sendToGroup(String groupId, AtomicIOMessage message, Set<String> excludeUserIds);
+
+    /**
+     * 通过集群，进行全局广播。
+     *
+     * @param message 要发送的消息
+     */
+    void broadcast(AtomicIOMessage message);
 
 }

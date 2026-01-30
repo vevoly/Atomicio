@@ -1,7 +1,8 @@
 package io.github.vevoly.atomicio.core.engine;
 
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
-import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
+import io.github.vevoly.atomicio.core.handler.LoginHandler;
+import io.github.vevoly.atomicio.core.handler.RoutingHandler;
 import io.github.vevoly.atomicio.protocol.api.constants.AtomicIOSessionAttributes;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.AtomicIOEngine;
@@ -20,9 +21,10 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -55,9 +57,15 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     private final GroupManager groupManager; // 群组管理器
     @Getter
     private final DisruptorManager disruptorManager; // Disruptor 管理器
+    @Getter
     private final ClusterManager clusterManager; // 集群管理器
+    @Getter
     private final StateManager stateManager; // 状态管理器
     private final TransportManager nettyTransportManager; // 传输层管理器
+
+    // 处理器
+    private final LoginHandler loginHandler; // 登录处理器
+    private final RoutingHandler routingHandler; // 路由处理器
 
     // 线程安全的状态机
     private final AtomicReference<AtomicIOLifeState> state = new AtomicReference<>(AtomicIOLifeState.NEW);
@@ -87,6 +95,9 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         this.sessionManager = sessionManager;
         this.groupManager = groupManager;
         this.nettyTransportManager = transportManager;
+
+        this.loginHandler = new LoginHandler(this);
+        this.routingHandler = new RoutingHandler(this);
     }
 
     // -- 生命周期管理 --
@@ -222,117 +233,23 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     }
 
     @Override
-    public CompletableFuture<Void>  bindUser(AtomicIOBindRequest request, AtomicIOSession newSession) {
-        // 1. 设置 Session 基础属性（本地操作）
-        sessionManager.bindLocalSession(newSession.getId(), request.getUserId(), request.getDeviceId());
-        // 2. 向 StateManager 注册
-        return stateManager.register(request, config.getSession().isMultiLogin())
-                .thenAccept(kickedMap -> {
-                    // 3. 执行踢人逻辑
-                    if (kickedMap != null && !kickedMap.isEmpty()) {
-                        handleSessionReplaced(request, kickedMap, newSession);
-                    }
-                });
+    public CompletableFuture<Void> bindUser(AtomicIOBindRequest request, AtomicIOSession newSession) {
+        return loginHandler.login(request, newSession);
     }
 
     @Override
     public CompletableFuture<Void> unbindUser(AtomicIOSession session) {
-        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
-        String deviceId = session.getAttribute(AtomicIOSessionAttributes.DEVICE_ID);
-
-        if (userId == null) {
-            log.warn("Session {} 尝试解绑，但未关联任何 UserId，忽略操作。", session.getId());
-            return CompletableFuture.completedFuture(null);
-        }
-        log.info("正在为用户 {} (设备: {}) 执行逻辑解绑...", userId, deviceId);
-
-        // 1. 通知 StateManager 移除全局在线状态
-        return stateManager.unregister(userId, deviceId)
-                .thenAccept(v -> {
-                    // 2. 本地清理：从 SessionManager 的 UserId/DeviceId 索引中移除
-                    // 注意：这里不需要调用 sessionManager.removeLocalSession(id)，
-                    // 因为那个方法会物理关闭连接，我们只需要清理索引。
-                    // 建议在 SessionManager 中增加一个 clearIndexes(session) 方法，或者按如下逻辑：
-                    sessionManager.removeLocalSessionOnly(session.getId());
-
-                    // 3. 属性重置：恢复 Session 到未认证状态
-                    session.removeAttribute(AtomicIOSessionAttributes.USER_ID);
-                    session.removeAttribute(AtomicIOSessionAttributes.DEVICE_ID);
-                    session.setAttribute(AtomicIOSessionAttributes.IS_AUTHENTICATED, false);
-                    log.info("用户 {} 逻辑解绑成功，物理连接 {} 仍保持在线。", userId, session.getId());
-                })
-                .exceptionally(e -> {
-                    log.error("用户 {} 解绑失败: {}", userId, e.getMessage());
-                    // 视业务而定，如果解绑失败，是否强制关闭连接以保证状态一致性？
-                    // session.close();
-                    throw new CompletionException(e);
-                });
+        return loginHandler.logout(session);
     }
 
     @Override
     public void sendToUser(String userId, AtomicIOMessage message) {
-        // 本地发送
-        boolean sentLocally = sessionManager.sendToUserLocally(userId, message);
-        if (sentLocally) return;
-        // 不在本地则尝试进行远程投递
-        if (clusterProvider != null) {
-            stateManager.findNodeForUser(userId)
-                    .thenAccept(targetNodeId -> {
-                        if (targetNodeId != null && !targetNodeId.isEmpty()) {
-                            // 找到目标节点
-                            AtomicIOClusterMessage clusterMessage = clusterManager.buildClusterMessage(
-                                    message, AtomicIOClusterMessageType.SEND_TO_USER, userId, null);
-                            // 精准投递
-                            clusterManager.publishToNode(targetNodeId, clusterMessage);
-                            log.debug("远程投递 user {} 的包裹到节点 {}", userId, targetNodeId);
-                        } else {
-                            log.warn("未找到 user {} 的节点，丢弃消息.", userId);
-                        }
-                    })
-                    .exceptionally(e -> {
-                        log.error("查找 user {} 的节点失败，丢弃消息.", userId, e);
-                        return null;
-                    });
-        }
+        routingHandler.sendToUser(userId, message);
     }
 
     @Override
     public void sendToUsers(List<String> userIds, AtomicIOMessage message) {
-        if (userIds == null || userIds.isEmpty()) return;
-
-        // 1. 先处理所有在本地的 session，直接发送
-        List<String> remoteUserIds = new ArrayList<>();
-        for (String userId : userIds) {
-            if (!sessionManager.sendToUserLocally(userId, message)) {
-                // 如果本地发送失败，说明用户不在当前节点
-                remoteUserIds.add(userId);
-            }
-        }
-        if (remoteUserIds.isEmpty() || clusterProvider == null) {
-            return; // 所有用户都在本地，或没有集群，任务结束
-        }
-
-        // 2. 从 StateProvider 查询所有远程用户的节点位置
-        stateManager.findNodesForUsers(remoteUserIds) // 返回 Future<Map<String, String>> userId -> nodeId
-            .whenComplete((userNodeMap, throwable) -> {
-                if (throwable != null) {
-                    log.error("批量查询用户节点失败.", throwable);
-                    return;
-                }
-                // 3. 将用户按目标节点进行分组
-                Map<String, List<String>> nodeUserMap = new HashMap<>();
-                userNodeMap.forEach((userId, nodeId) -> {
-                    nodeUserMap.computeIfAbsent(nodeId, k -> new ArrayList<>()).add(userId);
-                });
-                // 4. 为每个目标节点，构建并发送一条批量集群消息
-                nodeUserMap.forEach((nodeId, usersOnNode) -> {
-                    AtomicIOClusterMessage clusterMessage = clusterManager.buildClusterMessage(
-                            message, AtomicIOClusterMessageType.SEND_TO_USERS_BATCH, usersOnNode, null);
-
-                    // 通过 ClusterManager 发送到指定节点
-                    clusterManager.publishToNode(nodeId, clusterMessage);
-                });
-            });
+        routingHandler.sendToUsers(userIds, message);
     }
 
     @Override
@@ -342,21 +259,6 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
             // 2. 让该用户在本节点的所有物理 Session 加入物理 ChannelGroup
             List<AtomicIOSession> locals = sessionManager.getLocalSessionsByUserId(userId);
             locals.forEach(session -> groupManager.joinLocal(groupId, session));
-        });
-    }
-
-    @Override
-    public CompletableFuture<Void>  joinGroup(String groupId, AtomicIOSession session) {
-        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
-        if (userId == null) {
-            return null;
-        }
-
-        // 1. 调用逻辑层：更新全局状态
-        return stateManager.joinGroup(groupId, userId).thenRun(() -> {
-            // 2. 调用物理层：将连接加入本地 ChannelGroup
-            groupManager.joinLocal(groupId, session);
-            log.debug("Session {} joined group {} locally & globally", session.getId(), groupId);
         });
     }
 
@@ -371,34 +273,13 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
     }
 
     @Override
-    public CompletableFuture<Void>  leaveGroup(String groupId, AtomicIOSession session) {
-        String userId = session.getAttribute(AtomicIOSessionAttributes.USER_ID);
-        return stateManager.leaveGroup(groupId, userId).thenRun(() -> {
-            groupManager.leaveLocal(groupId, session);
-        });
-    }
-
-    @Override
     public void sendToGroup(String groupId, AtomicIOMessage message, Set<String> excludeUserIds) {
-        // 先进行一次预编码，后续分发都使用这个字节流
-        AtomicIOClusterMessage clusterMessage = clusterManager.buildClusterMessage(message, AtomicIOClusterMessageType.SEND_TO_GROUP, groupId, excludeUserIds);
-        // 本地广播：利用物理 ChannelGroup 高效推送
-        groupManager.sendToGroupLocally(groupId, message, excludeUserIds);
-        // 集群分发：通知其他节点
-        if (clusterProvider != null) {
-            clusterManager.publish(clusterMessage);
-        }
+        routingHandler.sendToGroup(groupId, message, excludeUserIds);
     }
 
     @Override
     public void broadcast(AtomicIOMessage message) {
-        // 本地全量推送
-        sessionManager.broadcastLocally(message);
-        // 集群广播
-        if (clusterProvider != null) {
-            AtomicIOClusterMessage clusterMessage = clusterManager.buildClusterMessage(message, AtomicIOClusterMessageType.BROADCAST, null, null);
-            clusterManager.publish(clusterMessage);
-        }
+        routingHandler.broadcast(message);
     }
 
     @Override
@@ -411,7 +292,7 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         if (clusterMessage == null) return locals;
 
         // 3. 调用 StateManager 清理状态，并利用返回的分布图进行投递
-        stateManager.kickUserGlobal(userId).thenAccept(kickedSessions -> {
+        stateManager.kickUserGlobalAndNotify(userId).thenAccept(kickedSessions -> {
             if (kickedSessions == null || kickedSessions.isEmpty()) return;
 
             // 4. 按节点分组投递
@@ -458,59 +339,5 @@ public class DefaultAtomicIOEngine implements AtomicIOEngine {
         }
     }
 
-    /**
-     * 构建挤下线通知消息
-     */
-    /**
-     * 创建一个（批量）踢人指令的集群消息。
-     */
-    private AtomicIOClusterMessage buildKickOutMessage(String userId, List<String> deviceIds) {
-        AtomicIOClusterMessage msg = new AtomicIOClusterMessage();
-        msg.setMessageType(AtomicIOClusterMessageType.KICK_OUT);
-        msg.setTargetUserId(userId);
-        msg.setTargetDeviceIds(deviceIds);
-        msg.setFromNodeId(clusterManager.getCurrentNodeId());
-        return msg;
-    }
-
-    /**
-     * 处理账号挤下线冲突
-     * 逻辑：按节点分组，并发送带通知的 KICK_OUT 指令
-     */
-    private void handleSessionReplaced(AtomicIOBindRequest request, Map<String, String> kickedMap, AtomicIOSession newSession) {
-        // 1. 构建下线通知 (Payload)
-        AtomicIOMessage kickNotify = this.getCodecProvider()
-                .createResponse(null, AtomicIOCommand.KICK_OUT_NOTIFY, true, "Kick out by server");
-        // 2. 按节点分组 (deviceId -> nodeId => nodeId -> List<deviceId>)
-        Map<String, List<String>> nodeToDevices = kickedMap.entrySet().stream()
-                .collect(Collectors.groupingBy(
-                        Map.Entry::getValue,
-                        Collectors.mapping(Map.Entry::getKey, Collectors.toList())
-                ));
-
-        // 3. 遍历分组进行定向投递
-        nodeToDevices.forEach((targetNodeId, deviceIds) -> {
-            if (targetNodeId.equals(clusterManager.getCurrentNodeId())) {
-                // 如果是当前节点，直接调用本地方法
-                for (String deviceId : deviceIds) {
-                    AtomicIOSession oldSession = sessionManager.getLocalSessionByDeviceId(deviceId);
-                    if (oldSession != null) {
-                        eventManager.fireSessionReplacedEvent(oldSession, newSession);
-                    }
-                }
-            } else {
-                // 如果是其他节点，调用远程方法
-                AtomicIOClusterMessage clusterMessage = clusterManager.buildClusterMessage(
-                        kickNotify,
-                        AtomicIOClusterMessageType.KICK_OUT,
-                        request.getUserId(),
-                        null
-                );
-                // 集群模式: 精准投递
-                clusterManager.publishToNode(targetNodeId, clusterMessage);
-                log.debug("Collision: Sent KICK_OUT to remote node {} for user {}", targetNodeId, request.getUserId());
-            }
-        });
-    }
 
 }

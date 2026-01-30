@@ -35,4 +35,5 @@ public class AtomicIOConfigDefaultValue {
     public static final int DEFAULT_ID_GEN_SNOWFLAKE_WORKER_ID = 0;
     public static final int DEFAULT_ID_GEN_SNOWFLAKE_DATACENTER_ID = 0;
     public static final String DEFAULT_NODE_ID = "AUTO";
+    public static final int DEFAULT_LOGIN_LIMItED_DEVICE = 5;
 }

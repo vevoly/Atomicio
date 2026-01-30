@@ -1,12 +1,14 @@
 package io.github.vevoly.atomicio.server.extension.redis.state;
 
 import io.github.vevoly.atomicio.common.api.constants.AtomicIOConstant;
+import io.github.vevoly.atomicio.common.api.dto.SessionDetails;
 import io.github.vevoly.atomicio.server.api.constants.AtomicIOServerConstant;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.server.api.state.AtomicIOGroupStateProvider;
 import io.github.vevoly.atomicio.server.api.state.AtomicIOSessionStateProvider;
 import io.github.vevoly.atomicio.server.api.state.AtomicIOStateProvider;
 import io.github.vevoly.atomicio.server.extension.redis.lua.LuaScripts;
+import io.github.vevoly.atomicio.server.extension.redis.utils.JsonUtils;
 import io.lettuce.core.*;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.async.RedisAsyncCommands;
@@ -14,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * 基于 Redis 实现的状态提供器
@@ -97,35 +100,46 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
     // =====================================================================
 
     @Override
-    public CompletableFuture<Map<String, String>> register(AtomicIOBindRequest request, String nodeId, boolean isMultiLogin) {
+    public CompletableFuture<Void> register(AtomicIOBindRequest request, String nodeId) {
         String userId = request.getUserId();
         String deviceId = request.getDeviceId();
-        String userSessionsKey = AtomicIOServerConstant.userSessions(userId);
 
-        if (isMultiLogin) {
-            // 多端登录：直接 HSET，返回空 Map
-            return asyncCommands.<Void>eval(
-                    LuaScripts.REGISTER_MULTI_LOGIN,
-                    ScriptOutputType.STATUS,
-                    new String[]{userSessionsKey, AtomicIOServerConstant.USER_NODES_KEY},
-                    deviceId,
-                    nodeId,
-                    userId
-            ).thenApply(v -> Collections.<String, String>emptyMap())
-                    .toCompletableFuture();
-        } else {
-            // 单点登录：执行 Lua 脚本
-            // 参数说明：脚本内容, 返回类型, 键数组, 参数数组
-            return asyncCommands.<List<String>>eval(
-                    LuaScripts.REGISTER_SINGLE_LOGIN,
-                    ScriptOutputType.MULTI,
-                    new String[]{userSessionsKey, AtomicIOServerConstant.USER_NODES_KEY},
-                    deviceId,
-                    nodeId,
-                    userId
-            ).thenApply(this::convertListToMap) // 将 Lua 返回的 List 转为 Map<deviceId, nodeId>
-            .toCompletableFuture();
-        }
+        SessionDetails details = new SessionDetails(nodeId, request.getDeviceType(), System.currentTimeMillis(), System.currentTimeMillis());
+        String detailsJson = JsonUtils.serialize(details);
+
+        return asyncCommands.<Void>eval(
+                LuaScripts.REGISTER_SESSION,
+                ScriptOutputType.STATUS,
+                // KEYS[1]: userSessionsKey
+                // KEYS[2]: userNodesKey
+                // KEYS[3]: totalUsersKey
+                new String[]{AtomicIOServerConstant.userSessions(userId), AtomicIOServerConstant.userNodes(userId), AtomicIOServerConstant.TOTAL_USERS_KEY},
+                deviceId, detailsJson, userId, nodeId
+        ).toCompletableFuture();
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> replaceSession(AtomicIOBindRequest newRequest, String newNodeId, Set<String> devicesToKick) {
+        String userId = newRequest.getUserId();
+
+        SessionDetails newDetails = new SessionDetails(newNodeId, newRequest.getDeviceType(), System.currentTimeMillis(), System.currentTimeMillis());
+        String newDetailsJson = JsonUtils.serialize(newDetails);
+
+        // 构建 Lua 脚本的 ARGV
+        List<String> argv = new ArrayList<>();
+        argv.add(newRequest.getDeviceId());
+        argv.add(newDetailsJson);
+        argv.add(userId);
+        argv.add(newNodeId);
+        argv.addAll(devicesToKick);
+
+        return asyncCommands.<List<String>>eval(
+                        LuaScripts.REPLACE_SESSIONS,
+                        ScriptOutputType.MULTI,
+                        new String[]{AtomicIOServerConstant.userSessions(userId), AtomicIOServerConstant.userNodes(userId), AtomicIOServerConstant.TOTAL_USERS_KEY},
+                        argv.toArray(new String[0])
+                ).thenApply(JsonUtils::convertListToJsonMap) // 这里返回的 value 是 JSON
+                .toCompletableFuture();
     }
 
     @Override
@@ -134,7 +148,7 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
         return asyncCommands.<Long>eval(
                 LuaScripts.UNREGISTER_SESSION,
                 ScriptOutputType.INTEGER,
-                new String[]{userSessionsKey, AtomicIOServerConstant.USER_NODES_KEY, AtomicIOServerConstant.TOTAL_USERS_KEY},
+                new String[]{userSessionsKey, AtomicIOServerConstant.userNodes(userId), AtomicIOServerConstant.TOTAL_USERS_KEY},
                 deviceId, userId
         ).thenAccept(removed -> {
             if (removed > 0) {
@@ -149,46 +163,70 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
         return asyncCommands.<List<String>>eval(
                 LuaScripts.UNREGISTER_ALL_SESSIONS,
                 ScriptOutputType.MULTI,
-                new String[]{userSessionsKey, AtomicIOServerConstant.USER_NODES_KEY, AtomicIOServerConstant.TOTAL_USERS_KEY},
+                new String[]{userSessionsKey, AtomicIOServerConstant.userNodes(userId), AtomicIOServerConstant.TOTAL_USERS_KEY},
                 userId
-        ).thenApply(this::convertListToMap).toCompletableFuture();
+        ).thenApply(JsonUtils::convertListToJsonMap).toCompletableFuture();
     }
 
     @Override
-    public CompletableFuture<Map<String, String>> findSessions(String userId) {
-        String userSessionsKey = AtomicIOServerConstant.userSessions(userId);
-        return asyncCommands.hgetall(userSessionsKey).toCompletableFuture();
+    public CompletableFuture<Map<String, SessionDetails>> findSessionDetailsByType(String userId, String deviceType) {
+        if (deviceType == null) return CompletableFuture.completedFuture(Collections.emptyMap());
+        return asyncCommands.<List<String>>eval(
+                LuaScripts.FIND_SESSION_DETAILS_BY_TYPE,
+                ScriptOutputType.MULTI,
+                new String[]{AtomicIOServerConstant.userSessions(userId)},
+                deviceType
+        ).thenApply(JsonUtils::convertListToDetailsMap).toCompletableFuture();
     }
 
     @Override
-    public CompletableFuture<String> findNodeForUser(String userId) {
-        return asyncCommands.hget(AtomicIOServerConstant.USER_NODES_KEY, userId).toCompletableFuture();
+    public CompletableFuture<Map<String, SessionDetails>> findSessionDetails(String userId) {
+        return asyncCommands.hgetall(AtomicIOServerConstant.userSessions(userId))
+                .thenApply(JsonUtils::convertMapToDetailsMap)
+                .toCompletableFuture();
+    }
+
+
+    @Override
+    public CompletableFuture<Set<String>> findNodesForUser(String userId) {
+        return asyncCommands.smembers(AtomicIOServerConstant.userNodes(userId)).toCompletableFuture();
     }
 
     @Override
-    public CompletableFuture<Map<String, String>> findNodesForUsers(List<String> userIds) {
-        if (userIds == null || userIds.isEmpty()) {
-            return CompletableFuture.completedFuture(Collections.emptyMap());
-        }
-        // 使用 HMGET 进行批量查询
-        return asyncCommands.hmget(AtomicIOServerConstant.USER_NODES_KEY, userIds.toArray(new String[0]))
-                .toCompletableFuture()
-                .thenApply(keyValues -> {
-                    Map<String, String> userNodeMap = new HashMap<>();
+    public CompletableFuture<Map<String, Set<String>>> findNodesForUsers(List<String> userIds) {
+        // 使用 Redis Pipeline 来批量执行 SMEMBERS
+        List<CompletableFuture<Set<String>>> futures = userIds.stream()
+                .map(this::findNodesForUser)
+                .collect(Collectors.toList());
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenApply(v -> {
+                    Map<String, Set<String>> resultMap = new HashMap<>();
                     for (int i = 0; i < userIds.size(); i++) {
-                        KeyValue<String, String> kv = keyValues.get(i);
-                        // Lettuce 的 hmget 返回的 list 中，不存在的 key 对应的 value 是空的 KeyValue
-                        if (kv != null && kv.hasValue()) {
-                            userNodeMap.put(userIds.get(i), kv.getValue());
-                        }
+                        resultMap.put(userIds.get(i), futures.get(i).join());
                     }
-                    return userNodeMap;
+                    return resultMap;
                 });
     }
 
     @Override
     public CompletableFuture<Boolean> isUserOnline(String userId) {
-        return asyncCommands.hexists(AtomicIOServerConstant.USER_NODES_KEY, userId).toCompletableFuture();
+        return asyncCommands.exists(AtomicIOServerConstant.userNodes(userId))
+                .thenApply(count -> count != null && count > 0)
+                .toCompletableFuture();
+    }
+
+    @Override
+    public CompletableFuture<Boolean> isDeviceOnline(String userId, String deviceId) {
+        if (userId == null || deviceId == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        // 1. 获取该用户会话的 HASH Key
+        String userSessionsKey = AtomicIOServerConstant.userSessions(userId);
+        // 2. 使用 Redis 的 HEXISTS 命令
+        // 作用：检查名为 userSessionsKey 的 HASH 中，是否存在名为 deviceId 的字段。这是一个 O(1) 操作，极其高效。
+        log.debug("集群检查: HEXISTS {} {}", userSessionsKey, deviceId);
+        return asyncCommands.hexists(userSessionsKey, deviceId).toCompletableFuture();
     }
 
     @Override
@@ -202,6 +240,23 @@ public class RedisStateProvider implements AtomicIOStateProvider, AtomicIOSessio
         return asyncCommands.get(AtomicIOServerConstant.TOTAL_SESSIONS_KEY)
                 .thenApply(val -> val != null ? Long.parseLong(val) : 0L)
                 .toCompletableFuture();
+    }
+
+    @Override
+    public void updateSessionActivity(String userId, String deviceId, long activityTime) {
+        String userSessionsKey = AtomicIOServerConstant.userSessions(userId);
+        asyncCommands.hget(userSessionsKey, deviceId).thenAccept(detailsJson -> {
+            if (detailsJson != null) {
+                // 反序列化，更新时间戳，再序列化
+                SessionDetails details = JsonUtils.deserialize(detailsJson, SessionDetails.class);
+                details.setLastActivityTime(activityTime);
+                String newDetailsJson = JsonUtils.serialize(details);
+                // 写回 Redis
+                // 注意：这里可能存在并发更新的竞争条件，但对于活跃时间戳，
+                // todo 少量覆盖是可以接受的。更严格的实现可以使用 Lua 或 WATCH。
+                asyncCommands.hset(userSessionsKey, deviceId, newDetailsJson);
+            }
+        });
     }
 
     // =====================================================================

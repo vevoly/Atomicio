@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 
 /**
  * 集群管理自动装配
@@ -42,10 +43,11 @@ public class AtomicIOClusterCoreAutoConfiguration {
             AtomicIOProperties config,
             AtomicIOClusterProvider provider,
             AtomicIOServerCodecProvider codecProvider,
-            DisruptorManager disruptor
+            DisruptorManager disruptor,
+            @Lazy StateManager stateManager
     ) {
         log.info("AtomicIO: 检测到集群驱动 {}，启动通用集群管理器...", provider.getClass().getSimpleName());
-        return new AtomicIOClusterManager(config, provider, codecProvider, disruptor);
+        return new AtomicIOClusterManager(config, provider, codecProvider, disruptor, stateManager);
     }
 
     @Bean

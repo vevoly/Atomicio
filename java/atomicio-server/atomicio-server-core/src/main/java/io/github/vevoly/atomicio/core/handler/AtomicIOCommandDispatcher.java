@@ -92,35 +92,27 @@ public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<Atomi
             case AtomicIOCommand.LOGIN_REQUEST:
                 handleLogin(session, message);
                 return true;
-
             case AtomicIOCommand.LOGOUT_REQUEST:
                 handleLogout(session);
                 return true;
-
             case AtomicIOCommand.JOIN_GROUP_REQUEST:
                 handleJoinGroup(session, message);
                 return true;
-
             case AtomicIOCommand.LEAVE_GROUP_REQUEST:
                 handleLeaveGroup(session, message);
                 return true;
-
             case AtomicIOCommand.HEARTBEAT_REQUEST:
                 handleHeartbeat(session, message);
                 return true;
-
             case AtomicIOCommand.SEND_TO_USER:
                 handleSendToUser(session, message);
                 return true;
-
             case AtomicIOCommand.SEND_TO_USERS:
                 handleSendToUsersBatch(session, message);
                 return true;
-
             case AtomicIOCommand.SEND_TO_GROUP:
                 handleSendToGroup(session, message);
                 return true;
-
             default:
                 // 不是框架命令无需关心
                 return false;
@@ -243,6 +235,14 @@ public class AtomicIOCommandDispatcher extends SimpleChannelInboundHandler<Atomi
         AtomicIOMessage heartbeatResponse = engine.getCodecProvider()
                 .createResponse(message, AtomicIOCommand.HEARTBEAT_RESPONSE, true, AtomicIOConstant.DEFAULT_HEARTBEAT_RESPONSE);
         session.send(heartbeatResponse);
+        // 更新会话的活跃状态 (发后不理)
+        if (session.isBound()) {
+            engine.getStateProvider().getSessionStateProvider().updateSessionActivity(
+                    session.getUserId(),
+                    session.getDeviceId(),
+                    System.currentTimeMillis()
+            );
+        }
     }
 
     /**

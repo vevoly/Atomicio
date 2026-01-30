@@ -124,6 +124,35 @@ public class AtomicIOProperties {
         private boolean multiLogin = false;
 
         /**
+         * 登录策略配置
+         */
+        private LoginStrategyType loginStrategy = LoginStrategyType.SINGLE_PER_DEVICE_TYPE;
+
+        /**
+         * 登录冲突解决策略
+         */
+        private LoginCollisionStrategyType loginCollisionStrategy = LoginCollisionStrategyType.KICK_OLD;
+
+        /**
+         * 有限多点登录配置
+         */
+        private LimitedMultiDevice limitedMultiDevice = new LimitedMultiDevice();
+
+        @Data
+        public class LimitedMultiDevice {
+
+            /**
+             * 允许最大登录实例数量
+             */
+            private int maxInstances = AtomicIOConfigDefaultValue.DEFAULT_LOGIN_LIMItED_DEVICE;
+
+            /**
+             *
+             */
+            private KickDeviceStrategyType kickDeviceStrategy = KickDeviceStrategyType.KICK_OLDEST_LOGIN;
+        }
+
+        /**
          * 读空闲时间
          * 服务器关心
          */

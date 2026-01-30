@@ -12,6 +12,7 @@ import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -53,6 +54,15 @@ public class ProtobufServerCodecProvider implements AtomicIOServerCodecProvider 
                 .setMessage(message)
                 .build();
         return ProtobufMessage.of(requestMessage.getSequenceId(), commandId, protoPayload);
+    }
+
+    @Override
+    public AtomicIOMessage createResponse(AtomicIOBindRequest request, int commandId, String message) {
+        GenericResponse protoPayload = GenericResponse.newBuilder()
+                .setSuccess(true)
+                .setMessage(message)
+                .build();
+        return ProtobufMessage.of(0, commandId, protoPayload);
     }
 
     @Override

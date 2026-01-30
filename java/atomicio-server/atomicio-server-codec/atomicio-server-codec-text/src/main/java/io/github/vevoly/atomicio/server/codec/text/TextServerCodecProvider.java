@@ -7,6 +7,7 @@ import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.protocol.api.AtomicIOCommand;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -51,6 +52,12 @@ public class TextServerCodecProvider implements AtomicIOServerCodecProvider {
         String textPayload = (success ? "Success: " : "Error: ") + message;
         String deviceId = (requestMessage instanceof TextMessage) ? ((TextMessage) requestMessage).getDeviceId() : null;
         return new TextMessage(requestMessage.getSequenceId(), commandId, deviceId, textPayload);
+    }
+
+    @Override
+    public AtomicIOMessage createResponse(AtomicIOBindRequest request, int commandId, String message) {
+        String textPayload = "Success:" + message;
+        return new TextMessage(0, commandId, request.getDeviceId(), textPayload);
     }
 
     @Override

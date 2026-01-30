@@ -12,11 +12,13 @@ import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.server.api.constants.AtomicIOServerConstant;
 import io.github.vevoly.atomicio.server.api.manager.ClusterManager;
 import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
+import io.github.vevoly.atomicio.server.api.manager.StateManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 集群管理器
@@ -32,6 +34,7 @@ public class AtomicIOClusterManager implements ClusterManager {
     private final AtomicIOClusterProvider clusterProvider;
     private final AtomicIOServerCodecProvider codecProvider;
     private final DisruptorManager disruptorManager;
+    private final StateManager stateManager;
 
     // 线程安全 初始化 Kryo
     private static final ThreadLocal<Kryo> kryoThreadLocal = ThreadLocal.withInitial(() -> {
@@ -49,13 +52,15 @@ public class AtomicIOClusterManager implements ClusterManager {
 
     public AtomicIOClusterManager(
             AtomicIOProperties config,
-            @Nullable AtomicIOClusterProvider provider,
+            AtomicIOClusterProvider provider,
             AtomicIOServerCodecProvider codecProvider,
-            DisruptorManager disruptorManager) {
+            DisruptorManager disruptorManager,
+            StateManager stateManager) {
         this.config = config;
         this.clusterProvider = provider;
         this.codecProvider = codecProvider;
         this.disruptorManager = disruptorManager;
+        this.stateManager = stateManager;
     }
 
     /**
@@ -150,6 +155,75 @@ public class AtomicIOClusterManager implements ClusterManager {
                 return null; // 丢弃消息
         }
         return clusterMessage;
+    }
+
+    @Override
+    public void sendToUsers(List<String> remoteUserIds, AtomicIOMessage message) {
+        if (remoteUserIds == null || remoteUserIds.isEmpty()) return;
+
+        // 1. 调用 StateManager 查询所有远程用户的节点位置
+        stateManager.findNodesForUsers(remoteUserIds)
+                .whenComplete((userNodeMap, throwable) -> {
+                    if (throwable != null) {
+                        log.error("ClusterManager: 批量查询用户节点失败.", throwable);
+                        return;
+                    }
+                    // 2. 将用户按目标节点进行分组
+                    Map<String, List<String>> nodeToUsers = userNodeMap.entrySet().stream()
+                            .filter(entry -> entry.getValue() != null && !entry.getValue().isEmpty())
+                            .collect(Collectors.groupingBy(
+                                    // userNodeMap 的 Value 是 Set<String>
+                                    entry -> entry.getValue().iterator().next(), // 取 Set 中的第一个 nodeId 即可
+                                    Collectors.mapping(Map.Entry::getKey, Collectors.toList())
+                            ));
+                    // 3. 为每个节点构建并发送批量消息
+                    nodeToUsers.forEach((nodeId, usersOnNode) -> {
+                        // 构建批量集群消息
+                        AtomicIOClusterMessage clusterMessage = buildClusterMessage(
+                                message,
+                                AtomicIOClusterMessageType.SEND_TO_USERS_BATCH,
+                                usersOnNode, // 目标
+                                null
+                        );
+                        if (clusterMessage != null) {
+                            // 定向发布
+                            publishToNode(nodeId, clusterMessage);
+                            log.debug("ClusterManager: 向节点 {} 批量发送消息给 {} 个用户。", nodeId, usersOnNode.size());
+                        }
+                    });
+                });
+    }
+
+    @Override
+    public void sendToGroup(String groupId, AtomicIOMessage message, Set<String> excludeUserIds) {
+        // 构建群组广播的集群消息  todo 用户配置，群组消息是定向投递还是广播
+        AtomicIOClusterMessage clusterMessage = buildClusterMessage(
+                message,
+                AtomicIOClusterMessageType.SEND_TO_GROUP,
+                groupId,
+                excludeUserIds
+        );
+        if (clusterMessage != null) {
+            // 全局发布
+            publish(clusterMessage);
+            log.debug("ClusterManager: 向所有节点广播群组 '{}' 的消息。", groupId);
+        }
+    }
+
+    @Override
+    public void broadcast(AtomicIOMessage message) {
+        // 构建全局广播的集群消息
+        AtomicIOClusterMessage clusterMessage = buildClusterMessage(
+                message,
+                AtomicIOClusterMessageType.BROADCAST,
+                null,
+                null
+        );
+        if (clusterMessage != null) {
+            // 全局发布
+            publish(clusterMessage);
+            log.debug("ClusterManager: 向所有节点进行全局广播。");
+        }
     }
 
     private void processBatchTarget(AtomicIOClusterMessage msg, Object target) {

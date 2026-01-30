@@ -6,7 +6,7 @@ package io.github.vevoly.atomicio.protocol.api.constants;
  * @since 0.4.2
  * @author vevoly
  */
-public class AtomicIOSessionAttributes {
+public final class AtomicIOSessionAttributes {
 
     /**
      * 用户 id

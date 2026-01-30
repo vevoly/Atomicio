@@ -6,9 +6,30 @@ atomicio:
   codec:          # 解码器类型
     type: text    # 可选值: text, protobuf, mqtt ...
   cluster:        # 集群配置
-    enabled: true # 是否开启集群
+    enabled: false # 是否开启集群
     type: redis   # 集群广播类型 可选值: redis, kafka, rocketmq ...
     redis:        # redis 连接信息
       uri: redis://localhost:6379
       username:
       password:
+  session:         # 会话配置
+    # --- 核心登录策略配置 ---
+    # 可选值:
+    #   SINGLE_ANY_DEVICE      (全局单点登录)
+    #   SINGLE_PER_DEVICE_TYPE (按设备类型单点登录, e.g., PC/Mobile)
+    #   MULTI_DEVICE           (全局多点登录)
+    #   LIMITED_MULTI_DEVICE   (有限多点登录)
+    login-strategy: SINGLE_PER_DEVICE_TYPE
+    # --- 冲突解决策略 (仅在 login-strategy 为 SINGLE_... 时生效) ---
+    # 当发生登录冲突时，如何处理:
+    #   KICK_OLD     (踢掉旧设备，让新设备上线 - 默认)
+    #   REJECT_NEW   (拒绝新设备，保持旧设备在线)
+    login-collision-strategy: KICK_OLD
+    # --- 有限多点登录配置 (仅在 login-strategy 为 LIMITED_MULTI_DEVICE 时生效) ---
+    limited-multi-device:
+      # 允许一个用户同时在线的最大设备实例数
+      max-instances: 3
+      # 当达到上限时，踢掉哪个旧设备:
+      #   KICK_OLDEST_LOGIN (踢掉登录时间最早的)
+      #   KICK_LEAST_RECENTLY_USED (踢掉最久未活跃的 - 更复杂，需要记录心跳)
+      kick-devices-strategy: KICK_OLDEST_LOGIN

@@ -2,6 +2,7 @@ package io.github.vevoly.atomicio.server.api.codec;
 
 import io.github.vevoly.atomicio.common.api.config.AtomicIOProperties;
 import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
+import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.netty.channel.ChannelHandler;
 
 import java.util.List;
@@ -33,7 +34,7 @@ public interface AtomicIOServerCodecProvider {
     AtomicIOMessage createResponse(AtomicIOMessage requestMessage, int commandId, Object payload);
 
     /**
-     * 专门用于创建框架级的、简单的成功/失败响应。
+     * 创建框架级的、简单的成功/失败响应。
      * 这是 AtomicIOCommandDispatcher 应该调用的方法。
      *
      * @param requestMessage 原始请求
@@ -43,6 +44,15 @@ public interface AtomicIOServerCodecProvider {
      * @return 一个实现了 AtomicIOMessage 的响应消息
      */
     AtomicIOMessage createResponse(AtomicIOMessage requestMessage, int commandId, boolean success, String message);
+
+    /**
+     * 根据 BindRequest 创建一个响应消息。
+     * @param request    绑定请求
+     * @param commandId  指令ID
+     * @param message    文本消息
+     * @return
+     */
+    AtomicIOMessage createResponse(AtomicIOBindRequest request, int commandId, String message);
 
     /**
      * 创建服务器主动推送的 PushMessage

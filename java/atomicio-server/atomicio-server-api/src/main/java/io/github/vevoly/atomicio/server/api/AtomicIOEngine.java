@@ -5,10 +5,7 @@ import io.github.vevoly.atomicio.protocol.api.message.AtomicIOMessage;
 import io.github.vevoly.atomicio.server.api.cluster.AtomicIOClusterProvider;
 import io.github.vevoly.atomicio.server.api.codec.AtomicIOServerCodecProvider;
 import io.github.vevoly.atomicio.server.api.listeners.*;
-import io.github.vevoly.atomicio.server.api.manager.DisruptorManager;
-import io.github.vevoly.atomicio.server.api.manager.GroupManager;
-import io.github.vevoly.atomicio.server.api.manager.IOEventManager;
-import io.github.vevoly.atomicio.server.api.manager.SessionManager;
+import io.github.vevoly.atomicio.server.api.manager.*;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOBindRequest;
 import io.github.vevoly.atomicio.server.api.session.AtomicIOSession;
 import io.github.vevoly.atomicio.server.api.state.AtomicIOStateProvider;
@@ -59,6 +56,11 @@ public interface AtomicIOEngine {
     AtomicIOStateProvider getStateProvider();
 
     /**
+     * 获取状态管理器
+     */
+    StateManager getStateManager();
+
+    /**
      * 获取事件管理器
      */
     IOEventManager getEventManager();
@@ -72,6 +74,11 @@ public interface AtomicIOEngine {
      * 获取群组管理器
      */
     GroupManager getGroupManager();
+
+    /**
+     * 获取集群管理器
+     */
+    ClusterManager getClusterManager();
 
     /**
      * 获取 Disruptor 管理器
@@ -169,28 +176,12 @@ public interface AtomicIOEngine {
     CompletableFuture<Void> joinGroup(String groupId, String userId);
 
     /**
-     * 用户的其中一个会话加入群组
-     * 多端模式下精确控制
-     * @param groupId   群组 id
-     * @param session   会话
-     */
-    CompletableFuture<Void> joinGroup(String groupId, AtomicIOSession session);
-
-    /**
      * 将一个用户从指定的组中移除。
      * 指定用户所有在线会话都离开一个组
      * @param groupId 组的唯一标识符
      * @param userId 要移除的用户ID
      */
     CompletableFuture<Void>  leaveGroup(String groupId, String userId);
-
-    /**
-     * 让一个指定的会话离开一个组。
-     * 多端模式下精确控制
-     * @param groupId 组ID
-     * @param session 要离开的会话
-     */
-    CompletableFuture<Void>  leaveGroup(String groupId, AtomicIOSession session);
 
     /**
      * 向一个组内的所有成员（除了可选的排除者）发送消息。
